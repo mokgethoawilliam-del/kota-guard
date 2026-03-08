@@ -1,0 +1,106 @@
+📋 Core Features for the Admin Dashboard
+To make this "KFC-style" as you requested, Antigravity needs to build these specific screens:
+
+1. The "Live Kitchen" View (Real-time Operations)
+Status Toggles: New ➔ Preparing ➔ Ready for Collection.
+
+Sound Alerts: A "Ding" when a verified payment hits (no need to check her phone).
+
+Order Details: Customer Name + Whatsapp Number + Specific Kota modifiers (e.g., "No onions").
+
+2. Multi-Location Management
+Location Switcher: Before she starts serving, she selects "Seshego," "Lebowakgomo," or "Stall."
+
+Why this matters: At the end of the month, she can see which stall location was the most profitable to decide where to go next.
+
+3. Business Intelligence & Booking
+Automated Bookkeeping: Instead of manual recording, the dashboard should have a "Report" tab that exports a PDF or CSV of all sales for her tax or business records.
+
+Customer Data: Collects numbers for future marketing (e.g., sending a WhatsApp blast about a new stall location).
+📈 Scaling for the Future
+Once the basic "Anti-Scam" logic is working, you can ask Antigravity to add:
+
+Inventory Tracking: "I sold 50 Special Kotas, tell me how much polony I have left."
+
+WhatsApp Bot: Instead of a web link, they can order via a WhatsApp menu that sends them a Paystack link.
+1. How the Live Inventory Feature WorksIn your dashboard, inventory management works through a Recipe Linkage system.The Setup: You tell the system: "1 Special Kota = 1/10th of a Polony roll, 1 slice of Cheese, and 200g of Chips."The Deduction: Every time an order for a "Special Kota" is confirmed (post-Paystack payment), the system automatically subtracts those exact amounts from the digital stock.The "Live" View: Chef Dips can look at her dashboard and see: "Polony: 2.4 rolls left (Warning: Low Stock)."Wastage Tracking: She can also manually log if a batch of chips was burnt, ensuring the digital count matches the physical kitchen.2. The WhatsApp Ordering FlowTo keep costs low for her, you can use the WhatsApp Business App catalog for manual orders, but for the "No-Scam" automation you want, you’ll use the WhatsApp Business API via a provider like 360Dialog or Twilio.The Experience: A customer sends "Hi" to her number.The Bot: The bot replies with a menu and asks for their location (Seshego, Lebowakgomo, or Stall).The Payment: Once they pick their Kota, the bot sends a Paystack Link.The Confirmation: Only after they pay does the bot send the Order Number and fire the "Ding" on her admin dashboard.3. Pricing Your Solution (The Business Model)Since you are providing a high-value service that prevents theft and handles admin, you should use a Tiered Subscription Model. In the South African market for 2026, here is a suggested breakdown:TierPrice (Monthly)What’s IncludedBasic (Anti-Scam)R499Website + Paystack Ordering + Basic Order Dashboard.Business (The Works)R950 - R1,200WhatsApp Bot + Full Inventory + Expense/Revenue Tracking.Setup Fee (Once-off)R2,500 - R5,000On-site setup, menu digitalizing, and staff training. 4. Revenue & Expense Tracking (The Admin Hub)
+The dashboard will have a "Finances" tab. Because all sales are digital, Revenue is tracked automatically. For Expenses, you can have the agent build a "Quick Add" button where she can snap a photo of a slip (like when she buys more oil) and enter the amount.
+
+The system then shows her Net Profit in real-time.
+Gemini said
+This is a comprehensive build. By combining a "Verified Payment" system with a mobile dashboard and automated inventory, you are moving into the Business-as-a-Service (BaaS) space.
+
+Since you rely on "vibe coding," we will build this modularly. If you try to build the whole system at once, you will exhaust your weekly Antigravity quota in minutes. We will build the Database first, then the Logic, then the UI.
+
+📄 Part 1: Service Agreement (Summary for Chef Dips)
+Keep it professional but simple. You want her to feel protected, not confused.
+
+Service Level Agreement (SLA): The Kota Guard
+1. Purpose: To eliminate "Fake Screenshot" scams and automate daily business admin for Ko Chef Dips.
+2. The Solution: * Verified Payments: Orders are only confirmed once Paystack verifies funds.
+
+Omnichannel Ordering: Customer menu (Web) and WhatsApp Automated Bot.
+
+Business Hub: Dashboard for real-time order tracking, live inventory, and expense logging.
+3. Pricing & Fees:
+
+Setup Fee: R2,500 (One-off for menu setup, stall configurations, and training).
+
+Monthly Subscription: R950/month (Includes hosting, WhatsApp API maintenance, and support).
+
+Transaction Fees: Paystack standard rates (approx. 2.9% + R1.00 per successful sale).
+4. Ownership: Ko Chef Dips owns all customer data. You (Simple Logic Studio) own the software license provided to her.
+
+🛠️ Part 2: Full Feature List (The Build Map)
+Multi-Location Support: Toggle between Seshego, Lebowakgomo, and "Active Event Stall."
+
+Verified Web Menu: Mobile-first site for customers to pick, pay, and get a "Digital Ticket."
+
+WhatsApp "Scam-Proof" Bot: Bot sends a Paystack link; only gives an order number after confirmation.
+
+Live Kitchen Dashboard: "KFC-style" screen with "Ding" notifications for new paid orders.
+
+Smart Inventory: Auto-deducts ingredients (polony, cheese, etc.) based on recipes.
+
+Admin Ledger: Automated daily revenue vs. expense reports (PDF export).
+Gemini said
+To make this work for other vendors like a barber, a car wash, or even a local lodge, we need to transition from building a "custom app for one person" to a Multi-Tenant SaaS (Software as a Service).
+
+The secret is Tenant Isolation. Every single piece of data—from the Kota recipes to the laundry bookings—must be tagged with a unique vendor_id.
+
+🏗️ The "Multi-Vendor" Blueprint
+In a multi-tenant system, vendors share the same engine (the code and database), but they live in separate "apartments" (their data).
+
+1. The Database Logic (vendor_id)
+We add a vendor_id column to every table.
+
+Vendor A (Chef Dips): Sees orders where vendor_id = 'DIPS_001'.
+
+Vendor B (Polokwane Barber): Sees appointments where vendor_id = 'BARBER_X'.
+
+The Security: We use Row-Level Security (RLS) in Supabase. This is a "hard wall" that tells the database: "Only show rows that belong to the logged-in vendor." This prevents a barber from accidentally seeing a Kota seller's revenue.
+
+2. Industry-Specific Modules
+Since a barber doesn't need "Polony Inventory," we build the dashboard using Feature Toggles.
+
+If Vendor Type = Food: Show the Inventory & Recipe tab.
+
+If Vendor Type = Service: Show a Booking/Calendar tab.
+
+If Vendor Type = Stall: Enable the "Mobile Event" location tracker.
+
+3. Subdomains or Custom Links
+Each vendor gets their own unique link to share on their WhatsApp:
+
+chef-dips.yourplatform.co.za
+
+barax-clothing.yourplatform.co.za (connecting to your existing WaaS interests!)
+
+🛠️ Updated Feature List for Scaling
+To sell this to the whole of Limpopo, your system needs these "Admin-Level" features:
+
+Feature	For the Vendor (Chef Dips)	For the Platform Owner (You)
+Onboarding	A "Setup Wizard" to add their menu items.	A Master Admin panel to see total platform volume.
+Payments	Connect their own Paystack account.	A small "Platform Fee" deducted from each sale.
+Whitelabel	Upload their own logo and brand colors.	The "Powered by Simple Logic Studio" watermark.
+Staff Roles	Give the "Cook" a view-only screen; the "Owner" sees the money.	Manage subscription status (Active/Suspended).

@@ -18,7 +18,19 @@ export default function AdminDashboard() {
     const [historyOrders, setHistoryOrders] = useState([]);
     const [expenses, setExpenses] = useState([]);
     const [ingredients, setIngredients] = useState([]);
-    const [activeTab, setActiveTab] = useState('kds'); // 'kds' | 'history' | 'finances' | 'inventory'
+    const [menuItems, setMenuItems] = useState([]);
+    const [activeTab, setActiveTab] = useState('kds'); // 'kds', 'history', 'finances', 'inventory', 'cms'
+
+    // CMS State
+    const [newStallEvent, setNewStallEvent] = useState({
+        name: '',
+        banner_text: '',
+        stall_date: '',
+        preorder_start_date: '',
+        preorder_deadline: ''
+    });
+    const [isSavingStall, setIsSavingStall] = useState(false);
+    const [editingMenuItem, setEditingMenuItem] = useState({ id: null, name: '', price: '', image_url: '' });
 
     const [locations, setLocations] = useState([]);
     const [selectedLocation, setSelectedLocation] = useState('all');
@@ -124,6 +136,16 @@ export default function AdminDashboard() {
                 setIngredients(ingData);
             }
 
+            // Fetch Menu Items (For CMS)
+            const { data: menuData, error: menuErr } = await supabase
+                .from('menu_items')
+                .select('*')
+                .order('price');
+
+            if (!menuErr && menuData) {
+                setMenuItems(menuData);
+            }
+
         } catch (err) {
             console.error('Error fetching dashboard data:', err.message);
         } finally {
@@ -133,6 +155,50 @@ export default function AdminDashboard() {
 
     const updateOrderStatus = async (orderId, newStatus) => {
         try {
+            // If the order is moving to 'preparing', we deduct inventory based on recipes
+            if (newStatus === 'preparing') {
+                const order = orders.find(o => o.id === orderId);
+                if (order && order.order_items) {
+                    const inventoryDeductions = {};
+
+                    // Sum up all ingredients needed for this entire order
+                    order.order_items.forEach(item => {
+                        const recipe = item.menu_items?.recipe_json || {};
+                        const qty = Number(item.quantity || 1);
+
+                        Object.keys(recipe).forEach(ingredientName => {
+                            const amountPerItem = Number(recipe[ingredientName]);
+                            inventoryDeductions[ingredientName] = (inventoryDeductions[ingredientName] || 0) + (amountPerItem * qty);
+                        });
+                    });
+
+                    // Deduct each ingredient from the database
+                    for (const ingredientName of Object.keys(inventoryDeductions)) {
+                        const amountToDeduct = inventoryDeductions[ingredientName];
+
+                        // Fetch current stock directly from DB to prevent race conditions
+                        const { data: invData, error: fetchErr } = await supabase
+                            .from('ingredients')
+                            .select('id, current_stock')
+                            .eq('name', ingredientName)
+                            .single();
+
+                        if (!fetchErr && invData && invData.current_stock !== null) {
+                            const newStock = Math.max(0, Number(invData.current_stock) - amountToDeduct);
+                            await supabase
+                                .from('ingredients')
+                                .update({ current_stock: newStock })
+                                .eq('id', invData.id);
+                        }
+                    }
+
+                    // Refresh inventory state silently to reflect deductions
+                    supabase.from('ingredients').select('*').order('name').then(({ data }) => {
+                        if (data) setIngredients(data);
+                    });
+                }
+            }
+
             // Optimistic UI update
             setOrders(current => current.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
 
@@ -279,31 +345,40 @@ export default function AdminDashboard() {
     };
 
     // Phase 9: Add / Delete Ingredients
-    const [newIngredient, setNewIngredient] = useState({ name: '', unit: '', current_stock: '', low_stock_threshold: '' });
+    const [editingIngredient, setEditingIngredient] = useState({ id: null, name: '', unit: '', current_stock: '', low_stock_threshold: '' });
     const [isAddingIngredient, setIsAddingIngredient] = useState(false);
 
-    const handleAddIngredient = async (e) => {
+    const handleSaveIngredient = async (e) => {
         e.preventDefault();
         try {
-            const { data, error } = await supabase
-                .from('ingredients')
-                .insert({
-                    name: newIngredient.name,
-                    unit: newIngredient.unit,
-                    current_stock: parseFloat(newIngredient.current_stock || 0),
-                    low_stock_threshold: parseFloat(newIngredient.low_stock_threshold || 10)
-                })
-                .select()
-                .single();
+            const payload = {
+                name: editingIngredient.name,
+                unit: editingIngredient.unit,
+                current_stock: parseFloat(editingIngredient.current_stock || 0),
+                low_stock_threshold: parseFloat(editingIngredient.low_stock_threshold || 10)
+            };
 
+            let query = supabase.from('ingredients');
+            if (editingIngredient.id) {
+                query = query.update(payload).eq('id', editingIngredient.id);
+            } else {
+                query = query.insert([payload]);
+            }
+
+            const { data, error } = await query.select();
             if (error) throw error;
 
-            setIngredients([...ingredients, data].sort((a, b) => a.name.localeCompare(b.name)));
-            setNewIngredient({ name: '', unit: '', current_stock: '', low_stock_threshold: '' });
+            if (editingIngredient.id) {
+                setIngredients(ingredients.map(ing => ing.id === editingIngredient.id ? data[0] : ing).sort((a, b) => a.name.localeCompare(b.name)));
+            } else {
+                setIngredients([...ingredients, data[0]].sort((a, b) => a.name.localeCompare(b.name)));
+            }
+
+            setEditingIngredient({ id: null, name: '', unit: '', current_stock: '', low_stock_threshold: '' });
             setIsAddingIngredient(false);
         } catch (err) {
             console.error(err);
-            alert("Could not add ingredient.");
+            alert(`Could not ${editingIngredient.id ? "update" : "add"} ingredient: ` + err.message);
         }
     };
 
@@ -317,6 +392,144 @@ export default function AdminDashboard() {
         } catch (err) {
             console.error(err);
             alert("Could not delete ingredient.");
+        }
+    };
+
+    // Phase 11 & 12: Stall Events Manager
+    const handleAddStallEvent = async (e) => {
+        e.preventDefault();
+        setIsSavingStall(true);
+        try {
+            const { data, error } = await supabase
+                .from('locations')
+                .insert([{
+                    name: newStallEvent.name || `Mobile Stall - ${newStallEvent.stall_date || Date.now()}`,
+                    banner_text: newStallEvent.banner_text,
+                    stall_date: newStallEvent.stall_date,
+                    preorder_start_date: newStallEvent.preorder_start_date,
+                    preorder_deadline: newStallEvent.preorder_deadline,
+                    is_mobile: true,
+                    is_active: true
+                }])
+                .select();
+
+            if (error) throw error;
+            if (data && data.length > 0) {
+                setLocations([...locations, data[0]]);
+            }
+            alert("New mobile stall event added successfully!");
+            setNewStallEvent({ name: '', banner_text: '', stall_date: '', preorder_start_date: '', preorder_deadline: '' });
+        } catch (err) {
+            console.error(err);
+            alert("Could not add stall event. Name might be duplicate.");
+        } finally {
+            setIsSavingStall(false);
+        }
+    };
+
+    const handleDeleteStallEvent = async (id, name) => {
+        if (!window.confirm(`Are you sure you want to delete the event '${name}'?`)) return;
+        try {
+            const { error } = await supabase.from('locations').delete().eq('id', id);
+            if (error) throw error;
+            setLocations(locations.filter(l => l.id !== id));
+        } catch (err) {
+            console.error(err);
+            alert("Could not delete the stall event.");
+        }
+    };
+
+    const [editingRecipeFor, setEditingRecipeFor] = useState(null);
+    const [editingRecipeIngredients, setEditingRecipeIngredients] = useState([]);
+
+    const handleSaveRecipe = async () => {
+        try {
+            const recipeJson = {};
+            editingRecipeIngredients.forEach(item => {
+                if (item.ingredient && item.quantity > 0) {
+                    recipeJson[item.ingredient] = parseFloat(item.quantity);
+                }
+            });
+
+            const { error } = await supabase.from('menu_items')
+                .update({ recipe_json: recipeJson })
+                .eq('id', editingRecipeFor.id);
+
+            if (error) throw error;
+
+            setMenuItems(menuItems.map(m => m.id === editingRecipeFor.id ? { ...m, recipe_json: recipeJson } : m));
+            alert("Recipe saved successfully! Inventory will deduct when this item is marked as Preparing.");
+            setEditingRecipeFor(null);
+        } catch (err) {
+            console.error(err);
+            alert("Failed to save recipe: " + err.message);
+        }
+    };
+
+    const handleAddRecipeIngredientRow = () => setEditingRecipeIngredients([...editingRecipeIngredients, { ingredient: '', quantity: '' }]);
+    const handleRemoveRecipeIngredientRow = (index) => setEditingRecipeIngredients(editingRecipeIngredients.filter((_, i) => i !== index));
+    const handleRecipeIngredientChange = (index, field, value) => {
+        const newArr = [...editingRecipeIngredients];
+        newArr[index][field] = value;
+        setEditingRecipeIngredients(newArr);
+    };
+
+    const openRecipeBuilder = (menuItem) => {
+        setEditingRecipeFor(menuItem);
+        const existingRecipe = menuItem.recipe_json || {};
+        const rows = Object.keys(existingRecipe).map(key => ({ ingredient: key, quantity: existingRecipe[key] }));
+        setEditingRecipeIngredients(rows.length > 0 ? rows : [{ ingredient: '', quantity: '' }]);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleSaveMenuItem = async (e) => {
+        e.preventDefault();
+        try {
+            if (editingMenuItem.id) {
+                // Update existing item
+                const { error } = await supabase.from('menu_items')
+                    .update({
+                        name: editingMenuItem.name,
+                        price: parseFloat(editingMenuItem.price),
+                        image_url: editingMenuItem.image_url || null
+                    })
+                    .eq('id', editingMenuItem.id);
+
+                if (error) throw error;
+
+                setMenuItems(menuItems.map(item => item.id === editingMenuItem.id ? { ...editingMenuItem, price: parseFloat(editingMenuItem.price) } : item).sort((a, b) => a.price - b.price));
+                alert("Menu item updated successfully!");
+            } else {
+                // Insert new item
+                const { data, error } = await supabase.from('menu_items')
+                    .insert([{
+                        name: editingMenuItem.name,
+                        price: parseFloat(editingMenuItem.price),
+                        image_url: editingMenuItem.image_url || null
+                    }])
+                    .select().single();
+
+                if (error) throw error;
+                setMenuItems([...menuItems, data].sort((a, b) => a.price - b.price));
+                alert("New menu item added successfully!");
+            }
+
+            setEditingMenuItem({ id: null, name: '', price: '', image_url: '' });
+        } catch (err) {
+            console.error(err);
+            alert(`Could not save menu item: ${err.message || 'Unknown error. Name might be a duplicate.'}`);
+        }
+    };
+
+    const handleDeleteMenuItem = async (id, name) => {
+        if (!window.confirm(`Are you sure you want to delete ${name}? Customers will no longer be able to order it.`)) return;
+        try {
+            const { error } = await supabase.from('menu_items').delete().eq('id', id);
+            if (error) throw error;
+            setMenuItems(menuItems.filter(item => item.id !== id));
+        } catch (err) {
+            console.error(err);
+            alert("Could not delete menu item.");
         }
     };
 
@@ -422,6 +635,12 @@ export default function AdminDashboard() {
                         className={`tab-btn ${activeTab === 'inventory' ? 'active' : ''}`}
                         onClick={() => setActiveTab('inventory')}
                     >📦 Inventory</button>
+                    <button
+                        className={`tab-btn ${activeTab === 'cms' ? 'active' : ''}`}
+                        onClick={() => {
+                            setActiveTab('cms');
+                        }}
+                    >⚙️ CMS Settings</button>
                 </div>
 
                 <div className="kds-controls">
@@ -641,26 +860,34 @@ export default function AdminDashboard() {
 
                     {isAddingIngredient && (
                         <div className="kds-card" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
-                            <h3 style={{ marginBottom: '1rem', borderBottom: '1px solid #334155', paddingBottom: '0.5rem' }}>Add New Ingredient</h3>
-                            <form className="checkout-form" onSubmit={handleAddIngredient} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #334155', paddingBottom: '0.5rem' }}>
+                                <h3>{editingIngredient.id ? "Edit Ingredient" : "Add New Ingredient"}</h3>
+                                {editingIngredient.id && (
+                                    <button className="btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }} onClick={() => {
+                                        setEditingIngredient({ id: null, name: '', unit: '', current_stock: '', low_stock_threshold: '' });
+                                        setIsAddingIngredient(false);
+                                    }}>Cancel Edit</button>
+                                )}
+                            </div>
+                            <form className="checkout-form" onSubmit={handleSaveIngredient} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                                 <div className="form-group">
                                     <label>Ingredient Name</label>
-                                    <input type="text" required className="form-input" placeholder="e.g. Eggs" value={newIngredient.name} onChange={(e) => setNewIngredient({ ...newIngredient, name: e.target.value })} />
+                                    <input type="text" required className="form-input" placeholder="e.g. Eggs" value={editingIngredient.name} onChange={(e) => setEditingIngredient({ ...editingIngredient, name: e.target.value })} />
                                 </div>
                                 <div className="form-group">
                                     <label>Unit Metric</label>
-                                    <input type="text" required className="form-input" placeholder="e.g. units, kg, lit" value={newIngredient.unit} onChange={(e) => setNewIngredient({ ...newIngredient, unit: e.target.value })} />
+                                    <input type="text" required className="form-input" placeholder="e.g. units, kg, lit" value={editingIngredient.unit} onChange={(e) => setEditingIngredient({ ...editingIngredient, unit: e.target.value })} />
                                 </div>
                                 <div className="form-group">
-                                    <label>Starting Stock</label>
-                                    <input type="number" required className="form-input" placeholder="0" value={newIngredient.current_stock} onChange={(e) => setNewIngredient({ ...newIngredient, current_stock: e.target.value })} />
+                                    <label>Current Stock Level</label>
+                                    <input type="number" required className="form-input" placeholder="0" value={editingIngredient.current_stock} onChange={(e) => setEditingIngredient({ ...editingIngredient, current_stock: e.target.value })} />
                                 </div>
                                 <div className="form-group">
                                     <label>Low Stock Alert At</label>
-                                    <input type="number" required className="form-input" placeholder="10" value={newIngredient.low_stock_threshold} onChange={(e) => setNewIngredient({ ...newIngredient, low_stock_threshold: e.target.value })} />
+                                    <input type="number" required className="form-input" placeholder="10" value={editingIngredient.low_stock_threshold} onChange={(e) => setEditingIngredient({ ...editingIngredient, low_stock_threshold: e.target.value })} />
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                                    <button type="submit" className="btn-primary" style={{ height: '48px', width: '100%' }}>Save Ingredient</button>
+                                    <button type="submit" className="btn-primary" style={{ height: '48px', width: '100%' }}>{editingIngredient.id ? "Save Changes" : "Save Ingredient"}</button>
                                 </div>
                             </form>
                         </div>
@@ -692,13 +919,32 @@ export default function AdminDashboard() {
                                                 }
                                             </td>
                                             <td>
-                                                <button
-                                                    className="btn-kds btn-paid"
-                                                    style={{ background: '#ef4444', color: '#fff', marginLeft: '0.5rem' }}
-                                                    onClick={() => handleDeleteIngredient(ing.id, ing.name)}
-                                                >
-                                                    Delete
-                                                </button>
+                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                    <button
+                                                        className="btn-primary"
+                                                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', background: '#3b82f6', color: '#fff' }}
+                                                        onClick={() => {
+                                                            setEditingIngredient({
+                                                                id: ing.id,
+                                                                name: ing.name,
+                                                                unit: ing.unit,
+                                                                current_stock: ing.current_stock.toString(),
+                                                                low_stock_threshold: ing.low_stock_threshold.toString()
+                                                            });
+                                                            setIsAddingIngredient(true);
+                                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                        }}
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        className="btn-danger"
+                                                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', background: '#ef4444', color: '#fff' }}
+                                                        onClick={() => handleDeleteIngredient(ing.id, ing.name)}
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     );
@@ -708,6 +954,258 @@ export default function AdminDashboard() {
                                 )}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            )}
+            {/* --- PHASE 11: CMS & SETTINGS TAB --- */}
+            {activeTab === 'cms' && (
+                <div style={{ padding: '2rem', overflowY: 'auto', flex: 1 }}>
+
+                    {/* Website Content Settings - Stalls */}
+                    <div className="finances-card" style={{ marginBottom: '2rem' }}>
+                        <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>🗓️ Mobile Stalls & Events</h2>
+
+                        {/* List Existing Stalls */}
+                        <div style={{ marginBottom: '2rem' }}>
+                            <h3 style={{ fontSize: '1.2rem', color: '#94a3b8', marginBottom: '1rem' }}>Active Events</h3>
+                            {locations.filter(l => l.is_mobile).length === 0 ? (
+                                <p style={{ color: '#64748b', fontStyle: 'italic' }}>No mobile stall events scheduled.</p>
+                            ) : (
+                                <div style={{ display: 'grid', gap: '1rem' }}>
+                                    {locations.filter(l => l.is_mobile).map(stall => (
+                                        <div key={stall.id} style={{ background: '#1e293b', padding: '1rem', borderRadius: '8px', border: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div>
+                                                <strong style={{ color: '#f8fafc', fontSize: '1.1rem', display: 'block' }}>{stall.name}</strong>
+                                                <span style={{ color: '#00e676', fontSize: '0.9rem' }}>{stall.stall_date || 'No Date Set'}</span>
+                                                <p style={{ color: '#94a3b8', margin: '0.25rem 0 0 0', fontSize: '0.9rem' }}>{stall.banner_text}</p>
+                                            </div>
+                                            <button
+                                                className="btn-kds btn-paid"
+                                                style={{ background: '#ef4444', color: '#fff' }}
+                                                onClick={() => handleDeleteStallEvent(stall.id, stall.name)}
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <hr style={{ borderColor: '#334155', margin: '2rem 0' }} />
+
+                        <h3 style={{ fontSize: '1.2rem', color: '#94a3b8', marginBottom: '1rem' }}>Add New Event</h3>
+                        <form onSubmit={handleAddStallEvent}>
+                            <div className="form-group" style={{ marginBottom: '1rem' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem', marginBottom: '1rem' }}>
+                                    <div>
+                                        <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.5rem' }}>Event Name (e.g. Peter Mokaba Popup)</label>
+                                        <input
+                                            type="text"
+                                            className="kds-input"
+                                            placeholder="Peter Mokaba Popup"
+                                            value={newStallEvent.name}
+                                            onChange={(e) => setNewStallEvent({ ...newStallEvent, name: e.target.value })}
+                                            style={{ width: '100%', padding: '0.75rem', background: '#334155', border: '1px solid #475569', color: '#f8fafc', borderRadius: '4px' }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.5rem' }}>"Currently At" Announcement Banner</label>
+                                        <input
+                                            type="text"
+                                            className="kds-input"
+                                            placeholder="e.g. Catch us outside Gate 2 today!"
+                                            value={newStallEvent.banner_text}
+                                            onChange={(e) => setNewStallEvent({ ...newStallEvent, banner_text: e.target.value })}
+                                            style={{ width: '100%', padding: '0.75rem', background: '#334155', border: '1px solid #475569', color: '#f8fafc', borderRadius: '4px' }}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                                    <div>
+                                        <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.5rem' }}>Stall Date</label>
+                                        <input
+                                            type="text"
+                                            className="kds-input"
+                                            placeholder="e.g. Sat 14 March"
+                                            value={newStallEvent.stall_date}
+                                            onChange={(e) => setNewStallEvent({ ...newStallEvent, stall_date: e.target.value })}
+                                            style={{ width: '100%', padding: '0.75rem', background: '#334155', border: '1px solid #475569', color: '#f8fafc', borderRadius: '4px' }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.5rem' }}>Pre-order Start</label>
+                                        <input
+                                            type="text"
+                                            className="kds-input"
+                                            placeholder="e.g. Wed 11 March, 9 AM"
+                                            value={newStallEvent.preorder_start_date}
+                                            onChange={(e) => setNewStallEvent({ ...newStallEvent, preorder_start_date: e.target.value })}
+                                            style={{ width: '100%', padding: '0.75rem', background: '#334155', border: '1px solid #475569', color: '#f8fafc', borderRadius: '4px' }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.5rem' }}>Pre-order Deadline</label>
+                                        <input
+                                            type="text"
+                                            className="kds-input"
+                                            placeholder="e.g. Fri 13 March, 8 PM"
+                                            value={newStallEvent.preorder_deadline}
+                                            onChange={(e) => setNewStallEvent({ ...newStallEvent, preorder_deadline: e.target.value })}
+                                            style={{ width: '100%', padding: '0.75rem', background: '#334155', border: '1px solid #475569', color: '#f8fafc', borderRadius: '4px' }}
+                                        />
+                                    </div>
+                                </div>
+                                <small style={{ color: '#64748b', display: 'block', marginTop: '1rem' }}>These details will automatically appear on the public landing page in the Locations section.</small>
+                            </div>
+                            <button type="submit" className="btn-primary" disabled={isSavingStall}>
+                                {isSavingStall ? 'Saving...' : 'Add Stall Event'}
+                            </button>
+                        </form>
+                    </div>
+
+                    {/* Menu Management */}
+                    <div className="finances-card">
+                        <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            🍔 Live Menu Manager
+                        </h2>
+
+                        {/* Recipe Builder Modal UI */}
+                        {editingRecipeFor && (
+                            <div style={{ background: '#0f172a', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem', border: '1px solid #3b82f6', boxShadow: '0 0 20px rgba(59, 130, 246, 0.2)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid #334155', paddingBottom: '1rem' }}>
+                                    <div>
+                                        <h3 style={{ margin: 0, color: '#3b82f6', fontSize: '1.25rem' }}>Construct Recipe: {editingRecipeFor.name}</h3>
+                                        <p style={{ margin: '0.25rem 0 0 0', color: '#94a3b8', fontSize: '0.9rem' }}>Define how many units of each inventory ingredient are used to make this item.</p>
+                                    </div>
+                                    <button className="btn-secondary" onClick={() => setEditingRecipeFor(null)}>Cancel</button>
+                                </div>
+
+                                <div style={{ marginBottom: '1.5rem' }}>
+                                    {editingRecipeIngredients.map((row, idx) => (
+                                        <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: '1rem', marginBottom: '0.75rem', alignItems: 'center' }}>
+                                            <select
+                                                className="kds-select"
+                                                value={row.ingredient}
+                                                onChange={(e) => handleRecipeIngredientChange(idx, 'ingredient', e.target.value)}
+                                            >
+                                                <option value="">-- Select Ingredient --</option>
+                                                {ingredients.map(ing => (
+                                                    <option key={ing.id} value={ing.name}>{ing.name} ({ing.unit})</option>
+                                                ))}
+                                            </select>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                className="kds-input"
+                                                placeholder="Qty per Item"
+                                                value={row.quantity}
+                                                onChange={(e) => handleRecipeIngredientChange(idx, 'quantity', e.target.value)}
+                                            />
+                                            <button
+                                                className="btn-danger"
+                                                type="button"
+                                                style={{ padding: '0.5rem' }}
+                                                onClick={() => handleRemoveRecipeIngredientRow(idx)}
+                                            >
+                                                ✖
+                                            </button>
+                                        </div>
+                                    ))}
+                                    <button className="btn-secondary" type="button" style={{ marginTop: '0.5rem' }} onClick={handleAddRecipeIngredientRow}>
+                                        ➕ Add Another Ingredient
+                                    </button>
+                                </div>
+
+                                <button className="btn-primary" type="button" style={{ width: '100%', background: '#10b981' }} onClick={handleSaveRecipe}>
+                                    Save Recipe Logic
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Add / Edit Menu Item Form */}
+                        <div style={{ background: '#0f172a', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem', border: '1px solid #334155' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                <h3 style={{ margin: 0, color: '#00e676', fontSize: '1.1rem' }}>
+                                    {editingMenuItem.id ? 'Edit Menu Item' : 'Add New Kota / Item'}
+                                </h3>
+                                {editingMenuItem.id && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setEditingMenuItem({ id: null, name: '', price: '', image_url: '' })}
+                                        style={{ background: 'transparent', border: '1px solid #94a3b8', color: '#94a3b8', borderRadius: '4px', padding: '0.25rem 0.75rem', cursor: 'pointer' }}
+                                    >
+                                        Cancel Edit
+                                    </button>
+                                )}
+                            </div>
+
+                            <form onSubmit={handleSaveMenuItem} style={{ display: 'grid', gridTemplateColumns: '1fr 100px 1fr auto', gap: '1rem', alignItems: 'end' }}>
+                                <div>
+                                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Name</label>
+                                    <input required type="text" className="kds-input" value={editingMenuItem.name} onChange={e => setEditingMenuItem({ ...editingMenuItem, name: e.target.value })} placeholder="e.g. The Jumbo Special" style={{ width: '100%' }} />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Price (R)</label>
+                                    <input required type="number" min="0" step="0.01" className="kds-input" value={editingMenuItem.price} onChange={e => setEditingMenuItem({ ...editingMenuItem, price: e.target.value })} style={{ width: '100%' }} />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Image URL (Optional)</label>
+                                    <input type="text" className="kds-input" value={editingMenuItem.image_url} onChange={e => setEditingMenuItem({ ...editingMenuItem, image_url: e.target.value })} placeholder="e.g. /images/kota_1.jpg" style={{ width: '100%' }} />
+                                </div>
+                                <button type="submit" className="btn-primary" style={{ padding: '0.5rem 1rem' }}>
+                                    {editingMenuItem.id ? 'Save Changes' : 'Add Item'}
+                                </button>
+                            </form>
+                        </div>
+
+                        {/* Existing Menu Items Table */}
+                        <div className="table-wrapper">
+                            <table style={{ width: '100%', borderCollapse: 'collapse', color: '#f8fafc', background: '#1e293b', borderRadius: '8px', overflow: 'hidden' }}>
+                                <thead style={{ background: '#0f172a', textAlign: 'left' }}>
+                                    <tr>
+                                        <th style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>Item Name</th>
+                                        <th style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>Price</th>
+                                        <th style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>Assigned Image</th>
+                                        <th style={{ padding: '1rem', borderBottom: '1px solid #334155', textAlign: 'right' }}>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {menuItems.map(item => (
+                                        <tr key={item.id} style={{ borderBottom: '1px solid #334155' }}>
+                                            <td style={{ padding: '1rem' }}><strong>{item.name}</strong></td>
+                                            <td style={{ padding: '1rem', color: '#00e676' }}>R {item.price}</td>
+                                            <td style={{ padding: '1rem', color: '#94a3b8' }}>{item.image_url || 'None'}</td>
+                                            <td style={{ padding: '1rem', textAlign: 'right', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                                <button
+                                                    onClick={() => openRecipeBuilder(item)}
+                                                    style={{ background: '#10b981', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}
+                                                >
+                                                    Build Recipe
+                                                </button>
+                                                <button
+                                                    onClick={() => setEditingMenuItem({ id: item.id, name: item.name, price: item.price, image_url: item.image_url || '' })}
+                                                    style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteMenuItem(item.id, item.name)}
+                                                    style={{ background: '#ef4444', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                >
+                                                    Delete
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {menuItems.length === 0 && (
+                                        <tr><td colSpan="4" style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No menu items found.</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             )}

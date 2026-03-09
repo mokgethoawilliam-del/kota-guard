@@ -279,22 +279,34 @@ export default function CustomerMenu() {
 
     return (
         <div className="app-container">
-            <h2 className="page-title">Kota Guard Menu</h2>
+            <h2 className="page-title">Ko Chef Dips Menu</h2>
             <div className="menu-grid">
                 {menuItems.map(item => {
                     const incart = cart.find(i => i.id === item.id);
                     return (
-                        <div key={item.id} className="menu-card">
-                            <div className="menu-card-content">
-                                <h3 className="item-name">{item.name}</h3>
-                                <p className="item-price">R {item.price} <span>/ each</span></p>
+                        <div key={item.id} className="menu-card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                            {/* Dynamic CMS Image */}
+                            <div style={{
+                                height: '180px',
+                                background: item.image_url ? `url(${item.image_url}) center/cover` : '#334155',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8'
+                            }}>
+                                {!item.image_url && <span style={{ fontSize: '2rem' }}>🍔</span>}
                             </div>
-                            <button
-                                className="btn-primary"
-                                onClick={() => addToCart(item)}
-                            >
-                                {incart ? `Add More (${incart.qty} in cart)` : 'Add to Cart'}
-                            </button>
+
+                            <div className="menu-card-content" style={{ padding: '1rem', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                <div>
+                                    <h3 className="item-name" style={{ margin: '0 0 0.5rem 0' }}>{item.name}</h3>
+                                    <p className="item-price" style={{ margin: 0 }}>R {item.price}</p>
+                                </div>
+                                <button
+                                    className="btn-primary"
+                                    onClick={() => addToCart(item)}
+                                    style={{ marginTop: '1rem', width: '100%' }}
+                                >
+                                    {incart ? `Add More (${incart.qty} in cart)` : 'Add to Cart'}
+                                </button>
+                            </div>
                         </div>
                     );
                 })}

@@ -5,6 +5,7 @@ import VendorLandingPage from '../components/VendorLandingPage'
 import AdminDashboard from '../components/AdminDashboard'
 import Login from '../components/Login'
 import RegisterShop from '../components/RegisterShop'
+import PlatformHome from '../components/PlatformHome'
 
 function AuthGuard({ children, session }) {
     if (!session) return <Navigate to="/login" replace />;
@@ -30,7 +31,7 @@ function App() {
         return () => subscription.unsubscribe();
     }, []);
 
-    if (loading) return <div style={{ background: '#0f172a', color: '#fff', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading Kota Guard...</div>;
+    if (loading) return <div style={{ background: '#0f172a', color: '#fff', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading VulaHub...</div>;
 
     return (
         <Router>
@@ -49,8 +50,8 @@ function App() {
                 {/* Dynamic Vendor Route */}
                 <Route path="/v/:vendorSlug" element={<VendorLandingPage />} />
 
-                {/* Root Redirects to the default vendor (Chef Dips) or a Platform Hub */}
-                <Route path="/" element={<VendorLandingPage />} /> 
+                {/* VulaHub Platform Landing Page */}
+                <Route path="/" element={<PlatformHome />} /> 
 
                 {/* Fallback */}
                 <Route path="*" element={<Navigate to="/" replace />} />

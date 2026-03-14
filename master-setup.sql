@@ -1,4 +1,4 @@
--- KOTA GUARD MASTER SETUP
+-- VULAHUB MASTER SETUP
 -- Run this in your Supabase SQL Editor to ensure all tables, triggers, and RLS policies are correct.
 
 -- 1. VENDORS TABLE

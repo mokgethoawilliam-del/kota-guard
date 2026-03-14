@@ -40,6 +40,10 @@ export default function AdminDashboard({ session }) {
     const [locations, setLocations] = useState([]);
     const [selectedLocation, setSelectedLocation] = useState('all');
     const [loading, setLoading] = useState(true);
+    const [isVaultUnlocked, setIsVaultUnlocked] = useState(false);
+    const [vaultPassword, setVaultPassword] = useState('');
+    const [vaultError, setVaultError] = useState('');
+    const [unlocking, setUnlocking] = useState(false);
 
     useEffect(() => {
         const loadProfileAndData = async () => {
@@ -693,7 +697,7 @@ export default function AdminDashboard({ session }) {
             <header className="kds-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <div className="kds-brand" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('kds')}>
-                        Kota Guard <span>KDS</span>
+                        VulaHub <span>KDS</span>
                     </div>
                     {vendorConfig && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -749,8 +753,12 @@ export default function AdminDashboard({ session }) {
                     >⚙️ CMS Settings</button>
                     <button
                         className={`tab-btn ${activeTab === 'integrations' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('integrations')}
-                    >🔌 Integrations</button>
+                        onClick={() => {
+                            setActiveTab('integrations');
+                            // Always lock vault when switching back to this tab
+                            if (activeTab !== 'integrations') setIsVaultUnlocked(false);
+                        }}
+                    >🔒 Security Vault</button>
                 </div>
 
                 <div className="kds-controls" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
@@ -777,7 +785,65 @@ export default function AdminDashboard({ session }) {
                 </div>
             </header>
 
-            {activeTab === 'integrations' && (
+            {activeTab === 'integrations' && !isVaultUnlocked && (
+                <div className="cms-editor" style={{ maxWidth: '500px', margin: '4rem auto', textAlign: 'center' }}>
+                    <div className="cms-card" style={{ padding: '3rem' }}>
+                        <div style={{ fontSize: '3rem', marginBottom: '1.5rem' }}>🔐</div>
+                        <h2 style={{ color: '#fff', marginBottom: '1rem' }}>Enter Vault Password</h2>
+                        <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '2rem' }}>
+                            For your security, please re-enter your account password to access sensitive payment and API configurations.
+                        </p>
+                        
+                        {vaultError && (
+                            <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#f87171', padding: '0.75rem', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
+                                ❌ {vaultError}
+                            </div>
+                        )}
+
+                        <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            setUnlocking(true);
+                            setVaultError('');
+                            
+                            try {
+                                // Re-authenticate with Supabase to verify password
+                                const { error } = await supabase.auth.signInWithPassword({
+                                    email: session.user.email,
+                                    password: vaultPassword
+                                });
+
+                                if (error) throw error;
+                                setIsVaultUnlocked(true);
+                                setVaultPassword('');
+                            } catch (err) {
+                                setVaultError('Invalid password. Access denied.');
+                            } finally {
+                                setUnlocking(false);
+                            }
+                        }}>
+                            <input 
+                                type="password" 
+                                className="kds-input" 
+                                placeholder="••••••••" 
+                                required
+                                value={vaultPassword}
+                                onChange={(e) => setVaultPassword(e.target.value)}
+                                style={{ marginBottom: '1.5rem', textAlign: 'center', fontSize: '1.2rem', letterSpacing: '4px' }}
+                            />
+                            <button 
+                                type="submit" 
+                                disabled={unlocking}
+                                className="btn-primary" 
+                                style={{ width: '100%', padding: '1rem' }}
+                            >
+                                {unlocking ? 'Unlocking...' : '🔓 Unlock Vault'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'integrations' && isVaultUnlocked && (
                 <div className="cms-editor" style={{ maxWidth: '800px', margin: '2rem auto' }}>
                     <div className="cms-card">
                         <h2 style={{ color: '#00e676', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '1rem' }}>

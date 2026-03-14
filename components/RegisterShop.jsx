@@ -122,7 +122,7 @@ export default function RegisterShop() {
                         marginBottom: '0.5rem',
                         letterSpacing: '-1.5px'
                     }}>
-                        Kota Guard
+                        VulaHub
                     </div>
                     <p style={{ color: '#94a3b8', fontSize: '1.1rem' }}>Start your digital Kota shop</p>
                 </div>

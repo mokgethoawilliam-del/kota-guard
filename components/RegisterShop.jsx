@@ -62,7 +62,8 @@ export default function RegisterShop() {
                     data: {
                         full_name: 'Shop Owner',
                         vendor_id: newVendor.id
-                    }
+                    },
+                    emailRedirectTo: `${window.location.origin}/admin`
                 }
             });
 

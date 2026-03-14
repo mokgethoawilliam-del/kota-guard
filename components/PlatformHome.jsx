@@ -82,7 +82,7 @@ export default function PlatformHome() {
                         <div style={{ background: 'linear-gradient(135deg, #065f46 0%, #064e3b 100%)', border: '1px solid #00e676', padding: '3rem', borderRadius: '32px', transform: 'scale(1.05)', boxShadow: '0 25px 50px -12px rgba(0, 230, 118, 0.2)' }}>
                             <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', background: '#00e676', color: '#000', padding: '0.25rem 0.75rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold' }}>MOST POPULAR</div>
                             <h3 style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }}>Growth</h3>
-                            <div style={{ fontSize: '3rem', fontWeight: 900, marginBottom: '1.5rem' }}>R299 <span style={{ fontSize: '1rem', color: '#000' }}>/month</span></div>
+                            <div style={{ fontSize: '3rem', fontWeight: 900, marginBottom: '1.5rem' }}>R399 <span style={{ fontSize: '1rem', color: '#000' }}>/month</span></div>
                             <ul style={{ listStyle: 'none', padding: 0, marginBottom: '2.5rem', color: '#fff' }}>
                                 <li style={{ marginBottom: '1rem' }}>✅ Everything in Free</li>
                                 <li style={{ marginBottom: '1rem' }}>✅ Use Your Own API Keys</li>

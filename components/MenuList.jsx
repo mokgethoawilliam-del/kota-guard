@@ -41,7 +41,7 @@ export default function MenuList() {
 
   return (
     <div className="menu-container">
-      <h2>Kota Guard Menu</h2>
+      <h2>VulaHub Menu</h2>
       {menuItems.length === 0 ? (
         <p>No menu items found.</p>
       ) : (

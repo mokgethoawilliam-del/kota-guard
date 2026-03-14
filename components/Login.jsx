@@ -56,7 +56,7 @@ export default function Login() {
                         marginBottom: '0.5rem',
                         letterSpacing: '-1px'
                     }}>
-                        Kota Guard
+                        VulaHub
                     </div>
                     <p style={{ color: '#94a3b8', fontSize: '1.1rem' }}>Vendor Dashboard Login</p>
                 </div>
@@ -85,7 +85,7 @@ export default function Login() {
                             className="kds-input"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            placeholder="chef@kotaguard.com"
+                            placeholder="chef@vulahub.com"
                             style={{ width: '100%', padding: '12px 16px', background: 'rgba(0,0,0,0.2)' }}
                         />
                     </div>

@@ -1,4 +1,4 @@
--- Kota Guard Phase: Multi-Tenant Expansion
+-- VulaHub Phase: Multi-Tenant Expansion
 -- Creating the Vendors table and migrating existing data to the "Default Vendor" (Chef Dips)
 
 -- 1. Create the vendors table

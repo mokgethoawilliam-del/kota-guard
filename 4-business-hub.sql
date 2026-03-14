@@ -1,4 +1,4 @@
--- Kota Guard Phase 8 & 9 Extensions: The Business Hub Schema
+-- VulaHub Phase 8 & 9 Extensions: The Business Hub Schema
 -- Run this in your Supabase SQL Editor.
 
 -- ==========================================

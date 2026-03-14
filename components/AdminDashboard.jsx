@@ -311,7 +311,7 @@ export default function AdminDashboard({ session }) {
         if (historyOrders.length === 0) return alert("No history to export.");
 
         const doc = new jsPDF();
-        doc.text("Kota Guard - Sales History Report", 14, 15);
+        doc.text("VulaHub - Sales History Report", 14, 15);
         doc.setFontSize(10);
         doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 22);
 

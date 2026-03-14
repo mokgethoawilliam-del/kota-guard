@@ -1,4 +1,4 @@
--- Kota Guard Phase 5.5: Pre-Orders & Loyalty
+-- VulaHub Phase 5.5: Pre-Orders & Loyalty
 -- Run this in your Supabase SQL Editor.
 
 -- Add pre-order collection estimated time

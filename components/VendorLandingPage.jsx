@@ -24,7 +24,7 @@ function VendorLandingPage() {
                 if (vendorSlug) {
                     // Force slug if it's in the URL
                     query = query.eq('slug', vendorSlug);
-                } else if (hostname !== 'localhost' && !hostname.endsWith('.vercel.app') && !hostname.endsWith('.kotaguard.com')) {
+                } else if (hostname !== 'localhost' && !hostname.endsWith('.vercel.app') && !hostname.endsWith('.vulahub.com')) {
                     // Try to match by custom domain if no slug is provided
                     query = query.eq('custom_domain', hostname);
                 } else {
@@ -76,7 +76,7 @@ function VendorLandingPage() {
         fetchVendorData();
     }, [vendorSlug]);
 
-    if (loading) return <div style={{ color: '#fff', padding: '2rem' }}>Loading {vendorSlug || 'Kota Guard'}...</div>;
+    if (loading) return <div style={{ color: '#fff', padding: '2rem' }}>Loading {vendorSlug || 'VulaHub'}...</div>;
     if (!vendor) return <div style={{ color: '#fff', padding: '2rem' }}>Vendor "{vendorSlug}" not found.</div>;
 
     const branding = vendor.branding || {};
@@ -153,7 +153,7 @@ function VendorLandingPage() {
                     {/* Gallery section content omitted for brevity in this first pass refactor */}
                     
                     <footer style={{ background: '#020617', padding: '2rem', textAlign: 'center', color: '#475569', borderTop: '1px solid #1e293b' }}>
-                        <p>&copy; {new Date().getFullYear()} {vendor.name}. All rights reserved. Powered by Kota Guard.</p>
+                        <p>&copy; {new Date().getFullYear()} {vendor.name}. All rights reserved. Powered by VulaHub.</p>
                     </footer>
                 </div>
             )}

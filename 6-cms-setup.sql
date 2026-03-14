@@ -1,4 +1,4 @@
--- Kota Guard Phase 11: CMS & Settings
+-- VulaHub Phase 11: CMS & Settings
 -- Run this in your Supabase SQL Editor.
 
 -- Add a custom banner text specifically for the Mobile Stall or general alerts

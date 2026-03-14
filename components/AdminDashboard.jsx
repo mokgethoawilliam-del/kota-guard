@@ -669,7 +669,12 @@ export default function AdminDashboard({ session }) {
         </div>
     );
 
-    if (loading) return <div className="loading-container"><div className="spinner"></div></div>;
+    if (loading || !vendorConfig) return (
+        <div style={{ background: '#0f172a', color: '#fff', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1rem' }}>
+            <div className="loading-spinner"></div>
+            <span>Configuring your kitchen...</span>
+        </div>
+    );
 
     return (
         <div className="kds-container">
@@ -780,10 +785,10 @@ export default function AdminDashboard({ session }) {
                                         type="text" 
                                         className="kds-input" 
                                         placeholder="pk_live_..." 
-                                        value={vendorConfig.payment_config?.paystack_public_key || ''}
+                                        value={vendorConfig?.payment_config?.paystack_public_key || ''}
                                         onChange={(e) => setVendorConfig({
                                             ...vendorConfig,
-                                            payment_config: { ...vendorConfig.payment_config, paystack_public_key: e.target.value }
+                                            payment_config: { ...vendorConfig?.payment_config, paystack_public_key: e.target.value }
                                         })}
                                     />
                                     <small style={{ color: '#64748b' }}>If left blank, platform default keys will be used with a 5% transaction fee.</small>
@@ -794,7 +799,7 @@ export default function AdminDashboard({ session }) {
                                         type="text" 
                                         className="kds-input" 
                                         placeholder="ACCT_..." 
-                                        value={vendorConfig.paystack_subaccount_code || ''}
+                                        value={vendorConfig?.paystack_subaccount_code || ''}
                                         onChange={(e) => setVendorConfig({ ...vendorConfig, paystack_subaccount_code: e.target.value })}
                                     />
                                     <small style={{ color: '#64748b' }}>Used only on the Free Tier to automatically send your 95% profit to your account.</small>
@@ -809,10 +814,10 @@ export default function AdminDashboard({ session }) {
                                     <input 
                                         type="text" 
                                         className="kds-input" 
-                                        value={vendorConfig.netcash_config?.account_service_key || ''}
+                                        value={vendorConfig?.netcash_config?.account_service_key || ''}
                                         onChange={(e) => setVendorConfig({
                                             ...vendorConfig,
-                                            netcash_config: { ...vendorConfig.netcash_config, account_service_key: e.target.value }
+                                            netcash_config: { ...vendorConfig?.netcash_config, account_service_key: e.target.value }
                                         })}
                                     />
                                 </div>
@@ -821,10 +826,10 @@ export default function AdminDashboard({ session }) {
                                     <input 
                                         type="text" 
                                         className="kds-input" 
-                                        value={vendorConfig.netcash_config?.paynow_service_key || ''}
+                                        value={vendorConfig?.netcash_config?.paynow_service_key || ''}
                                         onChange={(e) => setVendorConfig({
                                             ...vendorConfig,
-                                            netcash_config: { ...vendorConfig.netcash_config, paynow_service_key: e.target.value }
+                                            netcash_config: { ...vendorConfig?.netcash_config, paynow_service_key: e.target.value }
                                         })}
                                     />
                                 </div>

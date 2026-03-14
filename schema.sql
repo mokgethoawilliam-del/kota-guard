@@ -8,9 +8,16 @@ DROP TABLE IF EXISTS locations CASCADE;
 -- Create locations table
 CREATE TABLE locations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  vendor_id UUID REFERENCES public.vendors(id),
   is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  is_mobile BOOLEAN DEFAULT false,
+  banner_text TEXT,
+  stall_date TEXT,
+  preorder_deadline TEXT,
+  preorder_start_date TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT uniq_vendor_location_name UNIQUE (vendor_id, name)
 );
 
 -- Create menu_items table

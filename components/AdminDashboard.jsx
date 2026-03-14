@@ -44,6 +44,11 @@ export default function AdminDashboard({ session }) {
     const [vaultPassword, setVaultPassword] = useState('');
     const [vaultError, setVaultError] = useState('');
     const [unlocking, setUnlocking] = useState(false);
+    
+    // Phase 11: CMS Sub-navigation
+    const [cmsActiveSubTab, setCmsActiveSubTab] = useState('menu'); // 'menu' | 'branches' | 'events' | 'branding'
+    const [isSavingBranch, setIsSavingBranch] = useState(false);
+    const [newBranch, setNewBranch] = useState({ name: '', is_active: true });
 
     useEffect(() => {
         const loadProfileAndData = async () => {
@@ -1270,329 +1275,460 @@ export default function AdminDashboard({ session }) {
             )}
             {/* --- PHASE 11: CMS & SETTINGS TAB --- */}
             {activeTab === 'cms' && (
-                <div style={{ padding: '2rem', overflowY: 'auto', flex: 1 }}>
-
-                    {/* --- NEW: Vendor Branding Editor --- */}
-                    <div className="finances-card" style={{ marginBottom: '2rem', border: '1px solid #00e676' }}>
-                        <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            🎨 Brand & Website Identity
-                        </h2>
-                        {vendorConfig ? (
-                            <form onSubmit={async (e) => {
-                                e.preventDefault();
-                                try {
-                                    const { error } = await supabase.from('vendors').update({
-                                        name: vendorConfig.name,
-                                        custom_domain: vendorConfig.custom_domain,
-                                        branding: vendorConfig.branding,
-                                        whatsapp_config: vendorConfig.whatsapp_config
-                                    }).eq('id', currentVendorId);
-                                    if (error) throw error;
-                                    alert("Branding and configuration settings updated!");
-                                } catch (err) {
-                                    alert("Failed to save branding: " + err.message);
-                                }
-                            }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
-                                    <div className="form-group">
-                                        <label>Shop Name</label>
-                                        <input type="text" className="kds-input" value={vendorConfig.name} onChange={(e) => setVendorConfig({...vendorConfig, name: e.target.value})} />
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Tagline</label>
-                                        <input type="text" className="kds-input" value={vendorConfig.branding?.tagline || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, tagline: e.target.value}})} />
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Primary Brand Color</label>
-                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                            <input type="color" value={vendorConfig.branding?.primary_color || '#00e676'} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, primary_color: e.target.value}})} style={{ height: '48px', width: '60px', padding: '0', background: 'transparent', border: 'none' }} />
-                                            <input type="text" className="kds-input" value={vendorConfig.branding?.primary_color || '#00e676'} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, primary_color: e.target.value}})} />
-                                        </div>
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Welcome Text</label>
-                                        <input type="text" className="kds-input" value={vendorConfig.branding?.welcome_text || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, welcome_text: e.target.value}})} />
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Custom Domain (e.g. www.chef-dips.co.za)</label>
-                                        <input type="text" className="kds-input" value={vendorConfig.custom_domain || ''} onChange={(e) => setVendorConfig({...vendorConfig, custom_domain: e.target.value})} placeholder="Leave blank to use platform slug" />
-                                    </div>
-                                </div>
-
-                                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                                    <label>Hero Title Highlight</label>
-                                    <input type="text" placeholder="e.g. good quality food." className="kds-input" value={vendorConfig.branding?.hero_highlight || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, hero_highlight: e.target.value}})} />
-                                </div>
-
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem', padding: '1rem', background: 'rgba(59, 130, 246, 0.05)', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                                    <div className="form-group">
-                                        <label>💬 WhatsApp Phone Number ID</label>
-                                        <input type="text" className="kds-input" value={vendorConfig.whatsapp_config?.phone_number_id || ''} onChange={(e) => setVendorConfig({...vendorConfig, whatsapp_config: {...vendorConfig.whatsapp_config, phone_number_id: e.target.value}})} placeholder="From Meta Dev Dashboard" />
-                                    </div>
-                                    <div className="form-group">
-                                        <label>🔑 WhatsApp API Access Token</label>
-                                        <input type="password" separator=" " className="kds-input" value={vendorConfig.whatsapp_config?.api_token || ''} onChange={(e) => setVendorConfig({...vendorConfig, whatsapp_config: {...vendorConfig.whatsapp_config, api_token: e.target.value}})} placeholder="EAA..." />
-                                    </div>
-                                    <small style={{ gridColumn: '1 / -1', color: '#94a3b8' }}>Connect your specific WhatsApp Business API to enable automated ordering for this shop.</small>
-                                </div>
-
-                                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                                    <label>About Us Story</label>
-                                    <textarea className="kds-input" rows="3" value={vendorConfig.branding?.about_text || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, about_text: e.target.value}})} style={{ minHeight: '100px', resize: 'vertical' }}></textarea>
-                                </div>
-
-                                <button type="submit" className="btn-primary" style={{ background: '#00e676', color: '#000', fontWeight: 'bold' }}>Save Brand Identity</button>
-                            </form>
-                        ) : (
-                            <p>Loading vendor settings...</p>
-                        )}
-                    </div>
-
-                    {/* Website Content Settings - Stalls */}
-                    <div className="finances-card" style={{ marginBottom: '2rem' }}>
-                        <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>🗓️ Mobile Stalls & Events</h2>
-
-                        {/* List Existing Stalls */}
-                        <div style={{ marginBottom: '2rem' }}>
-                            <h3 style={{ fontSize: '1.2rem', color: '#94a3b8', marginBottom: '1rem' }}>Active Events</h3>
-                            {locations.filter(l => l.is_mobile).length === 0 ? (
-                                <p style={{ color: '#64748b', fontStyle: 'italic' }}>No mobile stall events scheduled.</p>
-                            ) : (
-                                <div style={{ display: 'grid', gap: '1rem' }}>
-                                    {locations.filter(l => l.is_mobile).map(stall => (
-                                        <div key={stall.id} style={{ background: '#1e293b', padding: '1rem', borderRadius: '8px', border: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <div>
-                                                <strong style={{ color: '#f8fafc', fontSize: '1.1rem', display: 'block' }}>{stall.name}</strong>
-                                                <span style={{ color: '#00e676', fontSize: '0.9rem' }}>{stall.stall_date || 'No Date Set'}</span>
-                                                <p style={{ color: '#94a3b8', margin: '0.25rem 0 0 0', fontSize: '0.9rem' }}>{stall.banner_text}</p>
-                                            </div>
-                                            <button
-                                                className="btn-kds btn-paid"
-                                                style={{ background: '#ef4444', color: '#fff' }}
-                                                onClick={() => handleDeleteStallEvent(stall.id, stall.name)}
-                                            >
-                                                Delete
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        <hr style={{ borderColor: '#334155', margin: '2rem 0' }} />
-
-                        <h3 style={{ fontSize: '1.2rem', color: '#94a3b8', marginBottom: '1rem' }}>Add New Event</h3>
-                        <form onSubmit={handleAddStallEvent}>
-                            <div className="form-group" style={{ marginBottom: '1rem' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem', marginBottom: '1rem' }}>
-                                    <div>
-                                        <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.5rem' }}>Event Name (e.g. Peter Mokaba Popup)</label>
-                                        <input
-                                            type="text"
-                                            className="kds-input"
-                                            placeholder="Peter Mokaba Popup"
-                                            value={newStallEvent.name}
-                                            onChange={(e) => setNewStallEvent({ ...newStallEvent, name: e.target.value })}
-                                            style={{ width: '100%', padding: '0.75rem', background: '#334155', border: '1px solid #475569', color: '#f8fafc', borderRadius: '4px' }}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.5rem' }}>"Currently At" Announcement Banner</label>
-                                        <input
-                                            type="text"
-                                            className="kds-input"
-                                            placeholder="e.g. Catch us outside Gate 2 today!"
-                                            value={newStallEvent.banner_text}
-                                            onChange={(e) => setNewStallEvent({ ...newStallEvent, banner_text: e.target.value })}
-                                            style={{ width: '100%', padding: '0.75rem', background: '#334155', border: '1px solid #475569', color: '#f8fafc', borderRadius: '4px' }}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-                                    <div>
-                                        <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.5rem' }}>Stall Date</label>
-                                        <input
-                                            type="text"
-                                            className="kds-input"
-                                            placeholder="e.g. Sat 14 March"
-                                            value={newStallEvent.stall_date}
-                                            onChange={(e) => setNewStallEvent({ ...newStallEvent, stall_date: e.target.value })}
-                                            style={{ width: '100%', padding: '0.75rem', background: '#334155', border: '1px solid #475569', color: '#f8fafc', borderRadius: '4px' }}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.5rem' }}>Pre-order Start</label>
-                                        <input
-                                            type="text"
-                                            className="kds-input"
-                                            placeholder="e.g. Wed 11 March, 9 AM"
-                                            value={newStallEvent.preorder_start_date}
-                                            onChange={(e) => setNewStallEvent({ ...newStallEvent, preorder_start_date: e.target.value })}
-                                            style={{ width: '100%', padding: '0.75rem', background: '#334155', border: '1px solid #475569', color: '#f8fafc', borderRadius: '4px' }}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.5rem' }}>Pre-order Deadline</label>
-                                        <input
-                                            type="text"
-                                            className="kds-input"
-                                            placeholder="e.g. Fri 13 March, 8 PM"
-                                            value={newStallEvent.preorder_deadline}
-                                            onChange={(e) => setNewStallEvent({ ...newStallEvent, preorder_deadline: e.target.value })}
-                                            style={{ width: '100%', padding: '0.75rem', background: '#334155', border: '1px solid #475569', color: '#f8fafc', borderRadius: '4px' }}
-                                        />
-                                    </div>
-                                </div>
-                                <small style={{ color: '#64748b', display: 'block', marginTop: '1rem' }}>These details will automatically appear on the public landing page in the Locations section.</small>
-                            </div>
-                            <button type="submit" className="btn-primary" disabled={isSavingStall}>
-                                {isSavingStall ? 'Saving...' : 'Add Stall Event'}
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+                    {/* CMS Sub-Navigation */}
+                    <div style={{ 
+                        display: 'flex', 
+                        gap: '1rem', 
+                        padding: '1rem 2rem', 
+                        background: 'rgba(30, 41, 59, 0.5)', 
+                        borderBottom: '1px solid rgba(255,255,255,0.05)' 
+                    }}>
+                        {[
+                            { id: 'menu', label: '🍔 Live Menu Manager', icon: '🍔' },
+                            { id: 'branches', label: '📍 Branch Manager', icon: '📍' },
+                            { id: 'events', label: '🗓️ Mobile Stalls & Events', icon: '🗓️' },
+                            { id: 'branding', label: '🎨 Brand & Website Identity', icon: '🎨' }
+                        ].map(sub => (
+                            <button
+                                key={sub.id}
+                                onClick={() => setCmsActiveSubTab(sub.id)}
+                                style={{
+                                    padding: '0.75rem 1.25rem',
+                                    borderRadius: '12px',
+                                    border: '1px solid',
+                                    borderColor: cmsActiveSubTab === sub.id ? '#00e676' : 'rgba(255,255,255,0.1)',
+                                    background: cmsActiveSubTab === sub.id ? 'rgba(0, 230, 118, 0.1)' : 'transparent',
+                                    color: cmsActiveSubTab === sub.id ? '#00e676' : '#94a3b8',
+                                    cursor: 'pointer',
+                                    fontWeight: '600',
+                                    transition: 'all 0.2s',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem'
+                                }}
+                            >
+                                {sub.label}
                             </button>
-                        </form>
+                        ))}
                     </div>
 
-                    {/* Menu Management */}
-                    <div className="finances-card">
-                        <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            🍔 Live Menu Manager
-                        </h2>
+                    <div style={{ padding: '2rem', overflowY: 'auto', flex: 1 }}>
+                        
+                        {/* 1. Live Menu Manager */}
+                        {cmsActiveSubTab === 'menu' && (
+                            <div className="finances-card">
+                                <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    🍔 Live Menu Manager
+                                </h2>
 
-                        {/* Recipe Builder Modal UI */}
-                        {editingRecipeFor && (
-                            <div style={{ background: '#0f172a', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem', border: '1px solid #3b82f6', boxShadow: '0 0 20px rgba(59, 130, 246, 0.2)' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid #334155', paddingBottom: '1rem' }}>
-                                    <div>
-                                        <h3 style={{ margin: 0, color: '#3b82f6', fontSize: '1.25rem' }}>Construct Recipe: {editingRecipeFor.name}</h3>
-                                        <p style={{ margin: '0.25rem 0 0 0', color: '#94a3b8', fontSize: '0.9rem' }}>Define how many units of each inventory ingredient are used to make this item.</p>
-                                    </div>
-                                    <button className="btn-secondary" onClick={() => setEditingRecipeFor(null)}>Cancel</button>
-                                </div>
+                                {/* Recipe Builder Modal UI */}
+                                {editingRecipeFor && (
+                                    <div style={{ background: '#0f172a', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem', border: '1px solid #3b82f6', boxShadow: '0 0 20px rgba(59, 130, 246, 0.2)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid #334155', paddingBottom: '1rem' }}>
+                                            <div>
+                                                <h3 style={{ margin: 0, color: '#3b82f6', fontSize: '1.25rem' }}>Construct Recipe: {editingRecipeFor.name}</h3>
+                                                <p style={{ margin: '0.25rem 0 0 0', color: '#94a3b8', fontSize: '0.9rem' }}>Define how many units of each inventory ingredient are used to make this item.</p>
+                                            </div>
+                                            <button className="btn-secondary" onClick={() => setEditingRecipeFor(null)}>Cancel</button>
+                                        </div>
 
-                                <div style={{ marginBottom: '1.5rem' }}>
-                                    {editingRecipeIngredients.map((row, idx) => (
-                                        <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: '1rem', marginBottom: '0.75rem', alignItems: 'center' }}>
-                                            <select
-                                                className="kds-select"
-                                                value={row.ingredient}
-                                                onChange={(e) => handleRecipeIngredientChange(idx, 'ingredient', e.target.value)}
-                                            >
-                                                <option value="">-- Select Ingredient --</option>
-                                                {ingredients.map(ing => (
-                                                    <option key={ing.id} value={ing.name}>{ing.name} ({ing.unit})</option>
-                                                ))}
-                                            </select>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                min="0"
-                                                className="kds-input"
-                                                placeholder="Qty per Item"
-                                                value={row.quantity}
-                                                onChange={(e) => handleRecipeIngredientChange(idx, 'quantity', e.target.value)}
-                                            />
-                                            <button
-                                                className="btn-danger"
-                                                type="button"
-                                                style={{ padding: '0.5rem' }}
-                                                onClick={() => handleRemoveRecipeIngredientRow(idx)}
-                                            >
-                                                ✖
+                                        <div style={{ marginBottom: '1.5rem' }}>
+                                            {editingRecipeIngredients.map((row, idx) => (
+                                                <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: '1rem', marginBottom: '0.75rem', alignItems: 'center' }}>
+                                                    <select
+                                                        className="kds-select"
+                                                        value={row.ingredient}
+                                                        onChange={(e) => handleRecipeIngredientChange(idx, 'ingredient', e.target.value)}
+                                                    >
+                                                        <option value="">-- Select Ingredient --</option>
+                                                        {ingredients.map(ing => (
+                                                            <option key={ing.id} value={ing.name}>{ing.name} ({ing.unit})</option>
+                                                        ))}
+                                                    </select>
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        min="0"
+                                                        className="kds-input"
+                                                        placeholder="Qty per Item"
+                                                        value={row.quantity}
+                                                        onChange={(e) => handleRecipeIngredientChange(idx, 'quantity', e.target.value)}
+                                                    />
+                                                    <button
+                                                        className="btn-danger"
+                                                        type="button"
+                                                        style={{ padding: '0.5rem' }}
+                                                        onClick={() => handleRemoveRecipeIngredientRow(idx)}
+                                                    >
+                                                        ✖
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            <button className="btn-secondary" type="button" style={{ marginTop: '0.5rem' }} onClick={handleAddRecipeIngredientRow}>
+                                                ➕ Add Another Ingredient
                                             </button>
                                         </div>
-                                    ))}
-                                    <button className="btn-secondary" type="button" style={{ marginTop: '0.5rem' }} onClick={handleAddRecipeIngredientRow}>
-                                        ➕ Add Another Ingredient
-                                    </button>
+
+                                        <button className="btn-primary" type="button" style={{ width: '100%', background: '#10b981' }} onClick={handleSaveRecipe}>
+                                            Save Recipe Logic
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Add / Edit Menu Item Form */}
+                                <div style={{ background: '#0f172a', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem', border: '1px solid #334155' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                        <h3 style={{ margin: 0, color: '#00e676', fontSize: '1.1rem' }}>
+                                            {editingMenuItem.id ? 'Edit Menu Item' : 'Add New Kota / Item'}
+                                        </h3>
+                                        {editingMenuItem.id && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setEditingMenuItem({ id: null, name: '', price: '', image_url: '' })}
+                                                style={{ background: 'transparent', border: '1px solid #94a3b8', color: '#94a3b8', borderRadius: '4px', padding: '0.25rem 0.75rem', cursor: 'pointer' }}
+                                            >
+                                                Cancel Edit
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    <form onSubmit={handleSaveMenuItem} style={{ display: 'grid', gridTemplateColumns: '1fr 100px 1fr auto', gap: '1rem', alignItems: 'end' }}>
+                                        <div>
+                                            <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Name</label>
+                                            <input required type="text" className="kds-input" value={editingMenuItem.name} onChange={e => setEditingMenuItem({ ...editingMenuItem, name: e.target.value })} placeholder="e.g. The Jumbo Special" style={{ width: '100%' }} />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Price (R)</label>
+                                            <input required type="number" min="0" step="0.01" className="kds-input" value={editingMenuItem.price} onChange={e => setEditingMenuItem({ ...editingMenuItem, price: e.target.value })} style={{ width: '100%' }} />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Image URL (Optional)</label>
+                                            <input type="text" className="kds-input" value={editingMenuItem.image_url} onChange={e => setEditingMenuItem({ ...editingMenuItem, image_url: e.target.value })} placeholder="e.g. /images/kota_1.jpg" style={{ width: '100%' }} />
+                                        </div>
+                                        <button type="submit" className="btn-primary" style={{ padding: '0.5rem 1rem' }}>
+                                            {editingMenuItem.id ? 'Save Changes' : 'Add Item'}
+                                        </button>
+                                    </form>
                                 </div>
 
-                                <button className="btn-primary" type="button" style={{ width: '100%', background: '#10b981' }} onClick={handleSaveRecipe}>
-                                    Save Recipe Logic
-                                </button>
+                                {/* Existing Menu Items Table */}
+                                <div className="table-wrapper">
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', color: '#f8fafc', background: '#1e293b', borderRadius: '8px', overflow: 'hidden' }}>
+                                        <thead style={{ background: '#0f172a', textAlign: 'left' }}>
+                                            <tr>
+                                                <th style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>Item Name</th>
+                                                <th style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>Price</th>
+                                                <th style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>Assigned Image</th>
+                                                <th style={{ padding: '1rem', borderBottom: '1px solid #334155', textAlign: 'right' }}>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {menuItems.map(item => (
+                                                <tr key={item.id} style={{ borderBottom: '1px solid #334155' }}>
+                                                    <td style={{ padding: '1rem' }}><strong>{item.name}</strong></td>
+                                                    <td style={{ padding: '1rem', color: '#00e676' }}>R {item.price}</td>
+                                                    <td style={{ padding: '1rem', color: '#94a3b8' }}>{item.image_url || 'None'}</td>
+                                                    <td style={{ padding: '1rem', textAlign: 'right', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                                        <button
+                                                            onClick={() => openRecipeBuilder(item)}
+                                                            style={{ background: '#10b981', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}
+                                                        >
+                                                            Build Recipe
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setEditingMenuItem({ id: item.id, name: item.name, price: item.price, image_url: item.image_url || '' })}
+                                                            style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteMenuItem(item.id, item.name)}
+                                                            style={{ background: '#ef4444', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {menuItems.length === 0 && (
+                                                <tr><td colSpan="4" style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No menu items found.</td></tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         )}
 
-                        {/* Add / Edit Menu Item Form */}
-                        <div style={{ background: '#0f172a', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem', border: '1px solid #334155' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                                <h3 style={{ margin: 0, color: '#00e676', fontSize: '1.1rem' }}>
-                                    {editingMenuItem.id ? 'Edit Menu Item' : 'Add New Kota / Item'}
-                                </h3>
-                                {editingMenuItem.id && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setEditingMenuItem({ id: null, name: '', price: '', image_url: '' })}
-                                        style={{ background: 'transparent', border: '1px solid #94a3b8', color: '#94a3b8', borderRadius: '4px', padding: '0.25rem 0.75rem', cursor: 'pointer' }}
-                                    >
-                                        Cancel Edit
+                        {/* 2. Branch Manager */}
+                        {cmsActiveSubTab === 'branches' && (
+                            <div className="finances-card">
+                                <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    📍 Branch Manager (Permanent Locations)
+                                </h2>
+                                <p style={{ color: '#94a3b8', marginBottom: '2rem' }}>Manage your physical shop locations. Customers will select these during checkout.</p>
+
+                                {/* Add New Branch Form */}
+                                <div style={{ background: '#0f172a', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem', border: '1px solid #334155' }}>
+                                    <form onSubmit={async (e) => {
+                                        e.preventDefault();
+                                        setIsSavingBranch(true);
+                                        try {
+                                            const { error } = await supabase.from('locations').insert({
+                                                name: newBranch.name,
+                                                vendor_id: currentVendorId,
+                                                is_mobile: false,
+                                                is_active: true
+                                            });
+                                            if (error) throw error;
+                                            setNewBranch({ name: '', is_active: true });
+                                            fetchInitialData(); // Refresh list
+                                            alert("Branch added successfully!");
+                                        } catch (err) {
+                                            alert("Error saving branch: " + err.message);
+                                        } finally {
+                                            setIsSavingBranch(false);
+                                        }
+                                    }} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
+                                        <div style={{ flex: 1 }}>
+                                            <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Branch Name (e.g. Flora Park Shop)</label>
+                                            <input 
+                                                required 
+                                                type="text" 
+                                                className="kds-input" 
+                                                value={newBranch.name} 
+                                                onChange={e => setNewBranch({ ...newBranch, name: e.target.value })} 
+                                                placeholder="Enter branch name"
+                                                style={{ width: '100%' }}
+                                            />
+                                        </div>
+                                        <button type="submit" className="btn-primary" disabled={isSavingBranch} style={{ padding: '0.75rem 2rem' }}>
+                                            {isSavingBranch ? 'Saving...' : '➕ Add Branch'}
+                                        </button>
+                                    </form>
+                                </div>
+
+                                <div className="table-wrapper">
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', color: '#f8fafc', background: '#1e293b', borderRadius: '8px', overflow: 'hidden' }}>
+                                        <thead style={{ background: '#0f172a', textAlign: 'left' }}>
+                                            <tr>
+                                                <th style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>Branch Name</th>
+                                                <th style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>Type</th>
+                                                <th style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>Status</th>
+                                                <th style={{ padding: '1rem', borderBottom: '1px solid #334155', textAlign: 'right' }}>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {locations.filter(l => !l.is_mobile).map(branch => (
+                                                <tr key={branch.id} style={{ borderBottom: '1px solid #334155' }}>
+                                                    <td style={{ padding: '1rem' }}><strong>{branch.name}</strong></td>
+                                                    <td style={{ padding: '1rem' }}><span className="status-badge" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#60a5fa' }}>🏪 Permanent</span></td>
+                                                    <td style={{ padding: '1rem' }}>
+                                                        <span className={`status-badge ${branch.is_active ? 'status-ready' : 'status-paid'}`}>
+                                                            {branch.is_active ? 'Active' : 'Hidden'}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ padding: '1rem', textAlign: 'right' }}>
+                                                        <button
+                                                            onClick={async () => {
+                                                                const { error } = await supabase.from('locations').update({ is_active: !branch.is_active }).eq('id', branch.id);
+                                                                if (error) alert("Error: " + error.message);
+                                                                else fetchInitialData();
+                                                            }}
+                                                            style={{ 
+                                                                background: branch.is_active ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)', 
+                                                                color: branch.is_active ? '#ef4444' : '#10b981', 
+                                                                border: '1px solid currentColor',
+                                                                padding: '0.5rem 1rem', 
+                                                                borderRadius: '8px', 
+                                                                cursor: 'pointer', 
+                                                                fontSize: '0.8rem' 
+                                                            }}
+                                                        >
+                                                            {branch.is_active ? 'Deactivate' : 'Activate'}
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {locations.filter(l => !l.is_mobile).length === 0 && (
+                                                <tr><td colSpan="4" style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No permanent branches found. Add your first shop above!</td></tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 3. Mobile Stalls & Events */}
+                        {cmsActiveSubTab === 'events' && (
+                            <div className="finances-card">
+                                <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>🗓️ Mobile Stalls & Events</h2>
+
+                                {/* List Existing Stalls */}
+                                <div style={{ marginBottom: '2rem' }}>
+                                    <h3 style={{ fontSize: '1.2rem', color: '#94a3b8', marginBottom: '1rem' }}>Active Events</h3>
+                                    {locations.filter(l => l.is_mobile).length === 0 ? (
+                                        <p style={{ color: '#64748b', fontStyle: 'italic' }}>No mobile stall events scheduled.</p>
+                                    ) : (
+                                        <div style={{ display: 'grid', gap: '1rem' }}>
+                                            {locations.filter(l => l.is_mobile).map(stall => (
+                                                <div key={stall.id} style={{ background: '#1e293b', padding: '1rem', borderRadius: '8px', border: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <div>
+                                                        <strong style={{ color: '#f8fafc', fontSize: '1.1rem', display: 'block' }}>{stall.name}</strong>
+                                                        <span style={{ color: '#00e676', fontSize: '0.9rem' }}>{stall.stall_date || 'No Date Set'}</span>
+                                                        <p style={{ color: '#94a3b8', margin: '0.25rem 0 0 0', fontSize: '0.9rem' }}>{stall.banner_text}</p>
+                                                    </div>
+                                                    <button
+                                                        className="btn-kds btn-paid"
+                                                        style={{ background: '#ef4444', color: '#fff' }}
+                                                        onClick={() => handleDeleteStallEvent(stall.id, stall.name)}
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <hr style={{ borderColor: '#334155', margin: '2rem 0' }} />
+
+                                <h3 style={{ fontSize: '1.2rem', color: '#94a3b8', marginBottom: '1rem' }}>Add New Event</h3>
+                                <form onSubmit={handleAddStallEvent}>
+                                    <div className="form-group" style={{ marginBottom: '1rem' }}>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem', marginBottom: '1rem' }}>
+                                            <div>
+                                                <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.5rem' }}>Event Name (e.g. Peter Mokaba Popup)</label>
+                                                <input
+                                                    type="text"
+                                                    className="kds-input"
+                                                    placeholder="Peter Mokaba Popup"
+                                                    value={newStallEvent.name}
+                                                    onChange={(e) => setNewStallEvent({ ...newStallEvent, name: e.target.value })}
+                                                    style={{ width: '100%', padding: '0.75rem', background: '#334155', border: '1px solid #475569', color: '#f8fafc', borderRadius: '4px' }}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.5rem' }}>"Currently At" Announcement Banner</label>
+                                                <input
+                                                    type="text"
+                                                    className="kds-input"
+                                                    placeholder="e.g. Catch us outside Gate 2 today!"
+                                                    value={newStallEvent.banner_text}
+                                                    onChange={(e) => setNewStallEvent({ ...newStallEvent, banner_text: e.target.value })}
+                                                    style={{ width: '100%', padding: '0.75rem', background: '#334155', border: '1px solid #475569', color: '#f8fafc', borderRadius: '4px' }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                                            <div>
+                                                <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.5rem' }}>Stall Date</label>
+                                                <input
+                                                    type="text"
+                                                    className="kds-input"
+                                                    placeholder="e.g. Sat 14 March"
+                                                    value={newStallEvent.stall_date}
+                                                    onChange={(e) => setNewStallEvent({ ...newStallEvent, stall_date: e.target.value })}
+                                                    style={{ width: '100%', padding: '0.75rem', background: '#334155', border: '1px solid #475569', color: '#f8fafc', borderRadius: '4px' }}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.5rem' }}>Pre-order Start</label>
+                                                <input
+                                                    type="text"
+                                                    className="kds-input"
+                                                    placeholder="e.g. Wed 11 March, 9 AM"
+                                                    value={newStallEvent.preorder_start_date}
+                                                    onChange={(e) => setNewStallEvent({ ...newStallEvent, preorder_start_date: e.target.value })}
+                                                    style={{ width: '100%', padding: '0.75rem', background: '#334155', border: '1px solid #475569', color: '#f8fafc', borderRadius: '4px' }}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.5rem' }}>Pre-order Deadline</label>
+                                                <input
+                                                    type="text"
+                                                    className="kds-input"
+                                                    placeholder="e.g. Fri 13 March, 8 PM"
+                                                    value={newStallEvent.preorder_deadline}
+                                                    onChange={(e) => setNewStallEvent({ ...newStallEvent, preorder_deadline: e.target.value })}
+                                                    style={{ width: '100%', padding: '0.75rem', background: '#334155', border: '1px solid #475569', color: '#f8fafc', borderRadius: '4px' }}
+                                                />
+                                            </div>
+                                        </div>
+                                        <small style={{ color: '#64748b', display: 'block', marginTop: '1rem' }}>These details will automatically appear on the public landing page in the Locations section.</small>
+                                    </div>
+                                    <button type="submit" className="btn-primary" disabled={isSavingStall}>
+                                        {isSavingStall ? 'Saving...' : 'Add Stall Event'}
                                     </button>
+                                </form>
+                            </div>
+                        )}
+
+                        {/* 4. Brand & Website Identity */}
+                        {cmsActiveSubTab === 'branding' && (
+                            <div className="finances-card" style={{ border: '1px solid #00e676' }}>
+                                <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                    🎨 Brand & Website Identity
+                                </h2>
+                                {vendorConfig ? (
+                                    <form onSubmit={async (e) => {
+                                        e.preventDefault();
+                                        try {
+                                            const { error } = await supabase.from('vendors').update({
+                                                name: vendorConfig.name,
+                                                custom_domain: vendorConfig.custom_domain,
+                                                branding: vendorConfig.branding
+                                            }).eq('id', currentVendorId);
+                                            if (error) throw error;
+                                            alert("Branding settings updated!");
+                                        } catch (err) {
+                                            alert("Failed to save branding: " + err.message);
+                                        }
+                                    }}>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                                            <div className="form-group">
+                                                <label>Shop Name</label>
+                                                <input type="text" className="kds-input" value={vendorConfig.name} onChange={(e) => setVendorConfig({...vendorConfig, name: e.target.value})} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Tagline</label>
+                                                <input type="text" className="kds-input" value={vendorConfig.branding?.tagline || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, tagline: e.target.value}})} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Primary Brand Color</label>
+                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                    <input type="color" value={vendorConfig.branding?.primary_color || '#00e676'} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, primary_color: e.target.value}})} style={{ height: '48px', width: '60px', padding: '0', background: 'transparent', border: 'none' }} />
+                                                    <input type="text" className="kds-input" value={vendorConfig.branding?.primary_color || '#00e676'} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, primary_color: e.target.value}})} />
+                                                </div>
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Welcome Text</label>
+                                                <input type="text" className="kds-input" value={vendorConfig.branding?.welcome_text || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, welcome_text: e.target.value}})} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Custom Domain (e.g. www.chef-dips.co.za)</label>
+                                                <input type="text" className="kds-input" value={vendorConfig.custom_domain || ''} onChange={(e) => setVendorConfig({...vendorConfig, custom_domain: e.target.value})} placeholder="Leave blank to use platform slug" />
+                                            </div>
+                                        </div>
+
+                                        <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                                            <label>Hero Title Highlight</label>
+                                            <input type="text" placeholder="e.g. good quality food." className="kds-input" value={vendorConfig.branding?.hero_highlight || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, hero_highlight: e.target.value}})} />
+                                        </div>
+
+                                        <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                                            <label>About Us Story</label>
+                                            <textarea className="kds-input" rows="3" value={vendorConfig.branding?.about_text || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, about_text: e.target.value}})} style={{ minHeight: '100px', resize: 'vertical' }}></textarea>
+                                        </div>
+
+                                        <button type="submit" className="btn-primary" style={{ background: '#00e676', color: '#000', fontWeight: 'bold' }}>Save Brand Identity</button>
+                                    </form>
+                                ) : (
+                                    <p>Loading vendor settings...</p>
                                 )}
                             </div>
-
-                            <form onSubmit={handleSaveMenuItem} style={{ display: 'grid', gridTemplateColumns: '1fr 100px 1fr auto', gap: '1rem', alignItems: 'end' }}>
-                                <div>
-                                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Name</label>
-                                    <input required type="text" className="kds-input" value={editingMenuItem.name} onChange={e => setEditingMenuItem({ ...editingMenuItem, name: e.target.value })} placeholder="e.g. The Jumbo Special" style={{ width: '100%' }} />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Price (R)</label>
-                                    <input required type="number" min="0" step="0.01" className="kds-input" value={editingMenuItem.price} onChange={e => setEditingMenuItem({ ...editingMenuItem, price: e.target.value })} style={{ width: '100%' }} />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Image URL (Optional)</label>
-                                    <input type="text" className="kds-input" value={editingMenuItem.image_url} onChange={e => setEditingMenuItem({ ...editingMenuItem, image_url: e.target.value })} placeholder="e.g. /images/kota_1.jpg" style={{ width: '100%' }} />
-                                </div>
-                                <button type="submit" className="btn-primary" style={{ padding: '0.5rem 1rem' }}>
-                                    {editingMenuItem.id ? 'Save Changes' : 'Add Item'}
-                                </button>
-                            </form>
-                        </div>
-
-                        {/* Existing Menu Items Table */}
-                        <div className="table-wrapper">
-                            <table style={{ width: '100%', borderCollapse: 'collapse', color: '#f8fafc', background: '#1e293b', borderRadius: '8px', overflow: 'hidden' }}>
-                                <thead style={{ background: '#0f172a', textAlign: 'left' }}>
-                                    <tr>
-                                        <th style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>Item Name</th>
-                                        <th style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>Price</th>
-                                        <th style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>Assigned Image</th>
-                                        <th style={{ padding: '1rem', borderBottom: '1px solid #334155', textAlign: 'right' }}>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {menuItems.map(item => (
-                                        <tr key={item.id} style={{ borderBottom: '1px solid #334155' }}>
-                                            <td style={{ padding: '1rem' }}><strong>{item.name}</strong></td>
-                                            <td style={{ padding: '1rem', color: '#00e676' }}>R {item.price}</td>
-                                            <td style={{ padding: '1rem', color: '#94a3b8' }}>{item.image_url || 'None'}</td>
-                                            <td style={{ padding: '1rem', textAlign: 'right', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                                                <button
-                                                    onClick={() => openRecipeBuilder(item)}
-                                                    style={{ background: '#10b981', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}
-                                                >
-                                                    Build Recipe
-                                                </button>
-                                                <button
-                                                    onClick={() => setEditingMenuItem({ id: item.id, name: item.name, price: item.price, image_url: item.image_url || '' })}
-                                                    style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
-                                                >
-                                                    Edit
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteMenuItem(item.id, item.name)}
-                                                    style={{ background: '#ef4444', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
-                                                >
-                                                    Delete
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {menuItems.length === 0 && (
-                                        <tr><td colSpan="4" style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No menu items found.</td></tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
+                        )}
                     </div>
                 </div>
             )}

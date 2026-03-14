@@ -48,7 +48,7 @@ export default function AdminDashboard({ session }) {
     // Phase 11: CMS Sub-navigation
     const [cmsActiveSubTab, setCmsActiveSubTab] = useState('menu'); // 'menu' | 'branches' | 'events' | 'branding'
     const [isSavingBranch, setIsSavingBranch] = useState(false);
-    const [newBranch, setNewBranch] = useState({ name: '', is_active: true });
+    const [newBranch, setNewBranch] = useState({ name: '', address: '', google_maps_url: '', is_active: true });
 
     useEffect(() => {
         const loadProfileAndData = async () => {
@@ -471,6 +471,8 @@ export default function AdminDashboard({ session }) {
                     vendor_id: currentVendorId,
                     name: newStallEvent.name || `Mobile Stall - ${newStallEvent.stall_date || Date.now()}`,
                     banner_text: newStallEvent.banner_text,
+                    address: newStallEvent.address,
+                    google_maps_url: newStallEvent.google_maps_url,
                     stall_date: newStallEvent.stall_date,
                     preorder_start_date: newStallEvent.preorder_start_date,
                     preorder_deadline: newStallEvent.preorder_deadline,
@@ -484,7 +486,7 @@ export default function AdminDashboard({ session }) {
                 setLocations([...locations, data[0]]);
             }
             alert("New mobile stall event added successfully!");
-            setNewStallEvent({ name: '', banner_text: '', stall_date: '', preorder_start_date: '', preorder_deadline: '' });
+            setNewStallEvent({ name: '', banner_text: '', address: '', google_maps_url: '', stall_date: '', preorder_start_date: '', preorder_deadline: '' });
         } catch (err) {
             console.error(err);
             alert("Could not add stall event. Name might be duplicate.");
@@ -1477,11 +1479,13 @@ export default function AdminDashboard({ session }) {
                                             const { error } = await supabase.from('locations').insert({
                                                 name: newBranch.name,
                                                 vendor_id: currentVendorId,
+                                                address: newBranch.address,
+                                                google_maps_url: newBranch.google_maps_url,
                                                 is_mobile: false,
                                                 is_active: true
                                             });
                                             if (error) throw error;
-                                            setNewBranch({ name: '', is_active: true });
+                                            setNewBranch({ name: '', address: '', google_maps_url: '', is_active: true });
                                             fetchInitialData(); // Refresh list
                                             alert("Branch added successfully!");
                                         } catch (err) {

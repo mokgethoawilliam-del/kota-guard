@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../src/supabaseClient';
 
-export default function CustomerMenu() {
+export default function CustomerMenu({ vendorId, branding }) {
     const [menuItems, setMenuItems] = useState([]);
     const [locations, setLocations] = useState([]);
     const [loading, setLoading] = useState(true);
     const [processingId, setProcessingId] = useState(null);
     const [paymentSuccess, setPaymentSuccess] = useState(false);
+    const [vendorDoc, setVendorDoc] = useState(null);
 
     // Shopping Cart State
     const [cart, setCart] = useState([]);
@@ -32,20 +33,32 @@ export default function CustomerMenu() {
     }, []);
 
     async function fetchData() {
+        if (!vendorId) return;
         try {
             setLoading(true);
-            // Fetch Menu Items
+
+            // Fetch Vendor Details (Plan, Keys, etc.)
+            const { data: vData } = await supabase
+                .from('vendors')
+                .select('*')
+                .eq('id', vendorId)
+                .single();
+            if (vData) setVendorDoc(vData);
+
+            // Fetch Menu Items filtered by vendor
             const { data: menuData, error: menuErr } = await supabase
                 .from('menu_items')
                 .select('*')
+                .eq('vendor_id', vendorId)
                 .order('price');
             if (menuErr) throw menuErr;
             setMenuItems(menuData);
 
-            // Fetch Locations
+            // Fetch Locations filtered by vendor
             const { data: locData, error: locErr } = await supabase
                 .from('locations')
-                .select('*');
+                .select('*')
+                .eq('vendor_id', vendorId);
             if (locErr) throw locErr;
             setLocations(locData);
 
@@ -109,6 +122,7 @@ export default function CustomerMenu() {
                 .from('orders')
                 .insert({
                     status: 'pending',
+                    vendor_id: vendorId,
                     order_number: tempOrderNumber,
                     location_id: selectedLocation,
                     customer_name: customerName,
@@ -137,13 +151,28 @@ export default function CustomerMenu() {
             if (itemError) throw itemError;
 
             // 3. Initialize Paystack
-            const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'YOUR_TEST_PUBLIC_KEY';
+            // Use Vendor's custom key if provided, otherwise use platform default
+            const platformKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'YOUR_TEST_PUBLIC_KEY';
+            const vendorKey = vendorDoc?.payment_config?.paystack_public_key;
+            
+            const paystackKey = vendorKey || platformKey;
+
+            // Split Logic: 5% fee for platform if on free tier and using platform keys
+            const subaccount = vendorDoc?.paystack_subaccount_code;
+            const splitConfig = (vendorDoc?.plan === 'free' && subaccount) ? {
+                subaccount: subaccount,
+                bearer: "account", // Vendor pays the transaction fee from their 95%
+                transaction_charge: 0, 
+                percentage_charge: 5
+            } : null;
 
             const handler = window.PaystackPop.setup({
                 key: paystackKey,
                 email: `${customerPhone}@whatsapp.kotaguard.com`,
                 amount: Math.round(cartTotal * 100),
                 currency: 'ZAR',
+                subaccount: splitConfig?.subaccount, // Paystack Split
+                bearer: splitConfig?.bearer,
                 metadata: {
                     order_id: order.id,
                     custom_fields: [
@@ -279,7 +308,7 @@ export default function CustomerMenu() {
 
     return (
         <div className="app-container">
-            <h2 className="page-title">Ko Chef Dips Menu</h2>
+            <h2 className="page-title">{branding?.name || 'Menu'}</h2>
             <div className="menu-grid">
                 {menuItems.map(item => {
                     const incart = cart.find(i => i.id === item.id);

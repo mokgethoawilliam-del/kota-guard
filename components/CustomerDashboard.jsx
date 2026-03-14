@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../src/supabaseClient';
 
-export default function CustomerDashboard({ onBack }) {
+export default function CustomerDashboard({ vendorId, onBack }) {
     const [phoneOrId, setPhoneOrId] = useState('');
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -56,6 +56,7 @@ export default function CustomerDashboard({ onBack }) {
                         menu_items ( name )
                     )
                 `)
+                .eq('vendor_id', vendorId) // Filter by vendor
                 .order('created_at', { ascending: false });
 
             // If it looks like an order number (contains a slash or is longer than standard phone)

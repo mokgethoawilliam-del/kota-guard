@@ -10,7 +10,7 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string;
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-serve(async (req) => {
+serve(async (req: Request) => {
     const url = new URL(req.url);
 
     // 1. Meta Webhook Verification (GET request)
@@ -38,110 +38,176 @@ serve(async (req) => {
                         if (change.value && change.value.messages && change.value.messages[0]) {
 
                             const phone_number_id = change.value.metadata.phone_number_id;
-                            const from = change.value.messages[0].from; // sender's phone number
+                            const from = change.value.messages[0].from; 
 
-                            // Ensure texts have body, otherwise it might be a button click or other interactive message type
-                            if (change.value.messages[0].type !== 'text') {
-                                continue;
-                            }
-                            const msg_body = change.value.messages[0].text.body.trim();
-
-                            console.log(`Received message from ${from}: ${msg_body}`);
-
-                            // --- CONVERSATIONAL BOT LOGIC ---
-
-                            // 1. Fetch live menu from database
-                            const { data: menuItems, error: menuErr } = await supabase
-                                .from('menu_items')
+                            // --- MULTI-TENANT VENDOR LOOKUP ---
+                            // Find the vendor associated with this phone_number_id
+                            const { data: vendor, error: vErr } = await supabase
+                                .from('vendors')
                                 .select('*')
-                                .order('id');
+                                .eq('whatsapp_config->>phone_number_id', phone_number_id)
+                                .single();
 
-                            if (menuErr || !menuItems) {
-                                await sendWhatsAppMessage(phone_number_id, from, "Sorry, our menu is currently unavailable. Please try again later.");
+                            // Fallback for Chef Dips if not explicitly linked or migration hasn't finished
+                            let activeVendor = vendor;
+                            if (vErr || !vendor) {
+                                console.log(`No vendor found for phone_id ${phone_number_id}. Falling back to default.`);
+                                const { data: defaultVendor } = await supabase
+                                    .from('vendors')
+                                    .select('*')
+                                    .eq('slug', 'chef-dips')
+                                    .single();
+                                activeVendor = defaultVendor;
+                            }
+
+                            if (!activeVendor) {
+                                console.error("No active vendor found for this bot instance.");
                                 return new Response('EVENT_RECEIVED', { status: 200 });
                             }
 
-                            // 2. Check if the input is a number matching a menu item
-                            const selectionIndex = parseInt(msg_body) - 1;
-                            const selectedItem = menuItems[selectionIndex];
+                            if (change.value.messages[0].type !== 'text') continue;
+                            const msg_body = change.value.messages[0].text.body.trim();
+                            const vendorToken = activeVendor.whatsapp_config?.api_token || WHATSAPP_API_TOKEN;
+                            
+                            console.log(`[Vendor: ${activeVendor.name}] Received message from ${from}: ${msg_body}`);
 
-                            if (!isNaN(selectionIndex) && selectedItem) {
-                                // User made a valid selection! Generate a Paystack link.
-                                await sendWhatsAppMessage(phone_number_id, from, `Great choice! Preparing your order for ${selectedItem.name}...`);
+                            // 0. FETCH BOT SESSION
+                            const { data: sessionData } = await supabase
+                                .from('bot_sessions')
+                                .select('*')
+                                .eq('phone_number', from)
+                                .single();
+                            
+                            let userState = sessionData?.state || 'IDLE';
 
-                                try {
-                                    // A. Create a "pending" order in database
-                                    const tempOrderNumber = `WA-${Date.now().toString().slice(-4)}`;
-                                    const { data: order, error: orderErr } = await supabase
-                                        .from('orders')
-                                        .insert({
-                                            status: 'pending',
-                                            order_number: tempOrderNumber,
-                                            customer_name: 'WhatsApp Customer',
-                                            customer_phone: from,
-                                            total_price: selectedItem.price,
-                                            // Defaults to the first location for the MVP bot
-                                            location_id: '11111111-1111-1111-1111-111111111111'
-                                        })
-                                        .select()
-                                        .single();
+                            // 1. Fetch live menu from database for this specific vendor
+                            const { data: menuItems, error: menuErr } = await supabase
+                                .from('menu_items')
+                                .select('*')
+                                .eq('vendor_id', activeVendor.id)
+                                .order('id');
 
-                                    if (orderErr) throw orderErr;
+                            if (menuErr || !menuItems) {
+                                await sendWhatsAppMessage(phone_number_id, from, "Sorry, our menu is currently unavailable. Please try again later.", vendorToken);
+                                return new Response('EVENT_RECEIVED', { status: 200 });
+                            }
 
-                                    // B. Link the item
-                                    const { error: itemErr } = await supabase
-                                        .from('order_items')
-                                        .insert({
+                            // --- STATE: IDLE (Showing menu / picking item) ---
+                            if (userState === 'IDLE') {
+                                const selectionIndex = parseInt(msg_body) - 1;
+                                const selectedItem = menuItems[selectionIndex];
+
+                                if (!isNaN(selectionIndex) && selectedItem) {
+                                    try {
+                                        // A. Create a "pending" order
+                                        const tempOrderNumber = `WA-${Date.now().toString().slice(-4)}`;
+                                        const { data: locations } = await supabase.from('locations').select('id').eq('vendor_id', activeVendor.id).limit(1);
+                                        const location_id = activeVendor.whatsapp_config?.default_location_id || (locations && locations[0]?.id) || null;
+
+                                        const { data: order, error: orderErr } = await supabase
+                                            .from('orders')
+                                            .insert({
+                                                vendor_id: activeVendor.id,
+                                                status: 'pending',
+                                                order_number: tempOrderNumber,
+                                                customer_name: 'WhatsApp Customer',
+                                                customer_phone: from,
+                                                total_price: selectedItem.price,
+                                                location_id: location_id
+                                            })
+                                            .select().single();
+
+                                        if (orderErr) throw orderErr;
+
+                                        await supabase.from('order_items').insert({
                                             order_id: order.id,
                                             menu_item_id: selectedItem.id,
                                             quantity: 1,
                                             price_at_time: selectedItem.price,
                                         });
 
-                                    if (itemErr) throw itemErr;
+                                        // B. Transition Session to PICKING_PAYMENT
+                                        await supabase.from('bot_sessions').upsert({
+                                            phone_number: from,
+                                            vendor_id: activeVendor.id,
+                                            state: 'AWAITING_PAYMENT_METHOD',
+                                            last_order_id: order.id,
+                                            updated_at: new Date().toISOString()
+                                        });
 
-                                    // C. Call Paystack API to Generate Payment Link
-                                    const paystackUrl = 'https://api.paystack.co/transaction/initialize';
-                                    const payResponse = await fetch(paystackUrl, {
+                                        await sendWhatsAppMessage(phone_number_id, from, `🍔 Great choice: ${selectedItem.name}!\n\nHow would you like to pay?\n1. 💳 *Card / EFT (Paystack)*\n2. 💸 *1Voucher (Enter PIN)*`, vendorToken);
+
+                                    } catch (err) {
+                                        console.error(err);
+                                        await sendWhatsAppMessage(phone_number_id, from, "Error processing your order.", vendorToken);
+                                    }
+                                } else {
+                                    let menuString = `👋 Welcome to ${activeVendor.name}! What would you like to order today?\n\n`;
+                                    menuItems.forEach((item: any, index: number) => {
+                                        menuString += `*${index + 1}.* ${item.name} (R${item.price})\n`;
+                                    });
+                                    menuString += "\nReply with the *number* of your choice.";
+                                    await sendWhatsAppMessage(phone_number_id, from, menuString, vendorToken);
+                                }
+                            } 
+                            
+                            // --- STATE: AWAITING PAYMENT METHOD ---
+                            else if (userState === 'AWAITING_PAYMENT_METHOD') {
+                                if (msg_body === '1') {
+                                    // Paystack Path
+                                    const { data: order } = await supabase.from('orders').select('*').eq('id', sessionData.last_order_id).single();
+                                    
+                                    const payResponse = await fetch('https://api.paystack.co/transaction/initialize', {
                                         method: 'POST',
-                                        headers: {
-                                            'Authorization': `Bearer ${PAYSTACK_SECRET_KEY}`,
-                                            'Content-Type': 'application/json'
-                                        },
+                                        headers: { 'Authorization': `Bearer ${PAYSTACK_SECRET_KEY}`, 'Content-Type': 'application/json' },
                                         body: JSON.stringify({
                                             email: `${from}@whatsapp.kotaguard.com`,
-                                            amount: Math.round(selectedItem.price * 100), // in cents
+                                            amount: Math.round(order.total_price * 100),
                                             currency: 'ZAR',
-                                            metadata: {
-                                                order_id: order.id,
-                                                source: 'whatsapp_bot'
-                                            }
+                                            metadata: { order_id: order.id, vendor_id: activeVendor.id, source: 'whatsapp_bot' }
                                         })
                                     });
 
                                     const payData = await payResponse.json();
                                     if (payData.status) {
-                                        const paymentLink = payData.data.authorization_url;
-                                        await sendWhatsAppMessage(phone_number_id, from, `🍔 Please pay securely using this link to confirm your order:\n\n🔗 ${paymentLink}\n\nOnce paid, you'll receive your collection number instantly!`);
-                                    } else {
-                                        throw new Error("Paystack link generation failed: " + payData.message);
+                                        await sendWhatsAppMessage(phone_number_id, from, `🍔 Pay securely here to confirm:\n🔗 ${payData.data.authorization_url}`, vendorToken);
+                                        await supabase.from('bot_sessions').upsert({ phone_number: from, state: 'IDLE' });
                                     }
-
-                                } catch (checkoutErr) {
-                                    console.error(checkoutErr);
-                                    await sendWhatsAppMessage(phone_number_id, from, "Sorry, we encountered an error setting up your payment. Please try again.");
+                                } else if (msg_body === '2') {
+                                    // 1Voucher Path
+                                    await sendWhatsAppMessage(phone_number_id, from, "💸 Excellent! Please enter your *16-digit 1Voucher PIN* below:", vendorToken);
+                                    await supabase.from('bot_sessions').upsert({ phone_number: from, state: 'AWAITING_VOUCHER_PIN' });
+                                } else {
+                                    await sendWhatsAppMessage(phone_number_id, from, "Please reply with *1* for Card or *2* for 1Voucher.", vendorToken);
                                 }
-
                             }
-                            // 3. Render the Menu if input is not a valid number (e.g. "Hi", "Menu", invalid number)
-                            else {
-                                let menuString = "👋 Welcome to Kota Guard! What would you like to order today?\n\n";
-                                menuItems.forEach((item, index) => {
-                                    menuString += `*${index + 1}.* ${item.name} (R${item.price})\n`;
-                                });
-                                menuString += "\nReply with the *number* of your choice.";
 
-                                await sendWhatsAppMessage(phone_number_id, from, menuString);
+                            // --- STATE: AWAITING VOUCHER PIN ---
+                            else if (userState === 'AWAITING_VOUCHER_PIN') {
+                                const pin = msg_body.replace(/\D/g, '');
+                                if (pin.length === 16) {
+                                    await sendWhatsAppMessage(phone_number_id, from, "⌛ Validating your voucher... Please wait.", vendorToken);
+                                    
+                                    // MOCK REDEMPTION (Structure for Netcash API)
+                                    // In production, we'd call Netcash PayNow Request with PIN
+                                    const isMockSuccess = true; 
+
+                                    if (isMockSuccess) {
+                                        // 1. Mark Order Paid
+                                        const { data: order } = await supabase.from('orders').select('*').eq('id', sessionData.last_order_id).single();
+                                        await supabase.from('orders').update({ status: 'paid' }).eq('id', order.id);
+
+                                        // 2. Confirm to User
+                                        await sendWhatsAppMessage(phone_number_id, from, `✅ SUCCESS! Your voucher has been redeemed.\n\nYour collection number is: *${order.order_number}*\n\nChef Dips is now preparing your Kota! 🍔🔥`, vendorToken);
+                                        
+                                        // 3. Reset Session
+                                        await supabase.from('bot_sessions').upsert({ phone_number: from, state: 'IDLE' });
+                                    } else {
+                                        await sendWhatsAppMessage(phone_number_id, from, "❌ Sorry, that voucher PIN seems to be invalid or already used. Please try another or type 'menu' to start over.", vendorToken);
+                                    }
+                                } else {
+                                    await sendWhatsAppMessage(phone_number_id, from, "⚠️ That doesn't look like a 16-digit PIN. Please re-enter your 16-digit 1Voucher PIN:", vendorToken);
+                                }
                             }
                         }
                     }
@@ -160,9 +226,10 @@ serve(async (req) => {
 });
 
 // Helper function to send messages back via Meta Cloud API
-async function sendWhatsAppMessage(phone_number_id: string, to: string, message: string) {
-    if (!WHATSAPP_API_TOKEN) {
-        console.error("Missing WHATSAPP_API_TOKEN in environment variables.");
+async function sendWhatsAppMessage(phone_number_id: string, to: string, message: string, apiToken?: string) {
+    const token = apiToken || WHATSAPP_API_TOKEN;
+    if (!token) {
+        console.error("Missing WhatsApp API Token.");
         return;
     }
 
@@ -171,7 +238,7 @@ async function sendWhatsAppMessage(phone_number_id: string, to: string, message:
     const response = await fetch(url, {
         method: 'POST',
         headers: {
-            'Authorization': `Bearer ${WHATSAPP_API_TOKEN}`,
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({

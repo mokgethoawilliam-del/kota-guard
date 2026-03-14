@@ -13,13 +13,18 @@ const playDing = () => {
     }
 };
 
-export default function AdminDashboard() {
+export default function AdminDashboard({ session }) {
     const [orders, setOrders] = useState([]);
     const [historyOrders, setHistoryOrders] = useState([]);
     const [expenses, setExpenses] = useState([]);
     const [ingredients, setIngredients] = useState([]);
     const [menuItems, setMenuItems] = useState([]);
-    const [activeTab, setActiveTab] = useState('kds'); // 'kds', 'history', 'finances', 'inventory', 'cms'
+    const [activeTab, setActiveTab] = useState('kds'); 
+    
+    // Multi-tenant state: Derived from Auth session
+    const [currentVendorId, setCurrentVendorId] = useState(null);
+    const [vendorConfig, setVendorConfig] = useState(null);
+    const [profile, setProfile] = useState(null);
 
     // CMS State
     const [newStallEvent, setNewStallEvent] = useState({
@@ -37,6 +42,42 @@ export default function AdminDashboard() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        const loadProfileAndData = async () => {
+            if (!session?.user?.id) return;
+
+            // 1. Fetch Profile to get vendor_id
+            const { data: profileData, error: pErr } = await supabase
+                .from('profiles')
+                .select('vendor_id, full_name')
+                .eq('id', session.user.id)
+                .single();
+
+            if (pErr || !profileData) {
+                console.warn("Profile table entry not found, using session metadata fallback...");
+                const metadata = session.user.user_metadata;
+                if (metadata?.vendor_id) {
+                    const fallbackProfile = {
+                        vendor_id: metadata.vendor_id,
+                        full_name: metadata.full_name || 'Shop Owner'
+                    };
+                    setProfile(fallbackProfile);
+                    setCurrentVendorId(metadata.vendor_id);
+                    return;
+                }
+                console.error("Critical: No vendor_id found in profile OR metadata.", pErr);
+                return;
+            }
+
+            setProfile(profileData);
+            setCurrentVendorId(profileData.vendor_id);
+            setLoading(false); // Make sure dashboard can proceed
+        };
+
+        loadProfileAndData().finally(() => setLoading(false));
+    }, [session]);
+
+    useEffect(() => {
+        if (!currentVendorId) return;
         fetchInitialData();
 
         // 1. Subscribe to Realtime Updates on the 'orders' table
@@ -86,14 +127,20 @@ export default function AdminDashboard() {
     }, []);
 
     async function fetchInitialData() {
+        if (!currentVendorId) return;
         try {
-            setLoading(true);
+            // No need to set loading(true) here as it's already true from the start
+            // and we want a smooth transition after profile load.
 
-            // Get valid locations
-            const { data: locData } = await supabase.from('locations').select('*');
+            // Fetch Vendor Profile
+            const { data: vData } = await supabase.from('vendors').select('*').eq('id', currentVendorId).single();
+            if (vData) setVendorConfig(vData);
+
+            // Get valid locations for this vendor
+            const { data: locData } = await supabase.from('locations').select('*').eq('vendor_id', currentVendorId);
             if (locData) setLocations(locData);
 
-            // Get all non-pending orders (Paid, Preparing, Ready, Completed)
+            // Get all non-pending orders for this vendor
             const { data: orderData, error: orderErr } = await supabase
                 .from('orders')
                 .select(`
@@ -105,7 +152,8 @@ export default function AdminDashboard() {
                         menu_items (name)
                     )
                 `)
-                .neq('status', 'pending') // Hide pending/abandoned checkouts
+                .eq('vendor_id', currentVendorId)
+                .neq('status', 'pending') 
                 .order('created_at', { ascending: false });
 
             if (orderErr) throw orderErr;
@@ -116,30 +164,33 @@ export default function AdminDashboard() {
             setOrders(active);
             setHistoryOrders(history);
 
-            // Fetch Expenses
+            // Fetch Expenses for this vendor
             const { data: expData, error: expErr } = await supabase
                 .from('expenses')
                 .select('*')
+                .eq('vendor_id', currentVendorId)
                 .order('created_at', { ascending: false });
 
             if (!expErr && expData) {
                 setExpenses(expData);
             }
 
-            // Fetch Ingredients
+            // Fetch Ingredients for this vendor
             const { data: ingData, error: ingErr } = await supabase
                 .from('ingredients')
                 .select('*')
+                .eq('vendor_id', currentVendorId)
                 .order('name');
 
             if (!ingErr && ingData) {
                 setIngredients(ingData);
             }
 
-            // Fetch Menu Items (For CMS)
+            // Fetch Menu Items (For CMS) for this vendor
             const { data: menuData, error: menuErr } = await supabase
                 .from('menu_items')
                 .select('*')
+                .eq('vendor_id', currentVendorId)
                 .order('price');
 
             if (!menuErr && menuData) {
@@ -152,6 +203,10 @@ export default function AdminDashboard() {
             setLoading(false);
         }
     }
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+    };
 
     const updateOrderStatus = async (orderId, newStatus) => {
         try {
@@ -320,6 +375,7 @@ export default function AdminDashboard() {
             const { data, error } = await supabase
                 .from('expenses')
                 .insert({
+                    vendor_id: currentVendorId,
                     description: newExpense.description,
                     amount: parseFloat(newExpense.amount),
                     receipt_url: receipt_url
@@ -362,7 +418,7 @@ export default function AdminDashboard() {
             if (editingIngredient.id) {
                 query = query.update(payload).eq('id', editingIngredient.id);
             } else {
-                query = query.insert([payload]);
+                query = query.insert([{ ...payload, vendor_id: currentVendorId }]);
             }
 
             const { data, error } = await query.select();
@@ -403,6 +459,7 @@ export default function AdminDashboard() {
             const { data, error } = await supabase
                 .from('locations')
                 .insert([{
+                    vendor_id: currentVendorId,
                     name: newStallEvent.name || `Mobile Stall - ${newStallEvent.stall_date || Date.now()}`,
                     banner_text: newStallEvent.banner_text,
                     stall_date: newStallEvent.stall_date,
@@ -503,6 +560,7 @@ export default function AdminDashboard() {
                 // Insert new item
                 const { data, error } = await supabase.from('menu_items')
                     .insert([{
+                        vendor_id: currentVendorId,
                         name: editingMenuItem.name,
                         price: parseFloat(editingMenuItem.price),
                         image_url: editingMenuItem.image_url || null
@@ -616,7 +674,38 @@ export default function AdminDashboard() {
     return (
         <div className="kds-container">
             <header className="kds-header">
-                <div className="kds-brand">Kota Guard <span>KDS</span></div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div className="kds-brand" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('kds')}>
+                        Kota Guard <span>KDS</span>
+                    </div>
+                    {vendorConfig && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div style={{ padding: '0.25rem 0.75rem', background: 'rgba(0, 230, 118, 0.1)', color: '#00e676', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold', border: '1px solid rgba(0, 230, 118, 0.2)' }}>
+                                🏪 {vendorConfig.name}
+                            </div>
+                            <a 
+                                href={`/v/${vendorConfig.slug}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                style={{ 
+                                    padding: '0.25rem 0.75rem', 
+                                    background: 'rgba(59, 130, 246, 0.1)', 
+                                    color: '#60a5fa', 
+                                    borderRadius: '20px', 
+                                    fontSize: '0.8rem', 
+                                    fontWeight: 'bold', 
+                                    textDecoration: 'none',
+                                    border: '1px solid rgba(59, 130, 246, 0.2)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.4rem'
+                                }}
+                            >
+                                🌐 View Live Shop
+                            </a>
+                        </div>
+                    )}
+                </div>
 
                 <div className="kds-tabs">
                     <button
@@ -641,22 +730,161 @@ export default function AdminDashboard() {
                             setActiveTab('cms');
                         }}
                     >⚙️ CMS Settings</button>
+                    <button
+                        className={`tab-btn ${activeTab === 'integrations' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('integrations')}
+                    >🔌 Integrations</button>
                 </div>
 
-                <div className="kds-controls">
-                    <label>Location Filter:</label>
-                    <select
-                        className="kds-select"
-                        value={selectedLocation}
-                        onChange={(e) => setSelectedLocation(e.target.value)}
+                <div className="kds-controls" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Stall Filter:</label>
+                        <select
+                            className="kds-select"
+                            value={selectedLocation}
+                            onChange={(e) => setSelectedLocation(e.target.value)}
+                        >
+                            <option value="all">All Locations</option>
+                            {locations.map(loc => (
+                                <option key={loc.id} value={loc.id}>{loc.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    
+                    <button 
+                        onClick={handleLogout}
+                        style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold' }}
                     >
-                        <option value="all">All Locations</option>
-                        {locations.map(loc => (
-                            <option key={loc.id} value={loc.id}>{loc.name}</option>
-                        ))}
-                    </select>
+                        🚪 Logout
+                    </button>
                 </div>
             </header>
+
+            {activeTab === 'integrations' && (
+                <div className="cms-editor" style={{ maxWidth: '800px', margin: '2rem auto' }}>
+                    <div className="cms-card">
+                        <h2 style={{ color: '#00e676', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '1rem' }}>
+                            🔌 Service Integrations
+                        </h2>
+                        <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '2rem' }}>
+                            Configure your custom API keys to handle payments and WhatsApp messages directly through your own accounts.
+                        </p>
+
+                        <div className="form-grid">
+                            {/* Paystack Integration */}
+                            <div className="cms-section" style={{ background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
+                                <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#fff' }}>💳 Paystack (Payments)</h3>
+                                <div className="form-group">
+                                    <label>Paystack Public Key</label>
+                                    <input 
+                                        type="text" 
+                                        className="kds-input" 
+                                        placeholder="pk_live_..." 
+                                        value={vendorConfig.payment_config?.paystack_public_key || ''}
+                                        onChange={(e) => setVendorConfig({
+                                            ...vendorConfig,
+                                            payment_config: { ...vendorConfig.payment_config, paystack_public_key: e.target.value }
+                                        })}
+                                    />
+                                    <small style={{ color: '#64748b' }}>If left blank, platform default keys will be used with a 5% transaction fee.</small>
+                                </div>
+                                <div className="form-group" style={{ marginTop: '1rem' }}>
+                                    <label>Paystack Subaccount Code (For 5% Profit Split)</label>
+                                    <input 
+                                        type="text" 
+                                        className="kds-input" 
+                                        placeholder="ACCT_..." 
+                                        value={vendorConfig.paystack_subaccount_code || ''}
+                                        onChange={(e) => setVendorConfig({ ...vendorConfig, paystack_subaccount_code: e.target.value })}
+                                    />
+                                    <small style={{ color: '#64748b' }}>Used only on the Free Tier to automatically send your 95% profit to your account.</small>
+                                </div>
+                            </div>
+
+                            {/* Netcash / 1Voucher */}
+                            <div className="cms-section" style={{ background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
+                                <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#fff' }}>💸 Netcash & 1Voucher</h3>
+                                <div className="form-group">
+                                    <label>Netcash Account Service Key</label>
+                                    <input 
+                                        type="text" 
+                                        className="kds-input" 
+                                        value={vendorConfig.netcash_config?.account_service_key || ''}
+                                        onChange={(e) => setVendorConfig({
+                                            ...vendorConfig,
+                                            netcash_config: { ...vendorConfig.netcash_config, account_service_key: e.target.value }
+                                        })}
+                                    />
+                                </div>
+                                <div className="form-group" style={{ marginTop: '1rem' }}>
+                                    <label>Netcash Pay Now Key</label>
+                                    <input 
+                                        type="text" 
+                                        className="kds-input" 
+                                        value={vendorConfig.netcash_config?.paynow_service_key || ''}
+                                        onChange={(e) => setVendorConfig({
+                                            ...vendorConfig,
+                                            netcash_config: { ...vendorConfig.netcash_config, paynow_service_key: e.target.value }
+                                        })}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* WhatsApp Bot Integration */}
+                            <div className="cms-section" style={{ background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '12px' }}>
+                                <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#fff' }}>🟢 WhatsApp Mzansi Gold</h3>
+                                <div className="form-group">
+                                    <label>Meta Access Token (Permanent)</label>
+                                    <input 
+                                        type="password" 
+                                        className="kds-input" 
+                                        value={vendorConfig.whatsapp_config?.access_token || ''}
+                                        onChange={(e) => setVendorConfig({
+                                            ...vendorConfig,
+                                            whatsapp_config: { ...vendorConfig.whatsapp_config, access_token: e.target.value }
+                                        })}
+                                    />
+                                </div>
+                                <div className="form-group" style={{ marginTop: '1rem' }}>
+                                    <label>WhatsApp Phone Number ID</label>
+                                    <input 
+                                        type="text" 
+                                        className="kds-input" 
+                                        value={vendorConfig.whatsapp_config?.phone_number_id || ''}
+                                        onChange={(e) => setVendorConfig({
+                                            ...vendorConfig,
+                                            whatsapp_config: { ...vendorConfig.whatsapp_config, phone_number_id: e.target.value }
+                                        })}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="cms-actions" style={{ marginTop: '3rem' }}>
+                            <button 
+                                className="btn-primary" 
+                                style={{ width: '100%', padding: '1rem' }}
+                                onClick={async () => {
+                                    const { error } = await supabase
+                                        .from('vendors')
+                                        .update({
+                                            payment_config: vendorConfig.payment_config,
+                                            netcash_config: vendorConfig.netcash_config,
+                                            whatsapp_config: vendorConfig.whatsapp_config,
+                                            paystack_subaccount_code: vendorConfig.paystack_subaccount_code
+                                        })
+                                        .eq('id', currentVendorId);
+                                    
+                                    if (error) alert("Error saving integrations: " + error.message);
+                                    else alert("Integrations updated successfully! 🚀");
+                                }}
+                            >
+                                💾 Save All Integrations
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {activeTab === 'kds' && (
                 <div className="kds-columns">
@@ -960,6 +1188,82 @@ export default function AdminDashboard() {
             {/* --- PHASE 11: CMS & SETTINGS TAB --- */}
             {activeTab === 'cms' && (
                 <div style={{ padding: '2rem', overflowY: 'auto', flex: 1 }}>
+
+                    {/* --- NEW: Vendor Branding Editor --- */}
+                    <div className="finances-card" style={{ marginBottom: '2rem', border: '1px solid #00e676' }}>
+                        <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            🎨 Brand & Website Identity
+                        </h2>
+                        {vendorConfig ? (
+                            <form onSubmit={async (e) => {
+                                e.preventDefault();
+                                try {
+                                    const { error } = await supabase.from('vendors').update({
+                                        name: vendorConfig.name,
+                                        custom_domain: vendorConfig.custom_domain,
+                                        branding: vendorConfig.branding,
+                                        whatsapp_config: vendorConfig.whatsapp_config
+                                    }).eq('id', currentVendorId);
+                                    if (error) throw error;
+                                    alert("Branding and configuration settings updated!");
+                                } catch (err) {
+                                    alert("Failed to save branding: " + err.message);
+                                }
+                            }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                                    <div className="form-group">
+                                        <label>Shop Name</label>
+                                        <input type="text" className="kds-input" value={vendorConfig.name} onChange={(e) => setVendorConfig({...vendorConfig, name: e.target.value})} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Tagline</label>
+                                        <input type="text" className="kds-input" value={vendorConfig.branding?.tagline || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, tagline: e.target.value}})} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Primary Brand Color</label>
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <input type="color" value={vendorConfig.branding?.primary_color || '#00e676'} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, primary_color: e.target.value}})} style={{ height: '48px', width: '60px', padding: '0', background: 'transparent', border: 'none' }} />
+                                            <input type="text" className="kds-input" value={vendorConfig.branding?.primary_color || '#00e676'} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, primary_color: e.target.value}})} />
+                                        </div>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Welcome Text</label>
+                                        <input type="text" className="kds-input" value={vendorConfig.branding?.welcome_text || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, welcome_text: e.target.value}})} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Custom Domain (e.g. www.chef-dips.co.za)</label>
+                                        <input type="text" className="kds-input" value={vendorConfig.custom_domain || ''} onChange={(e) => setVendorConfig({...vendorConfig, custom_domain: e.target.value})} placeholder="Leave blank to use platform slug" />
+                                    </div>
+                                </div>
+
+                                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                                    <label>Hero Title Highlight</label>
+                                    <input type="text" placeholder="e.g. good quality food." className="kds-input" value={vendorConfig.branding?.hero_highlight || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, hero_highlight: e.target.value}})} />
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem', padding: '1rem', background: 'rgba(59, 130, 246, 0.05)', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                                    <div className="form-group">
+                                        <label>💬 WhatsApp Phone Number ID</label>
+                                        <input type="text" className="kds-input" value={vendorConfig.whatsapp_config?.phone_number_id || ''} onChange={(e) => setVendorConfig({...vendorConfig, whatsapp_config: {...vendorConfig.whatsapp_config, phone_number_id: e.target.value}})} placeholder="From Meta Dev Dashboard" />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>🔑 WhatsApp API Access Token</label>
+                                        <input type="password" separator=" " className="kds-input" value={vendorConfig.whatsapp_config?.api_token || ''} onChange={(e) => setVendorConfig({...vendorConfig, whatsapp_config: {...vendorConfig.whatsapp_config, api_token: e.target.value}})} placeholder="EAA..." />
+                                    </div>
+                                    <small style={{ gridColumn: '1 / -1', color: '#94a3b8' }}>Connect your specific WhatsApp Business API to enable automated ordering for this shop.</small>
+                                </div>
+
+                                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                                    <label>About Us Story</label>
+                                    <textarea className="kds-input" rows="3" value={vendorConfig.branding?.about_text || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, about_text: e.target.value}})} style={{ minHeight: '100px', resize: 'vertical' }}></textarea>
+                                </div>
+
+                                <button type="submit" className="btn-primary" style={{ background: '#00e676', color: '#000', fontWeight: 'bold' }}>Save Brand Identity</button>
+                            </form>
+                        ) : (
+                            <p>Loading vendor settings...</p>
+                        )}
+                    </div>
 
                     {/* Website Content Settings - Stalls */}
                     <div className="finances-card" style={{ marginBottom: '2rem' }}>

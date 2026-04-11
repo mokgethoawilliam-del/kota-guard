@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../src/supabaseClient';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 // Audio context for the "Ding" sound alert
 const playDing = () => {
@@ -427,14 +427,16 @@ export default function AdminDashboard({ session }) {
             tableRows.push(rowData);
         });
 
-        doc.autoTable({
+        autoTable(doc, {
             head: [tableColumn],
             body: tableRows,
             startY: 30,
         });
 
         const totalRev = displayedHistoryOrders.reduce((sum, o) => sum + Number(o.total_price || 0), 0);
-        doc.text(`Total Revenue in report: R ${totalRev}`, 14, doc.lastAutoTable.finalY + 10);
+        // lastAutoTable might be attached directly to doc
+        const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 30 + (tableRows.length * 10);
+        doc.text(`Total Revenue in report: R ${totalRev}`, 14, finalY + 10);
 
         doc.save(`${vendorConfig.slug}_sales_report_${new Date().getTime()}.pdf`);
     };

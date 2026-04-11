@@ -61,6 +61,7 @@ export default function AdminDashboard({ session }) {
     const [chats, setChats] = useState([]);
     const [activeChatSession, setActiveChatSession] = useState(null);
     const [newAdminMessage, setNewAdminMessage] = useState('');
+    const [historyFilter, setHistoryFilter] = useState('all');
     
     // Arrival Alert Toast Trigger
     const [arrivalAlert, setArrivalAlert] = useState(null);
@@ -136,12 +137,25 @@ export default function AdminDashboard({ session }) {
                         if (shouldDing) playDing();
 
                         if (existingOrder) {
+                            if (updatedOrder.status === 'completed' || updatedOrder.status === 'refunded') {
+                                // Move it out of active queue and into history
+                                setHistoryOrders(curr => {
+                                    if (!curr.find(o => o.id === updatedOrder.id)) {
+                                        return [{ ...existingOrder, ...updatedOrder }, ...curr];
+                                    }
+                                    return curr;
+                                });
+                                return currentOrders.filter(o => o.id !== updatedOrder.id);
+                            }
                             // Merge payload to preserve nested order_items
                             return currentOrders.map(o => o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o);
                         } else {
                             // Only add to dashboard if not completed
                             if (updatedOrder.status !== 'completed' && updatedOrder.status !== 'refunded') {
                                 return [updatedOrder, ...currentOrders];
+                            } else {
+                                // If we don't have it, but it updated to completed, we should ideally fetch it.
+                                // For now it will populate on next refresh.
                             }
                             return currentOrders;
                         }
@@ -323,7 +337,16 @@ export default function AdminDashboard({ session }) {
             }
 
             // Optimistic UI update
-            setOrders(current => current.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+            if (newStatus === 'completed' || newStatus === 'refunded') {
+                const orderToMove = orders.find(o => o.id === orderId);
+                if (orderToMove) {
+                    const finishedOrder = { ...orderToMove, status: newStatus };
+                    setOrders(current => current.filter(o => o.id !== orderId));
+                    setHistoryOrders(curr => [finishedOrder, ...curr]);
+                }
+            } else {
+                setOrders(current => current.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+            }
 
             const { error } = await supabase
                 .from('orders')
@@ -370,26 +393,34 @@ export default function AdminDashboard({ session }) {
         document.body.removeChild(link);
     };
 
+    // History Filter Logic
+    const displayedHistoryOrders = historyFilter === 'today'
+        ? historyOrders.filter(o => {
+            const d = new Date(o.created_at);
+            const today = new Date();
+            return d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+        })
+        : historyOrders;
+
     // Phase 7: History Vault PDF Export
     const exportPDF = () => {
-        if (historyOrders.length === 0) return alert("No history to export.");
+        if (displayedHistoryOrders.length === 0) return alert("No history to export.");
 
         const doc = new jsPDF();
-        doc.text("VulaHub - Sales History Report", 14, 15);
+        doc.text(`${vendorConfig.name} - CRM & Sales Report (${historyFilter.toUpperCase()})`, 14, 15);
         doc.setFontSize(10);
         doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 22);
 
-        const tableColumn = ["Order #", "Date", "Customer", "Location", "Items", "Total"];
+        const tableColumn = ["Order #", "Date", "Customer", "WhatsApp Num", "Items", "Total"];
         const tableRows = [];
 
-        historyOrders.forEach(order => {
-            const locName = order.locations?.name || 'Unknown';
+        displayedHistoryOrders.forEach(order => {
             const itemsStr = order.order_items?.map(i => `${i.quantity}x ${i.menu_items?.name}`).join(', ') || '';
             const rowData = [
                 order.order_number,
                 new Date(order.created_at).toLocaleDateString(),
                 order.customer_name,
-                locName,
+                order.customer_phone,
                 itemsStr,
                 `R ${order.total_price}`
             ];
@@ -402,10 +433,10 @@ export default function AdminDashboard({ session }) {
             startY: 30,
         });
 
-        const totalRev = historyOrders.reduce((sum, o) => sum + Number(o.total_price || 0), 0);
-        doc.text(`Total Historical Revenue: R ${totalRev}`, 14, doc.lastAutoTable.finalY + 10);
+        const totalRev = displayedHistoryOrders.reduce((sum, o) => sum + Number(o.total_price || 0), 0);
+        doc.text(`Total Revenue in report: R ${totalRev}`, 14, doc.lastAutoTable.finalY + 10);
 
-        doc.save(`kota_sales_report_${new Date().getTime()}.pdf`);
+        doc.save(`${vendorConfig.slug}_sales_report_${new Date().getTime()}.pdf`);
     };
 
     // Phase 8: Add Expense with Receipt Upload
@@ -1235,7 +1266,16 @@ export default function AdminDashboard({ session }) {
                             <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Completed Order History</h2>
                             <p style={{ color: '#94a3b8' }}>All collected and closed orders appear here.</p>
                         </div>
-                        <div style={{ display: 'flex', gap: '1rem' }}>
+                        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                            <select 
+                                className="kds-select" 
+                                value={historyFilter} 
+                                onChange={e => setHistoryFilter(e.target.value)}
+                                style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.1)' }}
+                            >
+                                <option value="all">All Time</option>
+                                <option value="today">Today's Orders</option>
+                            </select>
                             <button className="btn-secondary" onClick={exportToCSV}>📊 Active Queue CSV</button>
                             <button className="btn-primary" onClick={exportPDF}>📄 Download PDF Report</button>
                         </div>
@@ -1247,13 +1287,13 @@ export default function AdminDashboard({ session }) {
                                 <tr>
                                     <th>Order Number</th>
                                     <th>Date Completed</th>
-                                    <th>Customer</th>
+                                    <th>Customer Log (CRM)</th>
                                     <th>Items</th>
                                     <th>Total</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {historyOrders.map(o => (
+                                {displayedHistoryOrders.map(o => (
                                     <tr key={o.id}>
                                         <td><strong>{o.order_number}</strong></td>
                                         <td>{new Date(o.updated_at || o.created_at).toLocaleString()}</td>
@@ -1267,7 +1307,7 @@ export default function AdminDashboard({ session }) {
                                         <td style={{ fontWeight: 'bold', color: '#00e676' }}>R {o.total_price}</td>
                                     </tr>
                                 ))}
-                                {historyOrders.length === 0 && (
+                                {displayedHistoryOrders.length === 0 && (
                                     <tr><td colSpan="5" className="empty-state">No historical orders found. Make some sales!</td></tr>
                                 )}
                             </tbody>

@@ -61,6 +61,9 @@ export default function AdminDashboard({ session }) {
     const [chats, setChats] = useState([]);
     const [activeChatSession, setActiveChatSession] = useState(null);
     const [newAdminMessage, setNewAdminMessage] = useState('');
+    
+    // Arrival Alert Toast Trigger
+    const [arrivalAlert, setArrivalAlert] = useState(null);
 
     useEffect(() => {
         const timer = setInterval(() => setLiveTime(new Date().toLocaleTimeString()), 1000);
@@ -125,6 +128,9 @@ export default function AdminDashboard({ session }) {
                         // Customer notified they arrived
                         if (updatedOrder.customer_arrived && existingOrder && !existingOrder.customer_arrived) {
                             shouldDing = true;
+                            // Trigger visible toast notification
+                            setArrivalAlert(updatedOrder);
+                            setTimeout(() => setArrivalAlert(null), 10000); // Hide after 10s
                         }
 
                         if (shouldDing) playDing();
@@ -705,8 +711,13 @@ export default function AdminDashboard({ session }) {
     const readyOrders = filteredOrders.filter(o => o.status === 'ready');
 
     const OrderCard = ({ order }) => (
-        <div className="kds-card">
-            <div className="kds-card-header">
+        <div className="kds-card" style={order.customer_arrived ? { border: '3px solid #ef4444', animation: order.status !== 'completed' ? 'pulse 2s infinite' : 'none' } : {}}>
+            {order.customer_arrived && (
+                <div style={{ background: '#ef4444', color: '#fff', padding: '0.5rem', textAlign: 'center', fontWeight: 'bold', fontSize: '1rem', borderTopLeftRadius: '10px', borderTopRightRadius: '10px', marginBottom: '-1px' }}>
+                    🚨 CUSTOMER IS WAITING OUTSIDE
+                </div>
+            )}
+            <div className="kds-card-header" style={{ paddingTop: order.customer_arrived ? '0.5rem' : '' }}>
                 <h3>{order.order_number}</h3>
                 <span className={`status-badge status-${order.status}`}>{order.status}</span>
             </div>
@@ -715,16 +726,11 @@ export default function AdminDashboard({ session }) {
                 <p>WA: {order.customer_phone}</p>
                 {selectedLocation === 'all' && <p className="kds-loc">📍 {order.locations?.name}</p>}
 
-                {/* PRE-ORDER TIME AND ARRIVAL FLAG */}
+                {/* PRE-ORDER TIME */}
                 {order.estimated_collection_time && (
                     <p style={{ color: '#fbbf24', fontWeight: 'bold', marginTop: '0.25rem' }}>
                         ⏰ Collect time: {order.estimated_collection_time.substring(0, 5)}
                     </p>
-                )}
-                {order.customer_arrived && (
-                    <div style={{ background: '#ef4444', color: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', display: 'inline-block', marginTop: '0.25rem', fontWeight: 'bold', fontSize: '0.8rem', animation: 'pulse 2s infinite' }}>
-                        📍 CUSTOMER ARRIVED
-                    </div>
                 )}
             </div>
 
@@ -783,6 +789,30 @@ export default function AdminDashboard({ session }) {
 
     return (
         <div className="kds-container">
+            {/* ARRIVAL ALERT TOAST */}
+            {arrivalAlert && (
+                <div style={{
+                    position: 'fixed',
+                    top: '20px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: '#ef4444',
+                    color: '#fff',
+                    padding: '1.5rem 3rem',
+                    borderRadius: '16px',
+                    boxShadow: '0 10px 30px rgba(239, 68, 68, 0.4)',
+                    zIndex: 9999,
+                    textAlign: 'center',
+                    border: '2px solid #fca5a5',
+                    animation: 'pulse 1s infinite'
+                }}>
+                    <h2 style={{ margin: 0, fontSize: '2rem' }}>🚨 ARRIVAL ALERT</h2>
+                    <p style={{ margin: '0.5rem 0 0', fontSize: '1.2rem', fontWeight: 'bold' }}>
+                        Customer for {arrivalAlert.order_number} is waiting outside!
+                    </p>
+                </div>
+            )}
+
             <header className="kds-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <div className="kds-brand" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('kds')}>

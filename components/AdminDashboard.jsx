@@ -1870,6 +1870,11 @@ export default function AdminDashboard({ session }) {
                                         </div>
 
                                         <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                                            <label>Hero Background Image URL</label>
+                                            <input type="text" placeholder="e.g. https://example.com/my-shop-bg.jpg" className="kds-input" value={vendorConfig.branding?.hero_image || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, hero_image: e.target.value}})} />
+                                        </div>
+
+                                        <div className="form-group" style={{ marginBottom: '1.5rem' }}>
                                             <label>About Us Story</label>
                                             <textarea className="kds-input" rows="3" value={vendorConfig.branding?.about_text || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, about_text: e.target.value}})} style={{ minHeight: '100px', resize: 'vertical' }}></textarea>
                                         </div>

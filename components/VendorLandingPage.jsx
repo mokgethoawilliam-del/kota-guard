@@ -89,49 +89,38 @@ function VendorLandingPage() {
 
             {view === 'landing' && (
                 <div className="landing-page-scroll">
-                    <main className="hero-section" style={{ minHeight: '90vh', display: 'flex', alignItems: 'center', padding: '8rem 2rem 4rem 2rem' }}>
-                        <div className="hero-grid">
-                            <div className="hero-content">
+                    <main className="hero-section" style={{ 
+                        minHeight: '90vh', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        padding: '12rem 2rem 4rem 2rem',
+                        position: 'relative',
+                        background: branding.hero_image ? `url(${branding.hero_image}) center/cover no-repeat` : '#0f172a'
+                    }}>
+                        {/* Dark scenic overlay for text legibility */}
+                        {branding.hero_image && (
+                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'linear-gradient(135deg, rgba(2,6,23,0.95), rgba(2,6,23,0.7))', zIndex: 1 }}></div>
+                        )}
+                        
+                        <div style={{ position: 'relative', zIndex: 2, maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+                            <div className="hero-content" style={{ textAlign: 'center', maxWidth: '800px', margin: '0 auto', background: 'rgba(255,255,255,0.03)', padding: '3rem 2rem', borderRadius: '30px', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.05)' }}>
                                 <span style={{ color: 'var(--primary-color)', fontWeight: 'bold', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>
                                     {branding.welcome_text || '"Dumelang chommi tsaka"'}
                                 </span>
-                                <h1 className="hero-title" style={{ fontSize: 'clamp(2.5rem, 8vw, 4rem)', lineHeight: '1.1', fontWeight: '800' }}>
+                                <h1 className="hero-title" style={{ fontSize: 'clamp(2.5rem, 8vw, 4rem)', lineHeight: '1.1', fontWeight: '800', textAlign: 'center' }}>
                                     {branding.hero_title || 'Nothing brings people together like'} <span style={{ color: 'var(--primary-color)' }}>{branding.hero_highlight || 'good quality food.'}</span>
                                 </h1>
-                                <p className="hero-subtitle" style={{ fontSize: '1.25rem', marginTop: '1.5rem', opacity: 0.9, color: '#94a3b8' }}>
+                                <p className="hero-subtitle" style={{ fontSize: '1.25rem', marginTop: '1.5rem', opacity: 0.9, color: '#94a3b8', textAlign: 'center', marginLeft: 'auto', marginRight: 'auto' }}>
                                     {branding.hero_subtitle || 'Eskort Or Nothing. Kel Rata Zwap.'}
                                 </p>
 
-                                <div className="hero-buttons" style={{ display: 'flex', gap: '1rem', marginTop: '3rem', flexWrap: 'wrap' }}>
+                                <div className="hero-buttons" style={{ display: 'flex', gap: '1rem', marginTop: '3rem', flexWrap: 'wrap', justifyContent: 'center' }}>
                                     <button className="btn-primary hero-btn" onClick={() => setView('menu')} style={{ flex: '1 1 200px', maxWidth: '250px', padding: '1.25rem', fontSize: '1.1rem' }}>
                                         Start Online Order
                                     </button>
                                     <button className="btn-secondary hero-btn" onClick={() => document.getElementById('find-us').scrollIntoView({ behavior: 'smooth' })} style={{ flex: '1 1 200px', maxWidth: '250px', padding: '1.25rem', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', fontSize: '1.1rem' }}>
                                         Locations & Maps
                                     </button>
-                                </div>
-                            </div>
-
-                            <div style={{ position: 'relative', width: '100%', maxWidth: '600px', margin: '0 auto' }}>
-                                <div style={{
-                                    aspectRatio: '1/1',
-                                    background: branding.hero_image ? `url(${branding.hero_image}) center/cover` : '#1e293b',
-                                    borderRadius: '30px',
-                                    boxShadow: `0 30px 60px rgba(0, 230, 118, 0.25)`,
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    color: '#94a3b8',
-                                    border: `2px solid var(--primary-color)`,
-                                    transform: 'rotate(-2deg)'
-                                }}>
-                                    {!branding.hero_image && (
-                                        <div style={{ transform: 'rotate(2deg)' }}>
-                                            <span style={{ fontSize: '4rem', marginBottom: '1rem', display: 'block' }}>🍔</span>
-                                            <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#f8fafc' }}>VulaHub Premium</span>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                         </div>
@@ -276,7 +265,7 @@ function VendorLandingPage() {
 
             {view === 'dashboard' && (
                 <div className="order-flow-wrapper">
-                    <CustomerDashboard vendorId={vendor.id} onBack={() => setView('landing')} />
+                    <CustomerDashboard vendorId={vendor.id} onBack={() => setView('landing')} branding={branding} />
                 </div>
             )}
         </div>

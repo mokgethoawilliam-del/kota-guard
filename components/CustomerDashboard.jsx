@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../src/supabaseClient';
 
-export default function CustomerDashboard({ vendorId, onBack }) {
+export default function CustomerDashboard({ vendorId, onBack, branding = {} }) {
     const [phoneOrId, setPhoneOrId] = useState('');
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -172,21 +172,32 @@ export default function CustomerDashboard({ vendorId, onBack }) {
                                     R {order.total_price}
                                 </div>
 
-                                {order.status === 'ready' && !order.customer_arrived && (
-                                    <button
-                                        className="btn-primary"
-                                        style={{ background: '#3b82f6', padding: '0.5rem 1rem' }}
-                                        onClick={async () => {
-                                            const { error } = await supabase.from('orders').update({ customer_arrived: true }).eq('id', order.id);
-                                            if (!error) {
-                                                setOrders(current => current.map(o => o.id === order.id ? { ...o, customer_arrived: true } : o));
-                                                alert("Kitchen Notified!");
-                                            }
-                                        }}
+                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                    {order.status !== 'completed' && order.status !== 'refunded' && !order.customer_arrived && (
+                                        <button
+                                            className="btn-primary"
+                                            style={{ background: '#3b82f6', padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+                                            onClick={async () => {
+                                                const { error } = await supabase.from('orders').update({ customer_arrived: true }).eq('id', order.id);
+                                                if (!error) {
+                                                    setOrders(current => current.map(o => o.id === order.id ? { ...o, customer_arrived: true } : o));
+                                                    alert("Kitchen Notified!");
+                                                }
+                                            }}
+                                        >
+                                            📍 Notify Arrival
+                                        </button>
+                                    )}
+                                    <a
+                                        href={`https://wa.me/${branding.support_whatsapp || ''}?text=Hi, I need help with my VulaHub Order: ${order.order_number}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="btn-secondary"
+                                        style={{ padding: '0.5rem 1rem', fontSize: '0.9rem', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                     >
-                                        📍 Notify Arrival
-                                    </button>
-                                )}
+                                        💬 Live Chat Support
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     );

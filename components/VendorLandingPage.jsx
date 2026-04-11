@@ -90,8 +90,8 @@ function VendorLandingPage() {
             {view === 'landing' && (
                 <div className="landing-page-scroll">
                     <main className="hero-section" style={{ minHeight: '90vh', display: 'flex', alignItems: 'center', padding: '8rem 2rem 4rem 2rem' }}>
-                        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '4rem', alignItems: 'center' }}>
-                            <div className="hero-content" style={{ textAlign: 'left' }}>
+                        <div className="hero-grid">
+                            <div className="hero-content">
                                 <span style={{ color: 'var(--primary-color)', fontWeight: 'bold', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>
                                     {branding.welcome_text || '"Dumelang chommi tsaka"'}
                                 </span>
@@ -102,7 +102,7 @@ function VendorLandingPage() {
                                     {branding.hero_subtitle || 'Eskort Or Nothing. Kel Rata Zwap.'}
                                 </p>
 
-                                <div style={{ display: 'flex', gap: '1rem', marginTop: '3rem', flexWrap: 'wrap' }}>
+                                <div className="hero-buttons" style={{ display: 'flex', gap: '1rem', marginTop: '3rem', flexWrap: 'wrap' }}>
                                     <button className="btn-primary hero-btn" onClick={() => setView('menu')} style={{ flex: '1 1 200px', maxWidth: '250px', padding: '1.25rem', fontSize: '1.1rem' }}>
                                         Start Online Order
                                     </button>

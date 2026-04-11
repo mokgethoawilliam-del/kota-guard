@@ -115,23 +115,31 @@ export default function AdminDashboard({ session }) {
                 (payload) => {
                     const updatedOrder = payload.new;
 
-                    // If an order just shifted to 'paid' status (verified by Webhook)
-                    if (updatedOrder.status === 'paid') {
-                        playDing(); // Sound Alert!
-                        setOrders(currentOrders => {
-                            // Replace if exists, or add to front if new to dashboard
-                            const exists = currentOrders.find(o => o.id === updatedOrder.id);
-                            if (exists) {
-                                return currentOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o);
+                    setOrders(currentOrders => {
+                        const existingOrder = currentOrders.find(o => o.id === updatedOrder.id);
+                        
+                        let shouldDing = false;
+                        if (updatedOrder.status === 'paid' && (!existingOrder || existingOrder.status !== 'paid')) {
+                            shouldDing = true;
+                        }
+                        // Customer notified they arrived
+                        if (updatedOrder.customer_arrived && existingOrder && !existingOrder.customer_arrived) {
+                            shouldDing = true;
+                        }
+
+                        if (shouldDing) playDing();
+
+                        if (existingOrder) {
+                            // Merge payload to preserve nested order_items
+                            return currentOrders.map(o => o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o);
+                        } else {
+                            // Only add to dashboard if not completed
+                            if (updatedOrder.status !== 'completed' && updatedOrder.status !== 'refunded') {
+                                return [updatedOrder, ...currentOrders];
                             }
-                            return [updatedOrder, ...currentOrders];
-                        });
-                    } else {
-                        // General status updates (preparing, ready, etc)
-                        setOrders(currentOrders => currentOrders.map(o =>
-                            o.id === updatedOrder.id ? updatedOrder : o
-                        ));
-                    }
+                            return currentOrders;
+                        }
+                    });
                 }
             )
             .on(

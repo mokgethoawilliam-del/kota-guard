@@ -279,17 +279,6 @@ function VendorLandingPage() {
                     <CustomerDashboard vendorId={vendor.id} onBack={() => setView('landing')} />
                 </div>
             )}
-            {view === 'menu' && (
-                <div className="order-flow-wrapper">
-                    <CustomerMenu vendorId={vendor.id} branding={branding} />
-                </div>
-            )}
-
-            {view === 'dashboard' && (
-                <div className="order-flow-wrapper">
-                    <CustomerDashboard vendorId={vendor.id} onBack={() => setView('landing')} />
-                </div>
-            )}
         </div>
     );
 }

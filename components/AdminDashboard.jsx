@@ -51,6 +51,10 @@ export default function AdminDashboard({ session }) {
     const [newBranch, setNewBranch] = useState({ name: '', address: '', google_maps_url: '', is_active: true });
     const [heroImageFile, setHeroImageFile] = useState(null);
     const [uploadingHero, setUploadingHero] = useState(false);
+    
+    // Menu Image Upload State
+    const [menuImageFile, setMenuImageFile] = useState(null);
+    const [uploadingMenuImage, setUploadingMenuImage] = useState(false);
 
     // Custom Live Chat & KDS Clock State
     const [liveTime, setLiveTime] = useState(new Date().toLocaleTimeString());
@@ -594,19 +598,45 @@ export default function AdminDashboard({ session }) {
     const handleSaveMenuItem = async (e) => {
         e.preventDefault();
         try {
+            setUploadingMenuImage(true);
+            let finalImageUrl = editingMenuItem.image_url || null;
+
+            if (menuImageFile) {
+                const fileExt = menuImageFile.name.split('.').pop();
+                const fileName = `menu_${Date.now()}.${fileExt}`;
+                const filePath = `menu-images/${fileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('business-documents')
+                    .upload(filePath, menuImageFile);
+
+                if (uploadError) {
+                    console.error("Upload error:", uploadError);
+                    alert("Could not upload menu image.");
+                    setUploadingMenuImage(false);
+                    return;
+                }
+                
+                const { data: { publicUrl } } = supabase.storage
+                    .from('business-documents')
+                    .getPublicUrl(filePath);
+                
+                finalImageUrl = publicUrl;
+            }
+
             if (editingMenuItem.id) {
                 // Update existing item
                 const { error } = await supabase.from('menu_items')
                     .update({
                         name: editingMenuItem.name,
                         price: parseFloat(editingMenuItem.price),
-                        image_url: editingMenuItem.image_url || null
+                        image_url: finalImageUrl
                     })
                     .eq('id', editingMenuItem.id);
 
                 if (error) throw error;
 
-                setMenuItems(menuItems.map(item => item.id === editingMenuItem.id ? { ...editingMenuItem, price: parseFloat(editingMenuItem.price) } : item).sort((a, b) => a.price - b.price));
+                setMenuItems(menuItems.map(item => item.id === editingMenuItem.id ? { ...editingMenuItem, image_url: finalImageUrl, price: parseFloat(editingMenuItem.price) } : item).sort((a, b) => a.price - b.price));
                 alert("Menu item updated successfully!");
             } else {
                 // Insert new item
@@ -615,7 +645,7 @@ export default function AdminDashboard({ session }) {
                         vendor_id: currentVendorId,
                         name: editingMenuItem.name,
                         price: parseFloat(editingMenuItem.price),
-                        image_url: editingMenuItem.image_url || null
+                        image_url: finalImageUrl
                     }])
                     .select().single();
 
@@ -625,9 +655,12 @@ export default function AdminDashboard({ session }) {
             }
 
             setEditingMenuItem({ id: null, name: '', price: '', image_url: '' });
+            setMenuImageFile(null);
         } catch (err) {
             console.error(err);
             alert(`Could not save menu item: ${err.message || 'Unknown error. Name might be a duplicate.'}`);
+        } finally {
+            setUploadingMenuImage(false);
         }
     };
 
@@ -1555,11 +1588,23 @@ export default function AdminDashboard({ session }) {
                                             <input required type="number" min="0" step="0.01" className="kds-input" value={editingMenuItem.price} onChange={e => setEditingMenuItem({ ...editingMenuItem, price: e.target.value })} style={{ width: '100%' }} />
                                         </div>
                                         <div>
-                                            <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Image URL (Optional)</label>
-                                            <input type="text" className="kds-input" value={editingMenuItem.image_url} onChange={e => setEditingMenuItem({ ...editingMenuItem, image_url: e.target.value })} placeholder="e.g. /images/kota_1.jpg" style={{ width: '100%' }} />
+                                            <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Menu Image Upload</label>
+                                            {editingMenuItem.image_url && !menuImageFile && (
+                                                <div style={{ marginBottom: '0.25rem' }}>
+                                                    <img src={editingMenuItem.image_url} alt="Current" style={{ height: '30px', borderRadius: '4px', verticalAlign: 'middle', marginRight: '0.5rem' }} />
+                                                    <small style={{ color: '#00e676' }}>Active</small>
+                                                </div>
+                                            )}
+                                            <input 
+                                                type="file" 
+                                                accept="image/*" 
+                                                className="kds-input" 
+                                                onChange={e => setMenuImageFile(e.target.files[0])} 
+                                                style={{ width: '100%', padding: '0.25rem' }} 
+                                            />
                                         </div>
-                                        <button type="submit" className="btn-primary" style={{ padding: '0.5rem 1rem' }}>
-                                            {editingMenuItem.id ? 'Save Changes' : 'Add Item'}
+                                        <button type="submit" disabled={uploadingMenuImage} className="btn-primary" style={{ padding: '0.5rem 1rem' }}>
+                                            {uploadingMenuImage ? 'Saving...' : (editingMenuItem.id ? 'Save Changes' : 'Add Item')}
                                         </button>
                                     </form>
                                 </div>

@@ -7,6 +7,38 @@ export default function CustomerDashboard({ vendorId, onBack, branding = {} }) {
     const [loading, setLoading] = useState(false);
     const [searched, setSearched] = useState(false);
 
+    // Chat State
+    const [activeChatSession, setActiveChatSession] = useState(null);
+    const [chatMessages, setChatMessages] = useState([]);
+    const [newMessage, setNewMessage] = useState('');
+    
+    // Subscribe to chat session if active
+    useEffect(() => {
+        if (!activeChatSession) return;
+        
+        // Fetch historical
+        supabase.from('support_chats').select('*')
+            .eq('session_identifier', activeChatSession)
+            .order('created_at', { ascending: true })
+            .then(({data, error}) => {
+                if(data) setChatMessages(data);
+            });
+
+        // Listen for new ones
+        const chatSub = supabase.channel(`chat_${activeChatSession}`)
+            .on('postgres_changes', { 
+                event: 'INSERT', 
+                schema: 'public', 
+                table: 'support_chats',
+                filter: `session_identifier=eq.${activeChatSession}`
+            }, (payload) => {
+                setChatMessages(current => [...current, payload.new]);
+            })
+            .subscribe();
+
+        return () => supabase.removeChannel(chatSub);
+    }, [activeChatSession]);
+
     // Track active orders for realtime updates
     useEffect(() => {
         if (orders.length === 0) return;
@@ -188,21 +220,97 @@ export default function CustomerDashboard({ vendorId, onBack, branding = {} }) {
                                             📍 Notify Arrival
                                         </button>
                                     )}
-                                    <a
-                                        href={`https://wa.me/${branding.support_whatsapp || ''}?text=Hi, I need help with my VulaHub Order: ${order.order_number}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
+                                    <button
                                         className="btn-secondary"
-                                        style={{ padding: '0.5rem 1rem', fontSize: '0.9rem', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                        style={{ padding: '0.5rem 1rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                        onClick={() => setActiveChatSession(order.order_number)}
                                     >
                                         💬 Live Chat Support
-                                    </a>
+                                    </button>
                                 </div>
                             </div>
                         </div>
                     );
                 })}
             </div>
+
+            {/* Native Support Chat Overlay */}
+            {activeChatSession && (
+                <div style={{
+                    position: 'fixed',
+                    bottom: '20px',
+                    right: '20px',
+                    width: '350px',
+                    height: '500px',
+                    backgroundColor: '#1e293b',
+                    borderRadius: '16px',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                    border: '1px solid #334155',
+                    zIndex: 1000
+                }}>
+                    <div style={{ padding: '1rem', background: '#0f172a', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                            <h3 style={{ margin: 0, color: '#f8fafc', fontSize: '1rem' }}>Support Chat</h3>
+                            <p style={{ margin: 0, color: '#00e676', fontSize: '0.8rem' }}>Order: {activeChatSession}</p>
+                        </div>
+                        <button onClick={() => setActiveChatSession(null)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '1.5rem', cursor: 'pointer', outline: 'none' }}>&times;</button>
+                    </div>
+
+                    <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem', background: '#0f172a' }}>
+                        {chatMessages.length === 0 && (
+                            <p style={{ color: '#64748b', textAlign: 'center', fontSize: '0.9rem', marginTop: '2rem' }}>
+                                Say hi! An admin will respond here shortly.
+                            </p>
+                        )}
+                        {chatMessages.map(msg => {
+                            const isCustomer = msg.sender_type === 'customer';
+                            return (
+                                <div key={msg.id} style={{
+                                    alignSelf: isCustomer ? 'flex-end' : 'flex-start',
+                                    background: isCustomer ? '#00e676' : '#334155',
+                                    color: isCustomer ? '#000' : '#fff',
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '12px',
+                                    borderBottomRightRadius: isCustomer ? '0' : '12px',
+                                    borderBottomLeftRadius: !isCustomer ? '0' : '12px',
+                                    maxWidth: '80%'
+                                }}>
+                                    <div style={{ fontSize: '0.9rem', wordBreak: 'break-word' }}>{msg.message}</div>
+                                    <div style={{ fontSize: '0.65rem', color: isCustomer ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)', marginTop: '0.25rem', textAlign: isCustomer ? 'right' : 'left' }}>
+                                        {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <form onSubmit={async (e) => {
+                        e.preventDefault();
+                        if (!newMessage.trim()) return;
+                        const { error } = await supabase.from('support_chats').insert({
+                            vendor_id: vendorId,
+                            session_identifier: activeChatSession,
+                            sender_type: 'customer',
+                            message: newMessage.trim()
+                        });
+                        if (!error) setNewMessage('');
+                    }} style={{ padding: '0.75rem', background: '#1e293b', borderTop: '1px solid #334155', display: 'flex', gap: '0.5rem' }}>
+                        <input 
+                            type="text" 
+                            placeholder="Type a message..."
+                            value={newMessage}
+                            onChange={e => setNewMessage(e.target.value)}
+                            style={{ flex: 1, padding: '0.5rem 1rem', borderRadius: '20px', border: '1px solid #475569', background: '#0f172a', color: '#fff', outline: 'none' }}
+                        />
+                        <button type="submit" style={{ background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                            ➤
+                        </button>
+                    </form>
+                </div>
+            )}
         </div>
     );
 }

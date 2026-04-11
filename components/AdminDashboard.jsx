@@ -50,6 +50,17 @@ export default function AdminDashboard({ session }) {
     const [isSavingBranch, setIsSavingBranch] = useState(false);
     const [newBranch, setNewBranch] = useState({ name: '', address: '', google_maps_url: '', is_active: true });
 
+    // Custom Live Chat & KDS Clock State
+    const [liveTime, setLiveTime] = useState(new Date().toLocaleTimeString());
+    const [chats, setChats] = useState([]);
+    const [activeChatSession, setActiveChatSession] = useState(null);
+    const [newAdminMessage, setNewAdminMessage] = useState('');
+
+    useEffect(() => {
+        const timer = setInterval(() => setLiveTime(new Date().toLocaleTimeString()), 1000);
+        return () => clearInterval(timer);
+    }, []);
+
     useEffect(() => {
         const loadProfileAndData = async () => {
             if (!session?.user?.id) return;
@@ -130,8 +141,25 @@ export default function AdminDashboard({ session }) {
             )
             .subscribe();
 
+        // 2. Subscribe to Support Chats
+        const chatChannel = supabase
+            .channel('public:support_chats')
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'support_chats' },
+                (payload) => {
+                    const newChat = payload.new;
+                    if (newChat.vendor_id === currentVendorId) {
+                        setChats(current => [...current, newChat]);
+                        if (newChat.sender_type === 'customer') playDing();
+                    }
+                }
+            )
+            .subscribe();
+
         return () => {
             supabase.removeChannel(channel);
+            supabase.removeChannel(chatChannel);
         };
     }, [currentVendorId]);
 
@@ -204,6 +232,17 @@ export default function AdminDashboard({ session }) {
 
             if (!menuErr && menuData) {
                 setMenuItems(menuData);
+            }
+
+            // Fetch Support Chats
+            const { data: chatData } = await supabase
+                .from('support_chats')
+                .select('*')
+                .eq('vendor_id', currentVendorId)
+                .order('created_at', { ascending: true });
+            
+            if (chatData) {
+                setChats(chatData);
             }
 
         } catch (err) {
@@ -739,7 +778,11 @@ export default function AdminDashboard({ session }) {
                     <button
                         className={`tab-btn ${activeTab === 'kds' ? 'active' : ''}`}
                         onClick={() => setActiveTab('kds')}
-                    >🔥 Live Kitchen</button>
+                    >🔥 Live Kitchen <span style={{ color: '#00e676', marginLeft: '0.5rem', fontWeight: 'bold' }}>{liveTime}</span></button>
+                    <button
+                        className={`tab-btn ${activeTab === 'support' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('support')}
+                    >💬 Live Chat</button>
                     <button
                         className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
                         onClick={() => setActiveTab('history')}
@@ -1003,6 +1046,111 @@ export default function AdminDashboard({ session }) {
                             {readyOrders.map(o => <OrderCard key={o.id} order={o} />)}
                             {readyOrders.length === 0 && <p className="empty-state">No orders awaiting pickup.</p>}
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'support' && (
+                <div className="vault-container" style={{ display: 'flex', height: 'calc(100vh - 150px)', overflow: 'hidden', padding: 0 }}>
+                    {/* Left Pane: Sessions */}
+                    <div style={{ width: '350px', background: '#1e293b', borderRight: '1px solid #334155', display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ padding: '1rem', borderBottom: '1px solid #334155', background: '#0f172a' }}>
+                            <h2 style={{ fontSize: '1.2rem', margin: 0 }}>💬 Active Chats</h2>
+                        </div>
+                        <div style={{ flex: 1, overflowY: 'auto' }}>
+                            {/* Group chats by session_identifier */}
+                            {Array.from(new Set(chats.map(c => c.session_identifier))).map(sessionId => {
+                                const sessionChats = chats.filter(c => c.session_identifier === sessionId);
+                                const lastChat = sessionChats[sessionChats.length - 1];
+                                const unread = sessionChats.filter(c => c.sender_type === 'customer' && !c.is_read).length;
+                                return (
+                                    <div 
+                                        key={sessionId} 
+                                        onClick={() => {
+                                            setActiveChatSession(sessionId);
+                                            // Optional: Mark as read logic
+                                        }}
+                                        style={{ 
+                                            padding: '1rem', 
+                                            borderBottom: '1px solid #334155', 
+                                            cursor: 'pointer',
+                                            background: activeChatSession === sessionId ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                                            borderLeft: activeChatSession === sessionId ? '4px solid #3b82f6' : '4px solid transparent'
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                                            <strong style={{ color: '#f8fafc' }}>Order: {sessionId}</strong>
+                                            {unread > 0 && <span style={{ background: '#ef4444', color: '#fff', padding: '0.1rem 0.4rem', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 'bold' }}>{unread}</span>}
+                                        </div>
+                                        <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {lastChat.message}
+                                        </p>
+                                    </div>
+                                );
+                            })}
+                            {chats.length === 0 && <p style={{ padding: '1rem', color: '#64748b', textAlign: 'center' }}>No messages yet.</p>}
+                        </div>
+                    </div>
+
+                    {/* Right Pane: Chat Thread */}
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#0f172a' }}>
+                        {activeChatSession ? (
+                            <>
+                                <div style={{ padding: '1rem', borderBottom: '1px solid #334155', background: '#1e293b' }}>
+                                    <h2 style={{ fontSize: '1.2rem', margin: 0 }}>Chatting with Order: {activeChatSession}</h2>
+                                </div>
+                                <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                    {chats.filter(c => c.session_identifier === activeChatSession).map(chat => {
+                                        const isVendor = chat.sender_type === 'admin';
+                                        return (
+                                            <div key={chat.id} style={{ 
+                                                alignSelf: isVendor ? 'flex-end' : 'flex-start',
+                                                background: isVendor ? '#3b82f6' : '#334155',
+                                                color: '#fff',
+                                                padding: '0.75rem 1rem',
+                                                borderRadius: '12px',
+                                                borderBottomRightRadius: isVendor ? '0' : '12px',
+                                                borderBottomLeftRadius: !isVendor ? '0' : '12px',
+                                                maxWidth: '70%',
+                                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                            }}>
+                                                <div style={{ fontSize: '0.9rem', wordBreak: 'break-word' }}>{chat.message}</div>
+                                                <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)', marginTop: '0.25rem', textAlign: isVendor ? 'right' : 'left' }}>
+                                                    {new Date(chat.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <div style={{ padding: '1rem', borderTop: '1px solid #334155', background: '#1e293b' }}>
+                                    <form onSubmit={async (e) => {
+                                        e.preventDefault();
+                                        if (!newAdminMessage.trim()) return;
+                                        const { error } = await supabase.from('support_chats').insert({
+                                            vendor_id: currentVendorId,
+                                            session_identifier: activeChatSession,
+                                            sender_type: 'admin',
+                                            message: newAdminMessage.trim()
+                                        });
+                                        if (error) alert("Send failed: " + error.message);
+                                        else setNewAdminMessage('');
+                                    }} style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <input 
+                                            type="text" 
+                                            value={newAdminMessage}
+                                            onChange={(e) => setNewAdminMessage(e.target.value)}
+                                            placeholder="Type a reply..." 
+                                            style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', border: '1px solid #475569', background: '#0f172a', color: '#fff', outline: 'none' }}
+                                        />
+                                        <button type="submit" className="btn-primary" style={{ padding: '0 1.5rem', fontWeight: 'bold' }}>Send</button>
+                                    </form>
+                                </div>
+                            </>
+                        ) : (
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+                                Select a session from the left to start chatting.
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

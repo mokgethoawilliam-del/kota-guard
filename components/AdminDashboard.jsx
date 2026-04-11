@@ -49,6 +49,8 @@ export default function AdminDashboard({ session }) {
     const [cmsActiveSubTab, setCmsActiveSubTab] = useState('menu'); // 'menu' | 'branches' | 'events' | 'branding'
     const [isSavingBranch, setIsSavingBranch] = useState(false);
     const [newBranch, setNewBranch] = useState({ name: '', address: '', google_maps_url: '', is_active: true });
+    const [heroImageFile, setHeroImageFile] = useState(null);
+    const [uploadingHero, setUploadingHero] = useState(false);
 
     // Custom Live Chat & KDS Clock State
     const [liveTime, setLiveTime] = useState(new Date().toLocaleTimeString());
@@ -1827,15 +1829,42 @@ export default function AdminDashboard({ session }) {
                                     <form onSubmit={async (e) => {
                                         e.preventDefault();
                                         try {
+                                            setUploadingHero(true);
+                                            let finalBranding = { ...vendorConfig.branding };
+
+                                            if (heroImageFile) {
+                                                const fileExt = heroImageFile.name.split('.').pop();
+                                                const fileName = `hero_${Date.now()}.${fileExt}`;
+                                                const filePath = `hero-images/${fileName}`;
+
+                                                const { error: uploadError } = await supabase.storage
+                                                    .from('business-documents')
+                                                    .upload(filePath, heroImageFile);
+
+                                                if (uploadError) {
+                                                    console.error("Hero upload error:", uploadError);
+                                                    alert("Could not upload hero image. Ensure the Storage bucket 'business-documents' exists.");
+                                                } else {
+                                                    const { data: { publicUrl } } = supabase.storage
+                                                        .from('business-documents')
+                                                        .getPublicUrl(filePath);
+                                                    finalBranding.hero_image = publicUrl;
+                                                }
+                                            }
+
                                             const { error } = await supabase.from('vendors').update({
                                                 name: vendorConfig.name,
                                                 custom_domain: vendorConfig.custom_domain,
-                                                branding: vendorConfig.branding
+                                                branding: finalBranding
                                             }).eq('id', currentVendorId);
+                                            
                                             if (error) throw error;
                                             alert("Branding settings updated!");
+                                            setVendorConfig({...vendorConfig, branding: finalBranding});
                                         } catch (err) {
                                             alert("Failed to save branding: " + err.message);
+                                        } finally {
+                                            setUploadingHero(false);
                                         }
                                     }}>
                                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
@@ -1870,8 +1899,22 @@ export default function AdminDashboard({ session }) {
                                         </div>
 
                                         <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                                            <label>Hero Background Image URL</label>
-                                            <input type="text" placeholder="e.g. https://example.com/my-shop-bg.jpg" className="kds-input" value={vendorConfig.branding?.hero_image || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, hero_image: e.target.value}})} />
+                                            <label>Hero Background Image Upload</label>
+                                            {vendorConfig.branding?.hero_image && (
+                                                <div style={{ marginBottom: '0.5rem' }}>
+                                                    <img src={vendorConfig.branding.hero_image} alt="Hero" style={{ height: '60px', borderRadius: '4px', border: '1px solid #334155' }} />
+                                                    <br/>
+                                                    <small style={{ color: '#00e676' }}>Current image active</small>
+                                                </div>
+                                            )}
+                                            <input 
+                                                type="file" 
+                                                accept="image/*"
+                                                className="kds-input" 
+                                                onChange={(e) => setHeroImageFile(e.target.files[0])} 
+                                                style={{ padding: '0.5rem' }}
+                                            />
+                                            <small style={{ color: '#64748b', display: 'block', marginTop: '0.5rem' }}>Upload a high-quality landscape image for your landing page background.</small>
                                         </div>
 
                                         <div className="form-group" style={{ marginBottom: '1.5rem' }}>
@@ -1879,7 +1922,9 @@ export default function AdminDashboard({ session }) {
                                             <textarea className="kds-input" rows="3" value={vendorConfig.branding?.about_text || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, about_text: e.target.value}})} style={{ minHeight: '100px', resize: 'vertical' }}></textarea>
                                         </div>
 
-                                        <button type="submit" className="btn-primary" style={{ background: '#00e676', color: '#000', fontWeight: 'bold' }}>Save Brand Identity</button>
+                                        <button type="submit" className="btn-primary" disabled={uploadingHero} style={{ background: '#00e676', color: '#000', fontWeight: 'bold' }}>
+                                            {uploadingHero ? 'Uploading & Saving...' : 'Save Brand Identity'}
+                                        </button>
                                     </form>
                                 ) : (
                                     <p>Loading vendor settings...</p>

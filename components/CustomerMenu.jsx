@@ -97,11 +97,15 @@ export default function CustomerMenu({ vendorId, branding }) {
     const openCheckout = () => {
         if (cart.length === 0) return alert("Your cart is empty");
         setIsCheckoutOpen(true);
+        // Ensure modal starts at the top
+        setTimeout(() => {
+            const overlay = document.querySelector('.modal-overlay');
+            if (overlay) overlay.scrollTop = 0;
+        }, 100);
     };
 
     const cancelCheckout = () => {
         setIsCheckoutOpen(false);
-        // We keep the details filled in case they just wanted to close the modal temporarily
     };
 
     const handleBuyNow = async (e) => {
@@ -412,53 +416,7 @@ export default function CustomerMenu({ vendorId, branding }) {
                         </div>
 
                         <form onSubmit={handleBuyNow} className="checkout-form">
-                            <div className="form-group">
-                                <label>Collection Location</label>
-                                <select
-                                    value={selectedLocation}
-                                    onChange={(e) => setSelectedLocation(e.target.value)}
-                                    required
-                                    className="form-input"
-                                >
-                                    <option value="" disabled>Select Location...</option>
-                                    {locations.map(loc => (
-                                        <option key={loc.id} value={loc.id}>{loc.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {selectedLocationDoc?.delivery_enabled && (
-                                <div className="form-group" style={{ marginBottom: '1.5rem', background: 'rgba(59, 130, 246, 0.1)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                                    <label style={{ display: 'block', marginBottom: '1rem', fontWeight: 'bold' }}>🚚 How do you want your Kota?</label>
-                                    <div style={{ display: 'flex', gap: '1rem' }}>
-                                        <button 
-                                            type="button"
-                                            onClick={() => setFulfillmentMethod('collection')}
-                                            style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', border: '1px solid', borderColor: fulfillmentMethod === 'collection' ? '#00e676' : '#334155', background: fulfillmentMethod === 'collection' ? 'rgba(0, 230, 118, 0.1)' : 'transparent', color: fulfillmentMethod === 'collection' ? '#00e676' : '#94a3b8', cursor: 'pointer', fontWeight: 'bold' }}
-                                        >🛍️ Collection</button>
-                                        <button 
-                                            type="button"
-                                            onClick={() => setFulfillmentMethod('delivery')}
-                                            style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', border: '1px solid', borderColor: fulfillmentMethod === 'delivery' ? '#3b82f6' : '#334155', background: fulfillmentMethod === 'delivery' ? 'rgba(59, 130, 246, 0.1)' : 'transparent', color: fulfillmentMethod === 'delivery' ? '#3b82f6' : '#94a3b8', cursor: 'pointer', fontWeight: 'bold' }}
-                                        >🚚 Delivery (+R {selectedLocationDoc.delivery_fee})</button>
-                                    </div>
-
-                                    {fulfillmentMethod === 'delivery' && (
-                                        <div style={{ marginTop: '1.5rem', animation: 'slideDown 0.3s ease-out' }}>
-                                            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem' }}>🏠 House/Street Address</label>
-                                            <textarea 
-                                                required
-                                                className="form-input"
-                                                placeholder="Enter your street address and area..."
-                                                value={deliveryAddress}
-                                                onChange={(e) => setDeliveryAddress(e.target.value)}
-                                                style={{ minHeight: '80px', borderRadius: '8px' }}
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
+                            {/* 1. Customer Identity */}
                             <div className="form-group">
                                 <label>Your Name</label>
                                 <input
@@ -482,28 +440,89 @@ export default function CustomerMenu({ vendorId, branding }) {
                                     className="form-input"
                                 />
                                 <small style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
-                                    📱 Enter a valid 10-digit South African number to unlock secret rewards.
+                                    📱 Enter 10-digit SA number to unlock rewards.
                                 </small>
                             </div>
 
+                            {/* 2. Branch Selection */}
+                            <div className="form-group" style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                <label style={{ color: '#60a5fa' }}>📍 Choose Shop/Stall</label>
+                                <select
+                                    value={selectedLocation}
+                                    onChange={(e) => {
+                                        setSelectedLocation(e.target.value);
+                                        setFulfillmentMethod('collection'); // Reset to collection on branch change
+                                    }}
+                                    required
+                                    className="form-input"
+                                    style={{ marginTop: '0.5rem' }}
+                                >
+                                    <option value="" disabled>Select Location...</option>
+                                    {locations.map(loc => (
+                                        <option key={loc.id} value={loc.id}>{loc.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* 3. Fulfillment Choice */}
+                            <div className="form-group" style={{ marginBottom: '1.5rem', background: 'rgba(59, 130, 246, 0.05)', padding: '1.25rem', borderRadius: '16px', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
+                                <label style={{ display: 'block', marginBottom: '1rem', fontWeight: 'bold' }}>🍽️ How do you want your Kota?</label>
+                                
+                                {selectedLocationDoc?.delivery_enabled ? (
+                                    <>
+                                        <div style={{ display: 'flex', gap: '1rem' }}>
+                                            <button 
+                                                type="button"
+                                                onClick={() => setFulfillmentMethod('collection')}
+                                                style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', border: '1px solid', borderColor: fulfillmentMethod === 'collection' ? '#00e676' : '#334155', background: fulfillmentMethod === 'collection' ? 'rgba(0, 230, 118, 0.1)' : 'transparent', color: fulfillmentMethod === 'collection' ? '#00e676' : '#94a3b8', cursor: 'pointer', fontWeight: 'bold' }}
+                                            >🛍️ Collection</button>
+                                            <button 
+                                                type="button"
+                                                onClick={() => setFulfillmentMethod('delivery')}
+                                                style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', border: '1px solid', borderColor: fulfillmentMethod === 'delivery' ? '#3b82f6' : '#334155', background: fulfillmentMethod === 'delivery' ? 'rgba(59, 130, 246, 0.1)' : 'transparent', color: fulfillmentMethod === 'delivery' ? '#3b82f6' : '#94a3b8', cursor: 'pointer', fontWeight: 'bold' }}
+                                            >🚚 Delivery (+R {selectedLocationDoc.delivery_fee})</button>
+                                        </div>
+
+                                        {fulfillmentMethod === 'delivery' && (
+                                            <div style={{ marginTop: '1.5rem', animation: 'fadeIn 0.3s ease-out' }}>
+                                                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: '#fff' }}>🏠 Delivery Address</label>
+                                                <textarea 
+                                                    required
+                                                    className="form-input"
+                                                    placeholder="Enter street, area, house number..."
+                                                    value={deliveryAddress}
+                                                    onChange={(e) => setDeliveryAddress(e.target.value)}
+                                                    style={{ minHeight: '80px', borderRadius: '8px', width: '100%' }}
+                                                />
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div style={{ padding: '0.75rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', color: '#94a3b8', textAlign: 'center' }}>
+                                        🛍️ This branch only offers <b>Collection</b>.
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* 4. Scheduling & Extras */}
                             <div className="form-group">
-                                <label>Estimated Collection Time (Optional)</label>
+                                <label>Preferred {fulfillmentMethod === 'delivery' ? 'Delivery' : 'Arrival'} Time (Optional)</label>
                                 <input
                                     type="time"
                                     value={collectionTime}
                                     onChange={(e) => setCollectionTime(e.target.value)}
                                     className="form-input"
                                 />
-                                <small style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
-                                    ⏰ Let Chef Dips know when you'll arrive so it's fresh off the grill!
+                                <small style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
+                                    ⏰ Helps our chefs prepare your order fresh!
                                 </small>
                             </div>
 
                             <div className="form-group">
-                                <label>Special Instructions for Entire Order (Optional)</label>
+                                <label>Special Instructions (Optional)</label>
                                 <input
                                     type="text"
-                                    placeholder="e.g. Please put Atchaar on the side"
+                                    placeholder="e.g. Extra sauce, no onions..."
                                     value={modifiers}
                                     onChange={(e) => setModifiers(e.target.value)}
                                     className="form-input"
@@ -512,7 +531,7 @@ export default function CustomerMenu({ vendorId, branding }) {
 
                             <div className="modal-actions">
                                 <button type="button" className="btn-secondary" onClick={cancelCheckout} disabled={processingId !== null}>
-                                    Back to Menu
+                                    Cancel
                                 </button>
                                 <button type="submit" className="btn-primary" disabled={processingId !== null}>
                                     {processingId !== null ? 'Processing...' : `Pay R ${cartTotal}`}

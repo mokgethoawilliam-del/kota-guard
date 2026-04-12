@@ -45,6 +45,7 @@ export default function AdminDashboard({ session }) {
     const [vaultError, setVaultError] = useState('');
     const [unlocking, setUnlocking] = useState(false);
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+    const [vaultTimer, setVaultTimer] = useState(20); // 20-second auto-lock timer
     
     // Delete Account State
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -202,6 +203,47 @@ export default function AdminDashboard({ session }) {
             supabase.removeChannel(chatChannel);
         };
     }, [currentVendorId]);
+
+    // Auto-Lock Inactivity Timer for the Vault
+    useEffect(() => {
+        let countdown;
+        let activityListener;
+
+        if (isVaultUnlocked) {
+            // Reset timer to 20 when vault is first opened
+            setVaultTimer(20);
+
+            // Interval to count down
+            countdown = setInterval(() => {
+                setVaultTimer(prev => {
+                    if (prev <= 1) {
+                        setIsVaultUnlocked(false);
+                        setVaultPassword('');
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+
+            // Reset timer on any activity
+            activityListener = () => {
+                setVaultTimer(20);
+            };
+            
+            window.addEventListener('mousemove', activityListener);
+            window.addEventListener('keydown', activityListener);
+            window.addEventListener('click', activityListener);
+            window.addEventListener('touchstart', activityListener);
+        }
+
+        return () => {
+            clearInterval(countdown);
+            window.removeEventListener('mousemove', activityListener);
+            window.removeEventListener('keydown', activityListener);
+            window.removeEventListener('click', activityListener);
+            window.removeEventListener('touchstart', activityListener);
+        };
+    }, [isVaultUnlocked]);
 
     async function fetchInitialData() {
         if (!currentVendorId) return;
@@ -1020,9 +1062,15 @@ export default function AdminDashboard({ session }) {
                                 <div style={{ padding: '0.5rem' }}>
                                     <button 
                                         onClick={() => {
-                                            setActiveTab('integrations');
-                                            setIsProfileMenuOpen(false);
                                             setIsVaultUnlocked(false);
+                                            setVaultPassword('');
+                                            setVaultError('');
+                                            setActiveTab('kds'); // Reset background tab
+                                            // Explicitly trigger the security check by entering a special 'vault' mode
+                                            setIsProfileMenuOpen(false);
+                                            // We will use isVaultUnlocked + a new state 'isEnteringVault' if needed, 
+                                            // but for now, we'll repurpose the 'activeTab' logic to trigger the overlay.
+                                            setActiveTab('integrations'); 
                                         }}
                                         style={{ 
                                             width: '100%', 
@@ -1102,187 +1150,222 @@ export default function AdminDashboard({ session }) {
                 </div>
             </header>
 
-            {activeTab === 'integrations' && !isVaultUnlocked && (
-                <div className="cms-editor" style={{ maxWidth: '500px', margin: '4rem auto', textAlign: 'center' }}>
-                    <div className="cms-card" style={{ padding: '3rem' }}>
-                        <div style={{ fontSize: '3rem', marginBottom: '1.5rem' }}>🔐</div>
-                        <h2 style={{ color: '#fff', marginBottom: '1rem' }}>Enter Vault Password</h2>
-                        <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '2rem' }}>
-                            For your security, please re-enter your account password to access sensitive payment and API configurations.
-                        </p>
-                        
-                        {vaultError && (
-                            <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#f87171', padding: '0.75rem', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
-                                ❌ {vaultError}
+            {/* SECURITY VAULT OVERLAY */}
+            {activeTab === 'integrations' && (
+                <div className="security-vault-overlay">
+                    <div className="vault-container-inner">
+                        {/* Progressive Timer Bar */}
+                        {isVaultUnlocked && (
+                            <div className="vault-timer-container">
+                                <div 
+                                    className={`vault-timer-bar ${vaultTimer < 5 ? 'critical vault-timer-pulse' : ''}`} 
+                                    style={{ width: `${(vaultTimer / 20) * 100}%` }}
+                                ></div>
                             </div>
                         )}
 
-                        <form onSubmit={async (e) => {
-                            e.preventDefault();
-                            setUnlocking(true);
-                            setVaultError('');
-                            
-                            try {
-                                // Re-authenticate with Supabase to verify password
-                                const { error } = await supabase.auth.signInWithPassword({
-                                    email: session.user.email,
-                                    password: vaultPassword
-                                });
-
-                                if (error) throw error;
-                                setIsVaultUnlocked(true);
-                                setVaultPassword('');
-                            } catch (err) {
-                                setVaultError('Invalid password. Access denied.');
-                            } finally {
-                                setUnlocking(false);
-                            }
-                        }}>
-                            <input 
-                                type="password" 
-                                className="kds-input" 
-                                placeholder="••••••••" 
-                                required
-                                value={vaultPassword}
-                                onChange={(e) => setVaultPassword(e.target.value)}
-                                style={{ marginBottom: '1.5rem', textAlign: 'center', fontSize: '1.2rem', letterSpacing: '4px' }}
-                            />
+                        <div className="vault-header">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <span style={{ fontSize: '1.5rem' }}>🔒</span>
+                                <div>
+                                    <h2 style={{ margin: 0, color: '#fff', fontSize: '1.2rem' }}>High-Security Vault</h2>
+                                    {isVaultUnlocked && <small style={{ color: vaultTimer < 5 ? '#ef4444' : '#94a3b8' }}>Auto-locking in {vaultTimer}s</small>}
+                                </div>
+                            </div>
                             <button 
-                                type="submit" 
-                                disabled={unlocking}
-                                className="btn-primary" 
-                                style={{ width: '100%', padding: '1rem' }}
-                            >
-                                {unlocking ? 'Unlocking...' : '🔓 Unlock Vault'}
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {activeTab === 'integrations' && isVaultUnlocked && (
-                <div className="cms-editor" style={{ maxWidth: '800px', margin: '2rem auto' }}>
-                    <div className="cms-card">
-                        <h2 style={{ color: '#00e676', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '1rem' }}>
-                            🔌 Service Integrations
-                        </h2>
-                        <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '2rem' }}>
-                            Configure your custom API keys to handle payments and WhatsApp messages directly through your own accounts.
-                        </p>
-
-                        <div className="form-grid">
-                            {/* Paystack Integration */}
-                            <div className="cms-section" style={{ background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
-                                <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#fff' }}>💳 Paystack (Payments)</h3>
-                                <div className="form-group">
-                                    <label>Paystack Public Key</label>
-                                    <input 
-                                        type="text" 
-                                        className="kds-input" 
-                                        placeholder="pk_live_..." 
-                                        value={vendorConfig?.paystack_public_key || ''}
-                                        onChange={(e) => setVendorConfig({
-                                            ...vendorConfig,
-                                            paystack_public_key: e.target.value
-                                        })}
-                                    />
-                                    <small style={{ color: '#64748b' }}>Used to initialize payments in the frontend.</small>
-                                </div>
-                                <div className="form-group" style={{ marginTop: '1rem' }}>
-                                    <label>Paystack Secret Key</label>
-                                    <input 
-                                        type="password" 
-                                        className="kds-input" 
-                                        placeholder="sk_live_..." 
-                                        value={vendorConfig?.paystack_secret_key || ''}
-                                        onChange={(e) => setVendorConfig({ ...vendorConfig, paystack_secret_key: e.target.value })}
-                                    />
-                                    <small style={{ color: '#64748b' }}>Used to verify payments securely. Kept hidden.</small>
-                                </div>
-                            </div>
-
-                            {/* Netcash / 1Voucher */}
-                            <div className="cms-section" style={{ background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
-                                <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#fff' }}>💸 Netcash & 1Voucher</h3>
-                                <div className="form-group">
-                                    <label>Netcash Account Service Key</label>
-                                    <input 
-                                        type="text" 
-                                        className="kds-input" 
-                                        value={vendorConfig?.netcash_config?.account_service_key || ''}
-                                        onChange={(e) => setVendorConfig({
-                                            ...vendorConfig,
-                                            netcash_config: { ...vendorConfig?.netcash_config, account_service_key: e.target.value }
-                                        })}
-                                    />
-                                </div>
-                                <div className="form-group" style={{ marginTop: '1rem' }}>
-                                    <label>Netcash Pay Now Key</label>
-                                    <input 
-                                        type="text" 
-                                        className="kds-input" 
-                                        value={vendorConfig?.netcash_config?.paynow_service_key || ''}
-                                        onChange={(e) => setVendorConfig({
-                                            ...vendorConfig,
-                                            netcash_config: { ...vendorConfig?.netcash_config, paynow_service_key: e.target.value }
-                                        })}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* WhatsApp Bot Integration */}
-                            <div className="cms-section" style={{ background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '12px' }}>
-                                <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#fff' }}>🟢 WhatsApp Mzansi Gold</h3>
-                                <div className="form-group">
-                                    <label>Meta Access Token (Permanent)</label>
-                                    <input 
-                                        type="password" 
-                                        className="kds-input" 
-                                        value={vendorConfig.whatsapp_config?.access_token || ''}
-                                        onChange={(e) => setVendorConfig({
-                                            ...vendorConfig,
-                                            whatsapp_config: { ...vendorConfig.whatsapp_config, access_token: e.target.value }
-                                        })}
-                                    />
-                                </div>
-                                <div className="form-group" style={{ marginTop: '1rem' }}>
-                                    <label>WhatsApp Phone Number ID</label>
-                                    <input 
-                                        type="text" 
-                                        className="kds-input" 
-                                        value={vendorConfig.whatsapp_config?.phone_number_id || ''}
-                                        onChange={(e) => setVendorConfig({
-                                            ...vendorConfig,
-                                            whatsapp_config: { ...vendorConfig.whatsapp_config, phone_number_id: e.target.value }
-                                        })}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="cms-actions" style={{ marginTop: '3rem' }}>
-                            <button 
-                                className="btn-primary" 
-                                style={{ width: '100%', padding: '1rem' }}
-                                onClick={async () => {
-                                    const { error } = await supabase
-                                        .from('vendors')
-                                        .update({
-                                            payment_config: vendorConfig.payment_config,
-                                            netcash_config: vendorConfig.netcash_config,
-                                            whatsapp_config: vendorConfig.whatsapp_config,
-                                            paystack_public_key: vendorConfig.paystack_public_key,
-                                            paystack_secret_key: vendorConfig.paystack_secret_key
-                                        })
-                                        .eq('id', currentVendorId);
-                                    
-                                    if (error) alert("Error saving integrations: " + error.message);
-                                    else alert("Integrations updated successfully! 🚀");
+                                onClick={() => {
+                                    setIsVaultUnlocked(false);
+                                    setActiveTab('kds');
                                 }}
-                            >
-                                💾 Save All Integrations
-                            </button>
+                                style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '1.5rem', cursor: 'pointer' }}
+                            >✕</button>
                         </div>
+
+                        {!isVaultUnlocked ? (
+                            <div style={{ padding: '3rem', textAlign: 'center' }}>
+                                <div style={{ fontSize: '3rem', marginBottom: '1.5rem' }}>🔐</div>
+                                <h2 style={{ color: '#fff', marginBottom: '1rem' }}>Vault Access Required</h2>
+                                <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '2rem', maxWidth: '400px', margin: '0 auto 2rem' }}>
+                                    Please enter your password to view and edit sensitive API keys. This session will auto-lock after 20 seconds of inactivity.
+                                </p>
+                                
+                                {vaultError && (
+                                    <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#f87171', padding: '0.75rem', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
+                                        ❌ {vaultError}
+                                    </div>
+                                )}
+
+                                <form onSubmit={async (e) => {
+                                    e.preventDefault();
+                                    setUnlocking(true);
+                                    setVaultError('');
+                                    try {
+                                        const { error } = await supabase.auth.signInWithPassword({
+                                            email: session.user.email,
+                                            password: vaultPassword
+                                        });
+                                        if (error) throw error;
+                                        setIsVaultUnlocked(true);
+                                        setVaultPassword('');
+                                    } catch (err) {
+                                        setVaultError('Invalid password. Access denied.');
+                                    } finally {
+                                        setUnlocking(false);
+                                    }
+                                }} style={{ maxWidth: '300px', margin: '0 auto' }}>
+                                    <input 
+                                        type="password" 
+                                        className="kds-input" 
+                                        placeholder="••••••••" 
+                                        required
+                                        autoFocus
+                                        value={vaultPassword}
+                                        onChange={(e) => setVaultPassword(e.target.value)}
+                                        style={{ marginBottom: '1.5rem', textAlign: 'center', fontSize: '1.2rem', letterSpacing: '4px' }}
+                                    />
+                                    <button 
+                                        type="submit" 
+                                        disabled={unlocking}
+                                        className="btn-primary" 
+                                        style={{ width: '100%', padding: '1rem' }}
+                                    >
+                                        {unlocking ? 'Unlocking...' : '🔓 Open Vault'}
+                                    </button>
+                                </form>
+                            </div>
+                        ) : (
+                            <div style={{ padding: '2rem', maxHeight: '70vh', overflowY: 'auto' }}>
+                                <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '2rem' }}>
+                                    Your sensitive API keys are stored securely. Never share your secret keys with anyone.
+                                </p>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                                    {/* Column 1: API Keys */}
+                                    <div>
+                                        <div style={{ marginBottom: '2rem' }}>
+                                            <h3 style={{ color: '#fff', fontSize: '1rem', marginBottom: '1rem' }}>💳 Paystack Integration</h3>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                                <div>
+                                                    <label style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.4rem' }}>Public Key</label>
+                                                    <input 
+                                                        type="text" 
+                                                        className="kds-input" 
+                                                        value={vendorConfig?.paystack_public_key || ''}
+                                                        onChange={(e) => setVendorConfig({...vendorConfig, paystack_public_key: e.target.value})}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.4rem' }}>Secret Key</label>
+                                                    <input 
+                                                        type="password" 
+                                                        className="kds-input" 
+                                                        value={vendorConfig?.paystack_secret_key || ''}
+                                                        onChange={(e) => setVendorConfig({...vendorConfig, paystack_secret_key: e.target.value})}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ marginBottom: '2rem' }}>
+                                            <h3 style={{ color: '#fff', fontSize: '1rem', marginBottom: '1rem' }}>🟢 WhatsApp Mzansi Gold</h3>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                                <div>
+                                                    <label style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.4rem' }}>Access Token</label>
+                                                    <input 
+                                                        type="password" 
+                                                        className="kds-input" 
+                                                        value={vendorConfig?.whatsapp_config?.access_token || ''}
+                                                        onChange={(e) => setVendorConfig({...vendorConfig, whatsapp_config: {...vendorConfig.whatsapp_config, access_token: e.target.value}})}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.4rem' }}>Phone ID</label>
+                                                    <input 
+                                                        type="text" 
+                                                        className="kds-input" 
+                                                        value={vendorConfig?.whatsapp_config?.phone_number_id || ''}
+                                                        onChange={(e) => setVendorConfig({...vendorConfig, whatsapp_config: {...vendorConfig.whatsapp_config, phone_number_id: e.target.value}})}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Column 2: Netcash & Domain */}
+                                    <div>
+                                        <div style={{ marginBottom: '2rem' }}>
+                                            <h3 style={{ color: '#fff', fontSize: '1rem', marginBottom: '1rem' }}>💸 Netcash Connectivity</h3>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                                <div>
+                                                    <label style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.4rem' }}>Account Service Key</label>
+                                                    <input 
+                                                        type="text" 
+                                                        className="kds-input" 
+                                                        value={vendorConfig?.netcash_config?.account_service_key || ''}
+                                                        onChange={(e) => setVendorConfig({...vendorConfig, netcash_config: {...vendorConfig.netcash_config, account_service_key: e.target.value}})}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="dns-card">
+                                            <h3 style={{ color: '#00e676', fontSize: '0.9rem', marginBottom: '1rem' }}>🌐 Domain DNS Settings</h3>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.85rem' }}>
+                                                <p style={{ color: '#94a3b8', margin: 0 }}>To use your own domain, add these records to your registrar:</p>
+                                                <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.75rem', borderRadius: '8px' }}>
+                                                  <div style={{ marginBottom: '0.5rem' }}>
+                                                    <strong>Type:</strong> <span style={{ color: '#fff' }}>A</span> 
+                                                    <strong> Host:</strong> <span style={{ color: '#fff' }}>@</span> 
+                                                    <strong> Value:</strong> <span style={{ color: '#fff' }}>76.76.21.21</span>
+                                                  </div>
+                                                  <div>
+                                                    <strong>Type:</strong> <span style={{ color: '#fff' }}>CNAME</span> 
+                                                    <strong> Host:</strong> <span style={{ color: '#fff' }}>www</span> 
+                                                    <strong> Value:</strong> <span style={{ color: '#fff' }}>cname.vercel-dns.com</span>
+                                                  </div>
+                                                </div>
+                                                <div>
+                                                  <label style={{ display: 'block', marginBottom: '0.4rem' }}>Your Custom Domain</label>
+                                                  <input 
+                                                    type="text" 
+                                                    className="kds-input" 
+                                                    placeholder="example.com"
+                                                    value={vendorConfig?.custom_domain || ''} 
+                                                    onChange={(e) => setVendorConfig({...vendorConfig, custom_domain: e.target.value})}
+                                                  />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
+                                    <button 
+                                        className="btn-primary" 
+                                        style={{ flex: 1, padding: '1rem', background: '#00e676', color: '#000' }}
+                                        onClick={async () => {
+                                            const { error } = await supabase.from('vendors').update({
+                                                paystack_public_key: vendorConfig.paystack_public_key,
+                                                paystack_secret_key: vendorConfig.paystack_secret_key,
+                                                whatsapp_config: vendorConfig.whatsapp_config,
+                                                netcash_config: vendorConfig.netcash_config,
+                                                custom_domain: vendorConfig.custom_domain
+                                            }).eq('id', currentVendorId);
+                                            if (error) alert("Save failed: " + error.message);
+                                            else alert("Security settings updated successfully! 🔐");
+                                        }}
+                                    >💾 Save & Update Vault</button>
+                                    <button 
+                                        className="btn-secondary" 
+                                        style={{ flex: 1, padding: '1rem' }}
+                                        onClick={() => {
+                                            setIsVaultUnlocked(false);
+                                            setActiveTab('kds');
+                                        }}
+                                    >🔒 Lock Vault</button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

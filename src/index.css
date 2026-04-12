@@ -1000,3 +1000,91 @@ select.form-input option {
 .vault-table tr:last-child td {
   border-bottom: none;
 }
+
+/* Security Vault Overlay */
+.security-vault-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(12px);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.vault-container-inner {
+  width: 100%;
+  max-width: 900px;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  position: relative;
+  overflow: hidden;
+}
+
+.vault-header {
+  background: #0f172a;
+  padding: 1.5rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.vault-timer-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.vault-timer-bar {
+  height: 100%;
+  background: #00e676;
+  transition: width 1s linear;
+}
+
+.vault-timer-bar.critical {
+  background: #ef4444;
+}
+
+.dns-card {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.copy-badge {
+  background: #0f172a;
+  color: #00e676;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.9rem;
+  cursor: pointer;
+  margin-left: 0.5rem;
+}
+
+.copy-badge:hover {
+  background: #1e293b;
+}
+
+.vault-timer-pulse {
+  animation: timerPulse 1s infinite alternate;
+}
+
+@keyframes timerPulse {
+  from { opacity: 0.4; }
+  to { opacity: 1; }
+}

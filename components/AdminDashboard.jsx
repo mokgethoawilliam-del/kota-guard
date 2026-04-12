@@ -72,6 +72,13 @@ export default function AdminDashboard({ session }) {
     
     // Arrival Alert Toast Trigger
     const [arrivalAlert, setArrivalAlert] = useState(null);
+    
+    // Phase 12: Logistics & Security PIN
+    const [chatMode, setChatMode] = useState('active'); // 'active' | 'history'
+    const [isVerifyingPin, setIsVerifyingPin] = useState(null); // stores order object when verifying
+    const [verificationPin, setVerificationPin] = useState('');
+    const [pinError, setPinError] = useState('');
+    const [isSavingLogistics, setIsSavingLogistics] = useState(false);
 
     useEffect(() => {
         const timer = setInterval(() => setLiveTime(new Date().toLocaleTimeString()), 1000);
@@ -992,6 +999,10 @@ export default function AdminDashboard({ session }) {
                         onClick={() => setActiveTab('inventory')}
                     >📦 Inventory</button>
                     <button
+                        className={`tab-btn ${activeTab === 'logistics' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('logistics')}
+                    >🚚 Logistics</button>
+                    <button
                         className={`tab-btn ${activeTab === 'cms' ? 'active' : ''}`}
                         onClick={() => {
                             setActiveTab('cms');
@@ -1376,7 +1387,7 @@ export default function AdminDashboard({ session }) {
                     <div className="kds-col kds-col-new">
                         <h2>📥 NEW ORDERS ({newOrders.length})</h2>
                         <div className="kds-list">
-                            {newOrders.map(o => <OrderCard key={o.id} order={o} updateOrderStatus={updateOrderStatus} showLocation={selectedLocation === 'all'} />)}
+                            {newOrders.map(o => <OrderCard key={o.id} order={o} updateOrderStatus={updateOrderStatus} showLocation={selectedLocation === 'all'} setIsVerifyingPin={setIsVerifyingPin} setVerificationPin={setVerificationPin} setPinError={setPinError} />)}
                             {newOrders.length === 0 && <p className="empty-state">No new orders.</p>}
                         </div>
                     </div>
@@ -1385,7 +1396,7 @@ export default function AdminDashboard({ session }) {
                     <div className="kds-col kds-col-prep">
                         <h2>🍳 PREPARING ({prepOrders.length})</h2>
                         <div className="kds-list">
-                            {prepOrders.map(o => <OrderCard key={o.id} order={o} updateOrderStatus={updateOrderStatus} showLocation={selectedLocation === 'all'} />)}
+                            {prepOrders.map(o => <OrderCard key={o.id} order={o} updateOrderStatus={updateOrderStatus} showLocation={selectedLocation === 'all'} setIsVerifyingPin={setIsVerifyingPin} setVerificationPin={setVerificationPin} setPinError={setPinError} />)}
                             {prepOrders.length === 0 && <p className="empty-state">Kitchen is clear.</p>}
                         </div>
                     </div>
@@ -1394,8 +1405,93 @@ export default function AdminDashboard({ session }) {
                     <div className="kds-col kds-col-ready">
                         <h2>🛍️ READY FOR COLLECTION ({readyOrders.length})</h2>
                         <div className="kds-list">
-                            {readyOrders.map(o => <OrderCard key={o.id} order={o} updateOrderStatus={updateOrderStatus} showLocation={selectedLocation === 'all'} />)}
+                            {readyOrders.map(o => <OrderCard key={o.id} order={o} updateOrderStatus={updateOrderStatus} showLocation={selectedLocation === 'all'} setIsVerifyingPin={setIsVerifyingPin} setVerificationPin={setVerificationPin} setPinError={setPinError} />)}
                             {readyOrders.length === 0 && <p className="empty-state">No orders awaiting pickup.</p>}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'logistics' && (
+                <div className="cms-editor" style={{ maxWidth: '900px', margin: '2rem auto' }}>
+                    <div className="cms-card">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '1rem' }}>
+                            <div>
+                                <h2 style={{ color: '#00e676', margin: 0 }}>🚚 Logistics & Delivery Manager</h2>
+                                <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginTop: '0.5rem' }}>Configure delivery availability and fees for each of your branches.</p>
+                            </div>
+                            <button 
+                                className="btn-primary" 
+                                disabled={isSavingLogistics}
+                                onClick={async () => {
+                                    setIsSavingLogistics(true);
+                                    try {
+                                        for (const loc of locations) {
+                                            const { error } = await supabase
+                                                .from('locations')
+                                                .update({
+                                                    delivery_enabled: loc.delivery_enabled,
+                                                    delivery_fee: loc.delivery_fee
+                                                })
+                                                .eq('id', loc.id);
+                                            if (error) throw error;
+                                        }
+                                        alert("Logistics updated successfully! 🚚");
+                                    } catch (err) {
+                                        alert("Error saving logistics: " + err.message);
+                                    } finally {
+                                        setIsSavingLogistics(false);
+                                    }
+                                }}
+                            >
+                                {isSavingLogistics ? 'Saving...' : '💾 Save Logistics Config'}
+                            </button>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem' }}>
+                            {locations.map(loc => (
+                                <div key={loc.id} style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '1.5rem' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+                                        <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#fff' }}>📍 {loc.name}</h3>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <span style={{ fontSize: '0.8rem', color: loc.delivery_enabled ? '#00e676' : '#64748b' }}>
+                                                {loc.delivery_enabled ? 'Delivery ON' : 'Delivery OFF'}
+                                            </span>
+                                            <label className="switch" style={{ width: '40px', height: '20px' }}>
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={loc.delivery_enabled || false}
+                                                    onChange={(e) => {
+                                                        const updated = locations.map(l => l.id === loc.id ? { ...l, delivery_enabled: e.target.checked } : l);
+                                                        setLocations(updated);
+                                                    }}
+                                                />
+                                                <span className="slider round"></span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    {loc.delivery_enabled && (
+                                        <div className="form-group" style={{ animation: 'slideDown 0.3s ease-out' }}>
+                                            <label style={{ fontSize: '0.85rem' }}>Delivery Fee (ZAR)</label>
+                                            <div style={{ position: 'relative', marginTop: '0.5rem' }}>
+                                                <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>R</span>
+                                                <input 
+                                                    type="number" 
+                                                    className="kds-input" 
+                                                    style={{ paddingLeft: '2.5rem' }}
+                                                    value={loc.delivery_fee || 0}
+                                                    onChange={(e) => {
+                                                        const updated = locations.map(l => l.id === loc.id ? { ...l, delivery_fee: parseFloat(e.target.value) || 0 } : l);
+                                                        setLocations(updated);
+                                                    }}
+                                                />
+                                            </div>
+                                            <small style={{ color: '#64748b', marginTop: '0.5rem', display: 'block' }}>This fee will be added to the customer's total at checkout.</small>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
@@ -1403,14 +1499,99 @@ export default function AdminDashboard({ session }) {
 
             {activeTab === 'support' && (
                 <div className="vault-container" style={{ display: 'flex', height: 'calc(100vh - 150px)', overflow: 'hidden', padding: 0 }}>
+                    {/* Security PIN Verification Modal */}
+                    {isVerifyingPin && (
+                        <div style={{
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: 'rgba(15, 23, 42, 0.95)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 10000,
+                            backdropFilter: 'blur(10px)'
+                        }}>
+                            <div className="cms-card" style={{ width: '400px', textAlign: 'center', border: '1px solid rgba(0, 230, 118, 0.3)', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
+                                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔐</div>
+                                <h2 style={{ color: '#00e676', marginBottom: '0.5rem' }}>Verify Collection PIN</h2>
+                                <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>
+                                    Enter the 4-digit secret PIN from <strong>{isVerifyingPin.customer_name}'s</strong> order to verify hand-off.
+                                </p>
+                                
+                                <div style={{ marginBottom: '1.5rem' }}>
+                                    <input 
+                                        type="text" 
+                                        maxLength="4" 
+                                        autoFocus
+                                        value={verificationPin}
+                                        onChange={(e) => setVerificationPin(e.target.value.replace(/\D/g, ''))}
+                                        placeholder="0000"
+                                        style={{ 
+                                            width: '100%', 
+                                            background: '#0f172a', 
+                                            border: '2px solid #334155', 
+                                            borderRadius: '12px', 
+                                            padding: '1rem', 
+                                            color: '#fff', 
+                                            fontSize: '2rem', 
+                                            textAlign: 'center',
+                                            letterSpacing: '1rem',
+                                            fontWeight: 'bold'
+                                        }}
+                                    />
+                                    {pinError && <p style={{ color: '#ef4444', marginTop: '0.5rem', fontSize: '0.85rem' }}>{pinError}</p>}
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '1rem' }}>
+                                    <button 
+                                        className="btn-secondary" 
+                                        style={{ flex: 1 }}
+                                        onClick={() => setIsVerifyingPin(null)}
+                                    >Cancel</button>
+                                    <button 
+                                        className="btn-primary" 
+                                        style={{ flex: 2, background: '#00e676', color: '#000' }}
+                                        onClick={() => {
+                                            if (verificationPin === isVerifyingPin.collection_pin) {
+                                                updateOrderStatus(isVerifyingPin.id, 'completed');
+                                                setIsVerifyingPin(null);
+                                            } else {
+                                                setPinError("Invalid PIN. Please ask the customer for the code on their receipt.");
+                                            }
+                                        }}
+                                    >Verify & Complete</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                     {/* Left Pane: Sessions */}
                     <div style={{ width: '350px', background: '#1e293b', borderRight: '1px solid #334155', display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ padding: '1rem', borderBottom: '1px solid #334155', background: '#0f172a' }}>
+                        <div style={{ padding: '1rem', borderBottom: '1px solid #334155', background: '#0f172a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h2 style={{ fontSize: '1.2rem', margin: 0 }}>💬 Active Chats</h2>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <button 
+                                    onClick={() => setChatMode('active')}
+                                    style={{ padding: '0.25rem 0.75rem', borderRadius: '20px', fontSize: '0.75rem', background: chatMode === 'active' ? '#00e676' : 'transparent', color: chatMode === 'active' ? '#000' : '#94a3b8', border: '1px solid #334155', cursor: 'pointer' }}
+                                >Active</button>
+                                <button 
+                                    onClick={() => setChatMode('history')}
+                                    style={{ padding: '0.25rem 0.75rem', borderRadius: '20px', fontSize: '0.75rem', background: chatMode === 'history' ? '#00e676' : 'transparent', color: chatMode === 'history' ? '#000' : '#94a3b8', border: '1px solid #334155', cursor: 'pointer' }}
+                                >History</button>
+                            </div>
                         </div>
                         <div style={{ flex: 1, overflowY: 'auto' }}>
-                            {/* Group chats by session_identifier */}
-                            {Array.from(new Set(chats.map(c => c.session_identifier))).map(sessionId => {
+                            {/* Group chats by session_identifier and filter by order status */}
+                            {Array.from(new Set(chats.map(c => c.session_identifier))).filter(sessionId => {
+                                const order = [...orders, ...historyOrders].find(o => o.order_number === sessionId);
+                                if (chatMode === 'active') {
+                                    return !order || (order.status !== 'completed' && order.status !== 'refunded');
+                                } else {
+                                    return order && (order.status === 'completed' || order.status === 'refunded');
+                                }
+                            }).map(sessionId => {
                                 const sessionChats = chats.filter(c => c.session_identifier === sessionId);
                                 const lastChat = sessionChats[sessionChats.length - 1];
                                 const unread = sessionChats.filter(c => c.sender_type === 'customer' && !c.is_read).length;
@@ -2369,60 +2550,109 @@ export default function AdminDashboard({ session }) {
 }
 
 // Helper Components defined outside to prevent re-renders on clock ticks
-const OrderCard = ({ order, updateOrderStatus, showLocation }) => (
-    <div className="kds-card" style={order.customer_arrived ? { border: '3px solid #ef4444', animation: order.status !== 'completed' ? 'pulse 2s infinite' : 'none' } : {}}>
-        {order.customer_arrived && (
-            <div style={{ background: '#ef4444', color: '#fff', padding: '0.5rem', textAlign: 'center', fontWeight: 'bold', fontSize: '1rem', borderTopLeftRadius: '10px', borderTopRightRadius: '10px', marginBottom: '-1px' }}>
-                🚨 CUSTOMER IS WAITING OUTSIDE
-            </div>
-        )}
-        <div className="kds-card-header" style={{ paddingTop: order.customer_arrived ? '0.5rem' : '' }}>
-            <h3>{order.order_number}</h3>
-            <span className={`status-badge status-${order.status}`}>{order.status}</span>
-        </div>
-        <div className="kds-customer-info">
-            <p><strong>{order.customer_name}</strong></p>
-            <p>WA: {order.customer_phone}</p>
-            {showLocation && <p className="kds-loc">📍 {order.locations?.name}</p>}
+const OrderCard = ({ order, updateOrderStatus, showLocation, setIsVerifyingPin, setVerificationPin, setPinError }) => {
+    const isDelivery = order.fulfillment_method === 'delivery';
 
-            {/* PRE-ORDER TIME */}
-            {order.estimated_collection_time && (
-                <p style={{ color: '#fbbf24', fontWeight: 'bold', marginTop: '0.25rem' }}>
-                    ⏰ Collect time: {order.estimated_collection_time.substring(0, 5)}
-                </p>
-            )}
-        </div>
-
-        <div className="kds-items">
-            {order.order_items && order.order_items.map((item, idx) => (
-                <div key={idx} className="kds-item-row">
-                    <span className="qty">{item.quantity}x</span>
-                    <div className="item-details">
-                        <span className="name">{item.menu_items?.name}</span>
-                        {item.modifiers_json?.custom_notes && (
-                            <span className="modifier">Note: {item.modifiers_json.custom_notes}</span>
-                        )}
-                    </div>
+    return (
+        <div className="kds-card" style={order.customer_arrived ? { border: '3px solid #ef4444', animation: order.status !== 'completed' ? 'pulse 2s infinite' : 'none', position: 'relative' } : { position: 'relative' }}>
+            {isDelivery && (
+                <div style={{ 
+                    position: 'absolute', 
+                    top: '-10px', 
+                    right: '-10px', 
+                    background: '#3b82f6', 
+                    color: '#fff', 
+                    padding: '0.25rem 0.75rem', 
+                    borderRadius: '20px', 
+                    fontSize: '0.7rem', 
+                    fontWeight: 'bold', 
+                    boxShadow: '0 4px 10px rgba(59, 130, 246, 0.4)',
+                    zIndex: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                    border: '2px solid #0f172a'
+                }}>
+                    🚚 DELIVERY
                 </div>
-            ))}
-        </div>
+            )}
+            
+            {order.customer_arrived && (
+                <div style={{ background: '#ef4444', color: '#fff', padding: '0.5rem', textAlign: 'center', fontWeight: 'bold', fontSize: '1rem', borderTopLeftRadius: '10px', borderTopRightRadius: '10px', marginBottom: '-1px' }}>
+                    🚨 CUSTOMER IS WAITING OUTSIDE
+                </div>
+            )}
+            <div className="kds-card-header" style={{ paddingTop: order.customer_arrived ? '0.5rem' : '' }}>
+                <h3>{order.order_number}</h3>
+                <span className={`status-badge status-${order.status}`}>{order.status}</span>
+            </div>
+            <div className="kds-customer-info">
+                <p><strong>{order.customer_name}</strong></p>
+                <p>WA: {order.customer_phone}</p>
+                {showLocation && <p className="kds-loc">📍 {order.locations?.name}</p>}
 
-        <div className="kds-actions">
-            {order.status === 'paid' && (
-                <button className="btn-kds btn-prep" onClick={() => updateOrderStatus(order.id, 'preparing')}>
-                    Start Preparing
-                </button>
-            )}
-            {order.status === 'preparing' && (
-                <button className="btn-kds btn-ready" onClick={() => updateOrderStatus(order.id, 'ready')}>
-                    Mark Ready
-                </button>
-            )}
-            {order.status === 'ready' && (
-                <button className="btn-kds btn-complete" onClick={() => updateOrderStatus(order.id, 'completed')}>
-                    Collected / Done
-                </button>
-            )}
+                {isDelivery && order.delivery_address && (
+                    <div style={{ 
+                        marginTop: '0.75rem', 
+                        padding: '0.75rem', 
+                        background: 'rgba(59, 130, 246, 0.1)', 
+                        border: '1px solid rgba(59, 130, 246, 0.2)', 
+                        borderRadius: '8px',
+                        fontSize: '0.8rem',
+                        color: '#60a5fa',
+                        lineHeight: '1.4'
+                    }}>
+                        <strong>🏠 Delivery Address:</strong><br/>
+                        {order.delivery_address}
+                    </div>
+                )}
+
+                {/* PRE-ORDER TIME */}
+                {order.estimated_collection_time && (
+                    <p style={{ color: '#fbbf24', fontWeight: 'bold', marginTop: '0.25rem' }}>
+                        ⏰ Collect time: {order.estimated_collection_time.substring(0, 5)}
+                    </p>
+                )}
+            </div>
+
+            <div className="kds-items">
+                {order.order_items && order.order_items.map((item, idx) => (
+                    <div key={idx} className="kds-item-row">
+                        <span className="qty">{item.quantity}x</span>
+                        <div className="item-details">
+                            <span className="name">{item.menu_items?.name}</span>
+                            {item.modifiers_json?.custom_notes && (
+                                <span className="modifier">Note: {item.modifiers_json.custom_notes}</span>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <div className="kds-actions">
+                {order.status === 'paid' && (
+                    <button className="btn-kds btn-prep" onClick={() => updateOrderStatus(order.id, 'preparing')}>
+                        Start Preparing
+                    </button>
+                )}
+                {order.status === 'preparing' && (
+                    <button className="btn-kds btn-ready" onClick={() => updateOrderStatus(order.id, 'ready')}>
+                        Mark Ready
+                    </button>
+                )}
+                {order.status === 'ready' && (
+                    <button 
+                        className="btn-kds btn-complete" 
+                        onClick={() => {
+                            setVerificationPin('');
+                            setPinError('');
+                            setIsVerifyingPin(order);
+                        }}
+                    >
+                        {isDelivery ? 'Mark Delivered' : 'Mark Collected'}
+                    </button>
+                )}
+            </div>
         </div>
-    </div>
-);
+    );
+};

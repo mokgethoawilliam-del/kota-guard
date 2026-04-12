@@ -80,6 +80,10 @@ export default function AdminDashboard({ session }) {
     const [pinError, setPinError] = useState('');
     const [isSavingLogistics, setIsSavingLogistics] = useState(false);
 
+    // Phase 13: Vault Categorization
+    const [vaultActiveSection, setVaultActiveSection] = useState(null); // null | 'paystack' | 'netcash' | 'domains' | 'whatsapp'
+    const [isSavingVault, setIsSavingVault] = useState(false);
+
     useEffect(() => {
         const timer = setInterval(() => setLiveTime(new Date().toLocaleTimeString()), 1000);
         return () => clearInterval(timer);
@@ -1180,12 +1184,20 @@ export default function AdminDashboard({ session }) {
                                 <span style={{ fontSize: '1.5rem' }}>🔒</span>
                                 <div>
                                     <h2 style={{ margin: 0, color: '#fff', fontSize: '1.2rem' }}>High-Security Vault</h2>
-                                    {isVaultUnlocked && <small style={{ color: vaultTimer < 5 ? '#ef4444' : '#94a3b8' }}>Auto-locking in {vaultTimer}s</small>}
+                                    {isVaultUnlocked && (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <small style={{ color: vaultTimer < 5 ? '#ef4444' : '#94a3b8' }}>Auto-locking in {vaultTimer}s</small>
+                                            {vaultActiveSection && (
+                                                <small style={{ color: '#00e676', fontWeight: 'bold' }}>• Viewing {vaultActiveSection.toUpperCase()}</small>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <button 
                                 onClick={() => {
                                     setIsVaultUnlocked(false);
+                                    setVaultActiveSection(null);
                                     setActiveTab('kds');
                                 }}
                                 style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '1.5rem', cursor: 'pointer' }}
@@ -1218,6 +1230,7 @@ export default function AdminDashboard({ session }) {
                                         if (error) throw error;
                                         setIsVaultUnlocked(true);
                                         setVaultPassword('');
+                                        setVaultTimer(20); // Reset timer on successful unlock
                                     } catch (err) {
                                         setVaultError('Invalid password. Access denied.');
                                     } finally {
@@ -1241,140 +1254,229 @@ export default function AdminDashboard({ session }) {
                                         style={{ width: '100%', padding: '1rem' }}
                                     >
                                         {unlocking ? 'Unlocking...' : '🔓 Open Vault'}
-                                    </button>
+                                                                        </button>
                                 </form>
                             </div>
                         ) : (
-                            <div style={{ padding: '2rem', maxHeight: '70vh', overflowY: 'auto' }}>
-                                <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '2rem' }}>
-                                    Your sensitive API keys are stored securely. Never share your secret keys with anyone.
-                                </p>
+                            <div style={{ padding: '2rem', maxHeight: '75vh', overflowY: 'auto' }}>
+                                {/* Vault Content Switcher */}
+                                {!vaultActiveSection ? (
+                                    <>
+                                        <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '2rem' }}>
+                                            Select a category to view or update your secure integration settings.
+                                        </p>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+                                            <div className="vault-card" onClick={() => setVaultActiveSection('paystack')}>
+                                                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>💳</div>
+                                                <h3 style={{ margin: 0, color: '#fff', fontSize: '1rem' }}>Paystack</h3>
+                                                <p style={{ margin: '0.5rem 0 0', color: '#94a3b8', fontSize: '0.8rem' }}>Payment processing keys</p>
+                                            </div>
+                                            <div className="vault-card" onClick={() => setVaultActiveSection('netcash')}>
+                                                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>💸</div>
+                                                <h3 style={{ margin: 0, color: '#fff', fontSize: '1rem' }}>Netcash</h3>
+                                                <p style={{ margin: '0.5rem 0 0', color: '#94a3b8', fontSize: '0.8rem' }}>Alternative payments</p>
+                                            </div>
+                                            <div className="vault-card" onClick={() => setVaultActiveSection('domains')}>
+                                                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🌐</div>
+                                                <h3 style={{ margin: 0, color: '#fff', fontSize: '1rem' }}>Custom Domains</h3>
+                                                <p style={{ margin: '0.5rem 0 0', color: '#94a3b8', fontSize: '0.8rem' }}>DNS & Branding URLs</p>
+                                            </div>
+                                            <div className="vault-card" onClick={() => setVaultActiveSection('whatsapp')}>
+                                                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🟢</div>
+                                                <h3 style={{ margin: 0, color: '#fff', fontSize: '1rem' }}>WhatsApp Bot</h3>
+                                                <p style={{ margin: '0.5rem 0 0', color: '#94a3b8', fontSize: '0.8rem' }}>Automated notifications</p>
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
+                                        <button 
+                                            onClick={() => setVaultActiveSection(null)}
+                                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid #334155', color: '#94a3b8', padding: '0.5rem 1rem', borderRadius: '4px', cursor: 'pointer', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                                        >
+                                            ← Back to All Categories
+                                        </button>
 
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-                                    {/* Column 1: API Keys */}
-                                    <div>
-                                        <div style={{ marginBottom: '2rem' }}>
-                                            <h3 style={{ color: '#fff', fontSize: '1rem', marginBottom: '1rem' }}>💳 Paystack Integration</h3>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                        {/* Paystack View */}
+                                        {vaultActiveSection === 'paystack' && (
+                                            <div style={{ maxWidth: '500px' }}>
+                                                <h3 style={{ color: '#fff', fontSize: '1.2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                    💳 Paystack Settings
+                                                </h3>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                                    <div>
+                                                        <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.5rem' }}>Public Key</label>
+                                                        <input 
+                                                            type="text" 
+                                                            className="kds-input" 
+                                                            value={vendorConfig?.paystack_public_key || ''}
+                                                            onChange={(e) => setVendorConfig({...vendorConfig, paystack_public_key: e.target.value})}
+                                                            placeholder="pk_..."
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.5rem' }}>Secret Key</label>
+                                                        <input 
+                                                            type="password" 
+                                                            className="kds-input" 
+                                                            value={vendorConfig?.paystack_secret_key || ''}
+                                                            onChange={(e) => setVendorConfig({...vendorConfig, paystack_secret_key: e.target.value})}
+                                                            placeholder="sk_..."
+                                                        />
+                                                    </div>
+                                                    <button 
+                                                        disabled={isSavingVault}
+                                                        className="btn-primary" 
+                                                        style={{ marginTop: '1rem', background: '#00e676', color: '#000' }}
+                                                        onClick={async () => {
+                                                            setIsSavingVault(true);
+                                                            const { error } = await supabase.from('vendors').update({
+                                                                paystack_public_key: vendorConfig.paystack_public_key,
+                                                                paystack_secret_key: vendorConfig.paystack_secret_key
+                                                            }).eq('id', currentVendorId);
+                                                            setIsSavingVault(false);
+                                                            if (error) alert("Save failed: " + error.message);
+                                                            else alert("Paystack keys updated! 💳");
+                                                        }}
+                                                    >
+                                                        {isSavingVault ? 'Saving...' : '💾 Save Paystack Keys'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Netcash View */}
+                                        {vaultActiveSection === 'netcash' && (
+                                            <div style={{ maxWidth: '500px' }}>
+                                                <h3 style={{ color: '#fff', fontSize: '1.2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                    💸 Netcash Settings
+                                                </h3>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                                    <div>
+                                                        <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.5rem' }}>Account Service Key</label>
+                                                        <input 
+                                                            type="text" 
+                                                            className="kds-input" 
+                                                            value={vendorConfig?.netcash_config?.account_service_key || ''}
+                                                            onChange={(e) => setVendorConfig({...vendorConfig, netcash_config: {...vendorConfig.netcash_config, account_service_key: e.target.value}})}
+                                                            placeholder="Enter Netcash key"
+                                                        />
+                                                    </div>
+                                                    <button 
+                                                        disabled={isSavingVault}
+                                                        className="btn-primary" 
+                                                        style={{ marginTop: '1rem', background: '#00e676', color: '#000' }}
+                                                        onClick={async () => {
+                                                            setIsSavingVault(true);
+                                                            const { error } = await supabase.from('vendors').update({
+                                                                netcash_config: vendorConfig.netcash_config
+                                                            }).eq('id', currentVendorId);
+                                                            setIsSavingVault(false);
+                                                            if (error) alert("Save failed: " + error.message);
+                                                            else alert("Netcash settings updated! 💸");
+                                                        }}
+                                                    >
+                                                        {isSavingVault ? 'Saving...' : '💾 Save Netcash Settings'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* WhatsApp View */}
+                                        {vaultActiveSection === 'whatsapp' && (
+                                            <div style={{ maxWidth: '500px' }}>
+                                                <h3 style={{ color: '#fff', fontSize: '1.2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                    🟢 WhatsApp Settings
+                                                </h3>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                                    <div>
+                                                        <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.5rem' }}>Meta Access Token</label>
+                                                        <input 
+                                                            type="password" 
+                                                            className="kds-input" 
+                                                            value={vendorConfig?.whatsapp_config?.access_token || ''}
+                                                            onChange={(e) => setVendorConfig({...vendorConfig, whatsapp_config: {...vendorConfig.whatsapp_config, access_token: e.target.value}})}
+                                                            placeholder="EAAB..."
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.5rem' }}>Phone Number ID</label>
+                                                        <input 
+                                                            type="text" 
+                                                            className="kds-input" 
+                                                            value={vendorConfig?.whatsapp_config?.phone_number_id || ''}
+                                                            onChange={(e) => setVendorConfig({...vendorConfig, whatsapp_config: {...vendorConfig.whatsapp_config, phone_number_id: e.target.value}})}
+                                                            placeholder="1029..."
+                                                        />
+                                                    </div>
+                                                    <button 
+                                                        disabled={isSavingVault}
+                                                        className="btn-primary" 
+                                                        style={{ marginTop: '1rem', background: '#00e676', color: '#000' }}
+                                                        onClick={async () => {
+                                                            setIsSavingVault(true);
+                                                            const { error } = await supabase.from('vendors').update({
+                                                                whatsapp_config: vendorConfig.whatsapp_config
+                                                            }).eq('id', currentVendorId);
+                                                            setIsSavingVault(false);
+                                                            if (error) alert("Save failed: " + error.message);
+                                                            else alert("WhatsApp settings updated! 🟢");
+                                                        }}
+                                                    >
+                                                        {isSavingVault ? 'Saving...' : '💾 Save WhatsApp Settings'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Domains View */}
+                                        {vaultActiveSection === 'domains' && (
+                                            <div style={{ maxWidth: '600px' }}>
+                                                <h3 style={{ color: '#fff', fontSize: '1.2rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                    🌐 Domain Configuration
+                                                </h3>
+                                                <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.85rem', color: '#94a3b8', lineHeight: '1.5' }}>
+                                                    <strong>📋 Required DNS Records</strong>
+                                                    Connect domain via registrar:
+                                                    <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                                        <div style={{ background: '#0f172a', padding: '0.75rem', borderRadius: '6px', border: '1px solid #334155' }}>
+                                                            <div style={{ fontSize: '0.8rem' }}>Type: <strong>A</strong> | Host: <code>@</code> | Value: <code>76.76.21.21</code></div>
+                                                        </div>
+                                                        <div style={{ background: '#0f172a', padding: '0.75rem', borderRadius: '6px', border: '1px solid #334155' }}>
+                                                            <div style={{ fontSize: '0.8rem' }}>Type: <strong>CNAME</strong> | Host: <code>www</code> | Value: <code>cname.vercel-dns.com</code></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                                 <div>
-                                                    <label style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.4rem' }}>Public Key</label>
+                                                    <label style={{ display: 'block', fontSize: '0.85rem', color: '#fff', marginBottom: '0.5rem' }}>Your Custom Domain</label>
                                                     <input 
                                                         type="text" 
                                                         className="kds-input" 
-                                                        value={vendorConfig?.paystack_public_key || ''}
-                                                        onChange={(e) => setVendorConfig({...vendorConfig, paystack_public_key: e.target.value})}
+                                                        value={vendorConfig?.custom_domain || ''}
+                                                        onChange={(e) => setVendorConfig({...vendorConfig, custom_domain: e.target.value})}
+                                                        placeholder="www.yourname.co.za"
                                                     />
-                                                </div>
-                                                <div>
-                                                    <label style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.4rem' }}>Secret Key</label>
-                                                    <input 
-                                                        type="password" 
-                                                        className="kds-input" 
-                                                        value={vendorConfig?.paystack_secret_key || ''}
-                                                        onChange={(e) => setVendorConfig({...vendorConfig, paystack_secret_key: e.target.value})}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div style={{ marginBottom: '2rem' }}>
-                                            <h3 style={{ color: '#fff', fontSize: '1rem', marginBottom: '1rem' }}>🟢 WhatsApp Mzansi Gold</h3>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                                <div>
-                                                    <label style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.4rem' }}>Access Token</label>
-                                                    <input 
-                                                        type="password" 
-                                                        className="kds-input" 
-                                                        value={vendorConfig?.whatsapp_config?.access_token || ''}
-                                                        onChange={(e) => setVendorConfig({...vendorConfig, whatsapp_config: {...vendorConfig.whatsapp_config, access_token: e.target.value}})}
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.4rem' }}>Phone ID</label>
-                                                    <input 
-                                                        type="text" 
-                                                        className="kds-input" 
-                                                        value={vendorConfig?.whatsapp_config?.phone_number_id || ''}
-                                                        onChange={(e) => setVendorConfig({...vendorConfig, whatsapp_config: {...vendorConfig.whatsapp_config, phone_number_id: e.target.value}})}
-                                                    />
+                                                    <button 
+                                                        disabled={isSavingVault}
+                                                        className="btn-primary" 
+                                                        style={{ marginTop: '1rem', background: '#00e676', color: '#000' }}
+                                                        onClick={async () => {
+                                                            setIsSavingVault(true);
+                                                            const { error } = await supabase.from('vendors').update({
+                                                                custom_domain: vendorConfig.custom_domain
+                                                            }).eq('id', currentVendorId);
+                                                            setIsSavingVault(false);
+                                                            if (error) alert("Save failed: " + error.message);
+                                                            else alert("Custom domain updated! 🌐");
+                                                        }}
+                                                    >
+                                                        {isSavingVault ? 'Saving...' : '💾 Verify & Link Domain'}
+                                                    </button>
                                                 </div>
                                             </div>
-                                        </div>
+                                        )}
                                     </div>
-
-                                    {/* Column 2: Netcash & Domain */}
-                                    <div>
-                                        <div style={{ marginBottom: '2rem' }}>
-                                            <h3 style={{ color: '#fff', fontSize: '1rem', marginBottom: '1rem' }}>💸 Netcash Connectivity</h3>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                                <div>
-                                                    <label style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.4rem' }}>Account Service Key</label>
-                                                    <input 
-                                                        type="text" 
-                                                        className="kds-input" 
-                                                        value={vendorConfig?.netcash_config?.account_service_key || ''}
-                                                        onChange={(e) => setVendorConfig({...vendorConfig, netcash_config: {...vendorConfig.netcash_config, account_service_key: e.target.value}})}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="dns-card">
-                                            <h3 style={{ color: '#00e676', fontSize: '0.9rem', marginBottom: '1rem' }}>🌐 Domain DNS Settings</h3>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.85rem' }}>
-                                                <p style={{ color: '#94a3b8', margin: 0 }}>To use your own domain, add these records to your registrar:</p>
-                                                <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.75rem', borderRadius: '8px' }}>
-                                                  <div style={{ marginBottom: '0.5rem' }}>
-                                                    <strong>Type:</strong> <span style={{ color: '#fff' }}>A</span> 
-                                                    <strong> Host:</strong> <span style={{ color: '#fff' }}>@</span> 
-                                                    <strong> Value:</strong> <span style={{ color: '#fff' }}>76.76.21.21</span>
-                                                  </div>
-                                                  <div>
-                                                    <strong>Type:</strong> <span style={{ color: '#fff' }}>CNAME</span> 
-                                                    <strong> Host:</strong> <span style={{ color: '#fff' }}>www</span> 
-                                                    <strong> Value:</strong> <span style={{ color: '#fff' }}>cname.vercel-dns.com</span>
-                                                  </div>
-                                                </div>
-                                                <div>
-                                                  <label style={{ display: 'block', marginBottom: '0.4rem' }}>Your Custom Domain</label>
-                                                  <input 
-                                                    type="text" 
-                                                    className="kds-input" 
-                                                    placeholder="example.com"
-                                                    value={vendorConfig?.custom_domain || ''} 
-                                                    onChange={(e) => setVendorConfig({...vendorConfig, custom_domain: e.target.value})}
-                                                  />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
-                                    <button 
-                                        className="btn-primary" 
-                                        style={{ flex: 1, padding: '1rem', background: '#00e676', color: '#000' }}
-                                        onClick={async () => {
-                                            const { error } = await supabase.from('vendors').update({
-                                                paystack_public_key: vendorConfig.paystack_public_key,
-                                                paystack_secret_key: vendorConfig.paystack_secret_key,
-                                                whatsapp_config: vendorConfig.whatsapp_config,
-                                                netcash_config: vendorConfig.netcash_config,
-                                                custom_domain: vendorConfig.custom_domain
-                                            }).eq('id', currentVendorId);
-                                            if (error) alert("Save failed: " + error.message);
-                                            else alert("Security settings updated successfully! 🔐");
-                                        }}
-                                    >💾 Save & Update Vault</button>
-                                    <button 
-                                        className="btn-secondary" 
-                                        style={{ flex: 1, padding: '1rem' }}
-                                        onClick={() => {
-                                            setIsVaultUnlocked(false);
-                                            setActiveTab('kds');
-                                        }}
-                                    >🔒 Lock Vault</button>
-                                </div>
+                                )}
                             </div>
                         )}
                     </div>

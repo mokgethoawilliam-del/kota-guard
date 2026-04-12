@@ -1080,6 +1080,60 @@ select.form-input option {
   background: #1e293b;
 }
 
+.vault-timer-container {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+}
+
+.vault-timer-bar {
+  height: 100%;
+  background: var(--color-primary);
+  transition: width 1s linear;
+  box-shadow: 0 0 10px var(--color-primary);
+}
+
+.vault-timer-bar.critical {
+  background: #ef4444;
+  box-shadow: 0 0 10px #ef4444;
+}
+
+.vault-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--border-radius-md);
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.vault-card:hover {
+  background: rgba(0, 230, 118, 0.05);
+  border: color: var(--color-primary);
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0, 230, 118, 0.1);
+}
+
+.dns-card {
+  background: rgba(59, 130, 246, 0.05);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: var(--border-radius-md);
+  padding: 1.25rem;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .vault-timer-pulse {
   animation: timerPulse 1s infinite alternate;
 }

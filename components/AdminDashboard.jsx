@@ -2861,15 +2861,16 @@ export default function AdminDashboard({ session }) {
                                         <button type="submit" className="btn-primary" disabled={uploadingHero} style={{ background: '#00e676', color: '#000', fontWeight: 'bold' }}>
                                             {uploadingHero ? 'Uploading & Saving...' : 'Save Brand Identity'}
                                         </button>
-                                    </form>
-                                ) : (
-                                    <p>Loading vendor settings...</p>
+
+                                        </form>
+                                        ) : (
+                                            <p>Loading vendor settings...</p>
+                                        )}
+                                    </div>
                                 )}
                             </div>
-                    </div>
-                </div>
-            )}
-
+                        </div>
+                    )}
                 </div>
             </main>
         </div>

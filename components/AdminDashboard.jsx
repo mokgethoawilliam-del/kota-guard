@@ -57,6 +57,7 @@ export default function AdminDashboard({ session }) {
     const [isSavingBranch, setIsSavingBranch] = useState(false);
     const [newBranch, setNewBranch] = useState({ name: '', address: '', google_maps_url: '', is_active: true });
     const [heroImageFile, setHeroImageFile] = useState(null);
+    const [logoFile, setLogoFile] = useState(null);
     const [uploadingHero, setUploadingHero] = useState(false);
     
     // Menu Image Upload State
@@ -87,6 +88,71 @@ export default function AdminDashboard({ session }) {
     // Global Search State
     const [kdsSearchQuery, setKdsSearchQuery] = useState('');
     const [historySearchQuery, setHistorySearchQuery] = useState('');
+
+    // 🎨 Navigation Icons (Minimal SVGs)
+    const Icons = {
+        Dashboard: () => (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="9"></rect>
+                <rect x="14" y="3" width="7" height="5"></rect>
+                <rect x="14" y="11" width="7" height="10"></rect>
+                <rect x="3" y="15" width="7" height="6"></rect>
+            </svg>
+        ),
+        Kitchen: () => (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2l9 4.9V17L12 22l-9-4.9V7z"></path>
+                <path d="M12 22V12"></path>
+                <path d="M21 7l-9 5-9-5"></path>
+            </svg>
+        ),
+        Chat: () => (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+        ),
+        History: () => (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+                <path d="M3.3 7a9 9 0 1 1 0 10"></path>
+            </svg>
+        ),
+        Finance: () => (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                <line x1="2" y1="10" x2="22" y2="10"></line>
+            </svg>
+        ),
+        Inventory: () => (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path>
+                <polyline points="3.29 7 12 12 20.71 7"></polyline>
+                <line x1="12" y1="22" x2="12" y2="12"></line>
+            </svg>
+        ),
+        Logistics: () => (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="1" y="3" width="15" height="13"></rect>
+                <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                <circle cx="18.5" cy="18.5" r="2.5"></circle>
+            </svg>
+        ),
+        Settings: () => (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+        ),
+        Help: () => (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+        )
+    };
 
     useEffect(() => {
         const timer = setInterval(() => setLiveTime(new Date().toLocaleTimeString()), 1000);
@@ -474,9 +540,11 @@ export default function AdminDashboard({ session }) {
         if (displayedHistoryOrders.length === 0) return alert("No history to export.");
 
         const doc = new jsPDF();
-        doc.text(`${vendorConfig.name} - CRM & Sales Report (${historyFilter.toUpperCase()})`, 14, 15);
+        doc.text(`${vendorConfig.name}`, 14, 15);
         doc.setFontSize(10);
-        doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 22);
+        doc.text(`powered by VulaHub`, 14, 20);
+        doc.text(`CRM & Sales Report (${historyFilter.toUpperCase()})`, 14, 25);
+        doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 30);
 
         const tableColumn = ["Order #", "Date", "Customer", "WhatsApp Num", "Items", "Total"];
         const tableRows = [];
@@ -497,13 +565,17 @@ export default function AdminDashboard({ session }) {
         autoTable(doc, {
             head: [tableColumn],
             body: tableRows,
-            startY: 30,
+            startY: 40,
         });
 
         const totalRev = displayedHistoryOrders.reduce((sum, o) => sum + Number(o.total_price || 0), 0);
         // lastAutoTable might be attached directly to doc
-        const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 30 + (tableRows.length * 10);
-        doc.text(`Total Revenue in report: R ${totalRev}`, 14, finalY + 10);
+        const finalRevY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 40 + (tableRows.length * 10);
+        doc.text(`Total Revenue in report: R ${totalRev}`, 14, finalRevY + 10);
+        
+        doc.setFontSize(9);
+        doc.setTextColor(150);
+        doc.text(`KASI BUSINESSHUB • A Product of Atlas Automation Group`, 14, finalRevY + 20);
 
         doc.save(`${vendorConfig.slug}_sales_report_${new Date().getTime()}.pdf`);
     };
@@ -832,7 +904,58 @@ export default function AdminDashboard({ session }) {
     );
 
     return (
-        <div className="kds-container">
+        <div className="admin-shell">
+            {/* ⬅️ Sidebar Navigation */}
+            <nav className="kds-sidebar">
+                <div className="sidebar-branding">
+                    <div className="vendor-logo-container">
+                        {vendorConfig?.logo_url ? (
+                            <img src={vendorConfig.logo_url} alt="Logo" className="vendor-logo" />
+                        ) : (
+                            <div className="vendor-logo" style={{ background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem' }}>🏪</div>
+                        )}
+                        <span className="vendor-name">{vendorConfig?.name || 'My Shop'}</span>
+                    </div>
+                    <div className="powered-by">powered by VulaHub</div>
+                </div>
+
+                <div className="sidebar-nav">
+                    <button className={`sidebar-item ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>
+                        <Icons.Dashboard /> Overview
+                    </button>
+                    <button className={`sidebar-item ${activeTab === 'kds' ? 'active' : ''}`} onClick={() => setActiveTab('kds')}>
+                        <Icons.Kitchen /> Live Kitchen
+                    </button>
+                    <button className={`sidebar-item ${activeTab === 'support' ? 'active' : ''}`} onClick={() => setActiveTab('support')}>
+                        <Icons.Chat /> Live Chat
+                    </button>
+                    <button className={`sidebar-item ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>
+                        <Icons.History /> History Vault
+                    </button>
+                    <button className={`sidebar-item ${activeTab === 'finances' ? 'active' : ''}`} onClick={() => setActiveTab('finances')}>
+                        <Icons.Finance /> Finances
+                    </button>
+                    <button className={`sidebar-item ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>
+                        <Icons.Inventory /> Inventory
+                    </button>
+                    <button className={`sidebar-item ${activeTab === 'logistics' ? 'active' : ''}`} onClick={() => setActiveTab('logistics')}>
+                        <Icons.Logistics /> Logistics
+                    </button>
+                    <button className={`sidebar-item ${activeTab === 'cms' ? 'active' : ''}`} onClick={() => setActiveTab('cms')}>
+                        <Icons.Settings /> CMS Settings
+                    </button>
+                    <button className={`sidebar-item ${activeTab === 'help' ? 'active' : ''}`} onClick={() => setActiveTab('help')}>
+                        <Icons.Help /> Help Center
+                    </button>
+                </div>
+
+                <div className="sidebar-footer">
+                    <div>KASI BUSINESSHUB</div>
+                    <div style={{ fontSize: '0.6rem', marginTop: '0.25rem' }}>A Product of Atlas Automation Group</div>
+                </div>
+            </nav>
+
+            <main className="main-content">
             {/* ARRIVAL ALERT TOAST */}
             {arrivalAlert && (
                 <div style={{
@@ -951,16 +1074,21 @@ export default function AdminDashboard({ session }) {
                 </div>
             )}
 
-            <header className="kds-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <div className="kds-brand" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('kds')}>
-                        VulaHub <span>KDS</span>
-                    </div>
-                    {vendorConfig && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                            <div style={{ padding: '0.25rem 0.75rem', background: 'rgba(0, 230, 118, 0.1)', color: '#00e676', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold', border: '1px solid rgba(0, 230, 118, 0.2)' }}>
-                                🏪 {vendorConfig.name}
-                            </div>
+                <header className="content-header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <h1 style={{ fontSize: '1.25rem', margin: 0, fontWeight: '700' }}>
+                            {activeTab === 'overview' && '📊 Dashboard Overview'}
+                            {activeTab === 'kds' && '🔥 Live Kitchen'}
+                            {activeTab === 'support' && '💬 Customer Support'}
+                            {activeTab === 'history' && '🗄️ Order History'}
+                            {activeTab === 'finances' && '💰 Financial Management'}
+                            {activeTab === 'inventory' && '📦 Stock Control'}
+                            {activeTab === 'logistics' && '🚚 Logistics & Delivery'}
+                            {activeTab === 'cms' && '⚙️ CMS Settings'}
+                            {activeTab === 'help' && '❓ Support Center'}
+                        </h1>
+                        {activeTab === 'kds' && <span style={{ color: '#00e676', fontWeight: 'bold' }}>{liveTime}</span>}
+                        {vendorConfig && (
                             <a 
                                 href={`/v/${vendorConfig.slug}`} 
                                 target="_blank" 
@@ -974,80 +1102,177 @@ export default function AdminDashboard({ session }) {
                                     fontWeight: 'bold', 
                                     textDecoration: 'none',
                                     border: '1px solid rgba(59, 130, 246, 0.2)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.4rem'
+                                    marginLeft: '1rem'
                                 }}
                             >
-                                🌐 View Live Shop
+                                🌐 View Shop
                             </a>
-                        </div>
-                    )}
-                </div>
-
-                <div className="kds-tabs">
-                    <button
-                        className={`tab-btn ${activeTab === 'kds' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('kds')}
-                    >🔥 Live Kitchen <span style={{ color: '#00e676', marginLeft: '0.5rem', fontWeight: 'bold' }}>{liveTime}</span></button>
-                    <button
-                        className={`tab-btn ${activeTab === 'support' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('support')}
-                    >💬 Live Chat</button>
-                    <button
-                        className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('history')}
-                    >🗄️ History Vault</button>
-                    <button
-                        className={`tab-btn ${activeTab === 'finances' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('finances')}
-                    >💰 Finances</button>
-                    <button
-                        className={`tab-btn ${activeTab === 'inventory' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('inventory')}
-                    >📦 Inventory</button>
-                    <button
-                        className={`tab-btn ${activeTab === 'logistics' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('logistics')}
-                    >🚚 Logistics</button>
-                    <button
-                        className={`tab-btn ${activeTab === 'cms' ? 'active' : ''}`}
-                        onClick={() => {
-                            setActiveTab('cms');
-                        }}
-                    >⚙️ CMS Settings</button>
-                    <button
-                        className={`tab-btn ${activeTab === 'help' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('help')}
-                    >❓ Help Center</button>
-                </div>
-
-                <div className="kds-controls" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                    {/* 🕵️ Global Search Bar */}
-                    <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
-                        <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>🔍</span>
-                        <input 
-                            type="text"
-                            placeholder="Search Order # or Name (Global)..."
-                            className="kds-input"
-                            value={kdsSearchQuery}
-                            onChange={(e) => setKdsSearchQuery(e.target.value)}
-                            style={{ 
-                                paddingLeft: '2.5rem', 
-                                width: '100%', 
-                                borderRadius: '24px', 
-                                background: 'rgba(255,255,255,0.08)',
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                color: '#fff'
-                            }}
-                        />
-                        {kdsSearchQuery && (
-                            <button 
-                                onClick={() => setKdsSearchQuery('')}
-                                style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.2rem' }}
-                            >✕</button>
                         )}
                     </div>
+
+                    <div className="kds-controls">
+                        {/* 🕵️ Global Search Bar */}
+                        <div style={{ position: 'relative', flex: 1, minWidth: '350px' }}>
+                            <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>🔍</span>
+                            <input 
+                                type="text"
+                                placeholder="Search Order # or Name..."
+                                className="kds-input"
+                                value={kdsSearchQuery}
+                                onChange={(e) => setKdsSearchQuery(e.target.value)}
+                                style={{ 
+                                    paddingLeft: '2.5rem', 
+                                    width: '100%', 
+                                    borderRadius: '24px', 
+                                    background: 'rgba(255,255,255,0.08)',
+                                    border: '1px solid rgba(255,255,255,0.1)',
+                                    color: '#fff'
+                                }}
+                            />
+                            {kdsSearchQuery && (
+                                <button 
+                                    onClick={() => setKdsSearchQuery('')}
+                                    style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.2rem' }}
+                                >✕</button>
+                            )}
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <select
+                                className="kds-select"
+                                value={selectedLocation}
+                                onChange={(e) => setSelectedLocation(e.target.value)}
+                            >
+                                <option value="all">Global (All Stalls)</option>
+                                {locations.map(loc => (
+                                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        
+                        {/* User Profile Dropdown */}
+                        <div style={{ position: 'relative' }}>
+                            <button 
+                                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                                style={{ 
+                                    background: '#1e293b', 
+                                    color: '#fff', 
+                                    border: '1px solid #334155', 
+                                    padding: '0.5rem', 
+                                    borderRadius: '50%', 
+                                    cursor: 'pointer', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    width: '40px',
+                                    height: '40px',
+                                    fontSize: '1.2rem'
+                                }}
+                            >
+                                👤
+                            </button>
+                            
+                            {isProfileMenuOpen && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '100%',
+                                    right: '0',
+                                    marginTop: '0.5rem',
+                                    background: '#1e293b',
+                                    border: '1px solid #334155',
+                                    borderRadius: '12px',
+                                    boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                                    overflow: 'hidden',
+                                    zIndex: 1000,
+                                    minWidth: '220px'
+                                }}>
+                                    <div style={{ padding: '1rem', borderBottom: '1px solid #334155', background: '#0f172a' }}>
+                                        <p style={{ margin: 0, fontWeight: 'bold', fontSize: '0.9rem' }}>{profile?.full_name || 'Admin User'}</p>
+                                        <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.8rem' }}>{session?.user?.email}</p>
+                                    </div>
+                                    <div style={{ padding: '0.5rem' }}>
+                                        <button 
+                                            onClick={() => {
+                                                supabase.auth.signOut();
+                                                window.location.href = '/';
+                                            }}
+                                            style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#ff4444', cursor: 'pointer', borderRadius: '8px' }}
+                                        >
+                                            Logout
+                                        </button>
+                                        <button 
+                                            onClick={() => setShowDeleteModal(true)}
+                                            style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', borderRadius: '8px', fontSize: '0.8rem' }}
+                                        >
+                                            Delete Account
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </header>
+
+                {/* 🏛️ Tab Content Area */}
+                <div style={{ flex: 1, overflowY: 'auto' }}>
+                    {activeTab === 'overview' && (
+                        <div style={{ padding: '2rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem', marginBottom: '3rem' }}>
+                                <div className="finances-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    <span style={{ fontSize: '0.85rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>Daily Revenue</span>
+                                    <h2 style={{ fontSize: '2.5rem', margin: 0, color: '#00e676' }}>
+                                        R {orders.filter(o => o.status !== 'pending' && new Date(o.created_at).toDateString() === new Date().toDateString()).reduce((acc, curr) => acc + (parseFloat(curr.total_price) || 0), 0).toFixed(2)}
+                                    </h2>
+                                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Includes all Paid/Completed orders today</span>
+                                </div>
+                                <div className="finances-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    <span style={{ fontSize: '0.85rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>Active Kitchen Load</span>
+                                    <h2 style={{ fontSize: '2.5rem', margin: 0, color: '#f59e0b' }}>
+                                        {orders.filter(o => ['paid', 'preparing'].includes(o.status)).length}
+                                    </h2>
+                                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Orders currently being prepared</span>
+                                </div>
+                                <div className="finances-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    <span style={{ fontSize: '0.85rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>Ready for Pickup</span>
+                                    <h2 style={{ fontSize: '2.5rem', margin: 0, color: '#10b981' }}>
+                                        {orders.filter(o => o.status === 'ready').length}
+                                    </h2>
+                                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Orders waiting for the customer</span>
+                                </div>
+                                <div className="finances-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    <span style={{ fontSize: '0.85rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>Inventory Health</span>
+                                    <h2 style={{ fontSize: '2.5rem', margin: 0, color: ingredients.filter(i => (parseFloat(i.current_stock) || 0) <= (parseFloat(i.low_stock_threshold) || 10)).length > 0 ? '#ef4444' : '#00e676' }}>
+                                        {ingredients.filter(i => (parseFloat(i.current_stock) || 0) <= (parseFloat(i.low_stock_threshold) || 10)).length}
+                                    </h2>
+                                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Low stock items requiring attention</span>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem' }}>
+                                <div className="finances-card">
+                                    <h3 style={{ marginBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.75rem' }}>Recent Kitchen Activity</h3>
+                                    {orders.slice(0, 8).map(o => (
+                                        <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                                            <div>
+                                                <span style={{ color: '#94a3b8', fontWeight: 'bold' }}>#{o.order_number.slice(-4)}</span>
+                                                <span style={{ marginLeft: '1rem' }}>{o.customer_name}</span>
+                                            </div>
+                                            <div className={`status-badge status-${o.status}`}>{o.status}</div>
+                                        </div>
+                                    ))}
+                                    {orders.length === 0 && <p className="empty-state">No active orders found.</p>}
+                                </div>
+                                <div className="finances-card">
+                                    <h3 style={{ marginBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.75rem' }}>Quick Actions</h3>
+                                    <div style={{ display: 'grid', gap: '1rem' }}>
+                                        <button className="sidebar-item" onClick={() => setActiveTab('kds')} style={{ background: 'rgba(0, 230, 118, 0.1)', color: '#00e676', padding: '1rem', justifyContent: 'center' }}>🔥 Go to Kitchen</button>
+                                        <button className="sidebar-item" onClick={() => setActiveTab('cms')} style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#60a5fa', padding: '1rem', justifyContent: 'center' }}>⚙️ Manage Menu</button>
+                                        <button className="sidebar-item" onClick={() => setActiveTab('finances')} style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', padding: '1rem', justifyContent: 'center' }}>💰 View Financials</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Stall Filter:</label>
@@ -2648,7 +2873,9 @@ export default function AdminDashboard({ session }) {
                                         try {
                                             setUploadingHero(true);
                                             let finalBranding = { ...vendorConfig.branding };
+                                            let finalLogoUrl = vendorConfig.logo_url;
 
+                                            // 1. Upload Hero Image if provided
                                             if (heroImageFile) {
                                                 const fileExt = heroImageFile.name.split('.').pop();
                                                 const fileName = `hero_${Date.now()}.${fileExt}`;
@@ -2660,7 +2887,6 @@ export default function AdminDashboard({ session }) {
 
                                                 if (uploadError) {
                                                     console.error("Hero upload error:", uploadError);
-                                                    alert("Could not upload hero image. Ensure the Storage bucket 'business-documents' exists.");
                                                 } else {
                                                     const { data: { publicUrl } } = supabase.storage
                                                         .from('business-documents')
@@ -2669,15 +2895,38 @@ export default function AdminDashboard({ session }) {
                                                 }
                                             }
 
+                                            // 2. Upload Logo if provided
+                                            if (logoFile) {
+                                                const fileExt = logoFile.name.split('.').pop();
+                                                const fileName = `logo_${Date.now()}.${fileExt}`;
+                                                const filePath = `store-logos/${fileName}`;
+
+                                                const { error: uploadError } = await supabase.storage
+                                                    .from('business-documents')
+                                                    .upload(filePath, logoFile);
+
+                                                if (uploadError) {
+                                                    console.error("Logo upload error:", uploadError);
+                                                } else {
+                                                    const { data: { publicUrl } } = supabase.storage
+                                                        .from('business-documents')
+                                                        .getPublicUrl(filePath);
+                                                    finalLogoUrl = publicUrl;
+                                                }
+                                            }
+
                                             const { error } = await supabase.from('vendors').update({
                                                 name: vendorConfig.name,
                                                 custom_domain: vendorConfig.custom_domain,
-                                                branding: finalBranding
+                                                branding: finalBranding,
+                                                logo_url: finalLogoUrl
                                             }).eq('id', currentVendorId);
                                             
                                             if (error) throw error;
-                                            alert("Branding settings updated!");
-                                            setVendorConfig({...vendorConfig, branding: finalBranding});
+                                            alert("Branding settings updated! ✨");
+                                            setVendorConfig({ ...vendorConfig, name: vendorConfig.name, branding: finalBranding, logo_url: finalLogoUrl });
+                                            setHeroImageFile(null);
+                                            setLogoFile(null);
                                         } catch (err) {
                                             alert("Failed to save branding: " + err.message);
                                         } finally {
@@ -2703,6 +2952,23 @@ export default function AdminDashboard({ session }) {
                                             <div className="form-group">
                                                 <label>Welcome Text</label>
                                                 <input type="text" className="kds-input" value={vendorConfig.branding?.welcome_text || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, welcome_text: e.target.value}})} />
+                                            </div>
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Store Logo (Top Sidebar)</label>
+                                                {vendorConfig.logo_url && (
+                                                    <div style={{ marginBottom: '0.5rem' }}>
+                                                        <img src={vendorConfig.logo_url} alt="Logo" style={{ height: '40px', borderRadius: '4px', border: '1px solid #334155' }} />
+                                                    </div>
+                                                )}
+                                                <input 
+                                                    type="file" 
+                                                    accept="image/*"
+                                                    className="kds-input" 
+                                                    onChange={(e) => setLogoFile(e.target.files[0])} 
+                                                    style={{ padding: '0.5rem' }}
+                                                />
+                                                <small style={{ color: '#64748b' }}>Appears at the top of your sidebar.</small>
                                             </div>
                                             <div className="form-group">
                                                 <label>Custom Domain (e.g. www.chef-dips.co.za)</label>
@@ -2748,9 +3014,8 @@ export default function AdminDashboard({ session }) {
                                 )}
                             </div>
                         )}
-                    </div>
                 </div>
-            )}
+            </main>
         </div>
     );
 }

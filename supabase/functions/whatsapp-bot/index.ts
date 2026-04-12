@@ -157,10 +157,10 @@ serve(async (req: Request) => {
                                     // Paystack Path
                                     const { data: order } = await supabase.from('orders').select('*').eq('id', sessionData.last_order_id).single();
                                     
-                                    const vendorSecret = activeVendor.paystack_secret_key || PAYSTACK_SECRET_KEY;
+                                    const vendorSecret = activeVendor.paystack_secret_key;
 
                                     if (!vendorSecret) {
-                                        await sendWhatsAppMessage(phone_number_id, from, "Payment system is currently unavailable. Please contact the shop directly.", vendorToken);
+                                        await sendWhatsAppMessage(phone_number_id, from, "This shop has not configured their payment system (Paystack) yet. Please notify the owner to add their API keys in the dashboard.", vendorToken);
                                         return new Response('EVENT_RECEIVED', { status: 200 });
                                     }
 

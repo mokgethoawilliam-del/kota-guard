@@ -151,11 +151,14 @@ export default function CustomerMenu({ vendorId, branding }) {
             if (itemError) throw itemError;
 
             // 3. Initialize Paystack
-            // Use Vendor's custom key if provided, otherwise use platform default
-            const platformKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'YOUR_TEST_PUBLIC_KEY';
-            const vendorKey = vendorDoc?.paystack_public_key;
+            // Use Vendor's custom key ONLY. Fallback to platform is removed for security.
+            const paystackKey = vendorDoc?.paystack_public_key;
             
-            const paystackKey = vendorKey || platformKey;
+            if (!paystackKey) {
+                alert("This shop has not configured their payment system yet. Please contact the owner.");
+                setLoading(false);
+                return;
+            }
 
             // Split Logic: 5% fee for platform if on free tier and using platform keys
             const handler = window.PaystackPop.setup({
@@ -190,7 +193,7 @@ export default function CustomerMenu({ vendorId, branding }) {
                                 .eq('location_id', selectedLocation)
                                 .gte('created_at', startOfDay.toISOString());
 
-                            const dailyNum = String((count || 0) + 1).padStart(3, '0');
+                            const dailyNum = String(count || 1).padStart(3, '0');
                             const finalOrderNum = `${prefix}/${dateStr}/${dailyNum}`;
 
                             const { error: updateErr } = await supabase

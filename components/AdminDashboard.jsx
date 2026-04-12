@@ -297,10 +297,13 @@ export default function AdminDashboard({ session }) {
     };
 
     const updateOrderStatus = async (orderId, newStatus) => {
+        const order = orders.find(o => o.id === orderId);
+        if (!order) return;
+
         try {
-            // If the order is moving to 'preparing', we deduct inventory based on recipes
-            if (newStatus === 'preparing') {
-                const order = orders.find(o => o.id === orderId);
+            // Deduct inventory if moving away from 'paid' to a preparation state
+            if ((newStatus === 'preparing' || newStatus === 'ready') && order.status === 'paid') {
+                console.log(`Inventory: Deducting for order ${orderId} moving to ${newStatus}`);
                 if (order && order.order_items) {
                     const inventoryDeductions = {};
 
@@ -324,7 +327,8 @@ export default function AdminDashboard({ session }) {
                             .from('ingredients')
                             .select('id, current_stock')
                             .eq('name', ingredientName)
-                            .single();
+                            .eq('vendor_id', currentVendorId)
+                            .maybeSingle();
 
                         if (!fetchErr && invData && invData.current_stock !== null) {
                             const newStock = Math.max(0, Number(invData.current_stock) - amountToDeduct);
@@ -749,63 +753,7 @@ export default function AdminDashboard({ session }) {
     const prepOrders = filteredOrders.filter(o => o.status === 'preparing');
     const readyOrders = filteredOrders.filter(o => o.status === 'ready');
 
-    const OrderCard = ({ order }) => (
-        <div className="kds-card" style={order.customer_arrived ? { border: '3px solid #ef4444', animation: order.status !== 'completed' ? 'pulse 2s infinite' : 'none' } : {}}>
-            {order.customer_arrived && (
-                <div style={{ background: '#ef4444', color: '#fff', padding: '0.5rem', textAlign: 'center', fontWeight: 'bold', fontSize: '1rem', borderTopLeftRadius: '10px', borderTopRightRadius: '10px', marginBottom: '-1px' }}>
-                    🚨 CUSTOMER IS WAITING OUTSIDE
-                </div>
-            )}
-            <div className="kds-card-header" style={{ paddingTop: order.customer_arrived ? '0.5rem' : '' }}>
-                <h3>{order.order_number}</h3>
-                <span className={`status-badge status-${order.status}`}>{order.status}</span>
-            </div>
-            <div className="kds-customer-info">
-                <p><strong>{order.customer_name}</strong></p>
-                <p>WA: {order.customer_phone}</p>
-                {selectedLocation === 'all' && <p className="kds-loc">📍 {order.locations?.name}</p>}
 
-                {/* PRE-ORDER TIME */}
-                {order.estimated_collection_time && (
-                    <p style={{ color: '#fbbf24', fontWeight: 'bold', marginTop: '0.25rem' }}>
-                        ⏰ Collect time: {order.estimated_collection_time.substring(0, 5)}
-                    </p>
-                )}
-            </div>
-
-            <div className="kds-items">
-                {order.order_items && order.order_items.map((item, idx) => (
-                    <div key={idx} className="kds-item-row">
-                        <span className="qty">{item.quantity}x</span>
-                        <div className="item-details">
-                            <span className="name">{item.menu_items?.name}</span>
-                            {item.modifiers_json?.custom_notes && (
-                                <span className="modifier">Note: {item.modifiers_json.custom_notes}</span>
-                            )}
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            <div className="kds-actions">
-                {order.status === 'paid' && (
-                    <button className="btn-kds btn-prep" onClick={() => updateOrderStatus(order.id, 'preparing')}>
-                        Start Preparing
-                    </button>
-                )}
-                {order.status === 'preparing' && (
-                    <button className="btn-kds btn-ready" onClick={() => updateOrderStatus(order.id, 'ready')}>
-                        Mark Ready
-                    </button>
-                )}
-                {order.status === 'ready' && (
-                    <button className="btn-kds btn-complete" onClick={() => updateOrderStatus(order.id, 'completed')}>
-                        Collected / Done
-                    </button>
-                )}
-            </div>
-        </div>
-    );
 
     if (loading || !vendorConfig) return (
         <div style={{ background: '#0f172a', color: '#fff', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1.5rem', textAlign: 'center', padding: '2rem' }}>
@@ -1345,7 +1293,7 @@ export default function AdminDashboard({ session }) {
                     <div className="kds-col kds-col-new">
                         <h2>📥 NEW ORDERS ({newOrders.length})</h2>
                         <div className="kds-list">
-                            {newOrders.map(o => <OrderCard key={o.id} order={o} />)}
+                            {newOrders.map(o => <OrderCard key={o.id} order={o} updateOrderStatus={updateOrderStatus} showLocation={selectedLocation === 'all'} />)}
                             {newOrders.length === 0 && <p className="empty-state">No new orders.</p>}
                         </div>
                     </div>
@@ -1354,7 +1302,7 @@ export default function AdminDashboard({ session }) {
                     <div className="kds-col kds-col-prep">
                         <h2>🍳 PREPARING ({prepOrders.length})</h2>
                         <div className="kds-list">
-                            {prepOrders.map(o => <OrderCard key={o.id} order={o} />)}
+                            {prepOrders.map(o => <OrderCard key={o.id} order={o} updateOrderStatus={updateOrderStatus} showLocation={selectedLocation === 'all'} />)}
                             {prepOrders.length === 0 && <p className="empty-state">Kitchen is clear.</p>}
                         </div>
                     </div>
@@ -1363,7 +1311,7 @@ export default function AdminDashboard({ session }) {
                     <div className="kds-col kds-col-ready">
                         <h2>🛍️ READY FOR COLLECTION ({readyOrders.length})</h2>
                         <div className="kds-list">
-                            {readyOrders.map(o => <OrderCard key={o.id} order={o} />)}
+                            {readyOrders.map(o => <OrderCard key={o.id} order={o} updateOrderStatus={updateOrderStatus} showLocation={selectedLocation === 'all'} />)}
                             {readyOrders.length === 0 && <p className="empty-state">No orders awaiting pickup.</p>}
                         </div>
                     </div>
@@ -2336,3 +2284,62 @@ export default function AdminDashboard({ session }) {
         </div>
     );
 }
+
+// Helper Components defined outside to prevent re-renders on clock ticks
+const OrderCard = ({ order, updateOrderStatus, showLocation }) => (
+    <div className="kds-card" style={order.customer_arrived ? { border: '3px solid #ef4444', animation: order.status !== 'completed' ? 'pulse 2s infinite' : 'none' } : {}}>
+        {order.customer_arrived && (
+            <div style={{ background: '#ef4444', color: '#fff', padding: '0.5rem', textAlign: 'center', fontWeight: 'bold', fontSize: '1rem', borderTopLeftRadius: '10px', borderTopRightRadius: '10px', marginBottom: '-1px' }}>
+                🚨 CUSTOMER IS WAITING OUTSIDE
+            </div>
+        )}
+        <div className="kds-card-header" style={{ paddingTop: order.customer_arrived ? '0.5rem' : '' }}>
+            <h3>{order.order_number}</h3>
+            <span className={`status-badge status-${order.status}`}>{order.status}</span>
+        </div>
+        <div className="kds-customer-info">
+            <p><strong>{order.customer_name}</strong></p>
+            <p>WA: {order.customer_phone}</p>
+            {showLocation && <p className="kds-loc">📍 {order.locations?.name}</p>}
+
+            {/* PRE-ORDER TIME */}
+            {order.estimated_collection_time && (
+                <p style={{ color: '#fbbf24', fontWeight: 'bold', marginTop: '0.25rem' }}>
+                    ⏰ Collect time: {order.estimated_collection_time.substring(0, 5)}
+                </p>
+            )}
+        </div>
+
+        <div className="kds-items">
+            {order.order_items && order.order_items.map((item, idx) => (
+                <div key={idx} className="kds-item-row">
+                    <span className="qty">{item.quantity}x</span>
+                    <div className="item-details">
+                        <span className="name">{item.menu_items?.name}</span>
+                        {item.modifiers_json?.custom_notes && (
+                            <span className="modifier">Note: {item.modifiers_json.custom_notes}</span>
+                        )}
+                    </div>
+                </div>
+            ))}
+        </div>
+
+        <div className="kds-actions">
+            {order.status === 'paid' && (
+                <button className="btn-kds btn-prep" onClick={() => updateOrderStatus(order.id, 'preparing')}>
+                    Start Preparing
+                </button>
+            )}
+            {order.status === 'preparing' && (
+                <button className="btn-kds btn-ready" onClick={() => updateOrderStatus(order.id, 'ready')}>
+                    Mark Ready
+                </button>
+            )}
+            {order.status === 'ready' && (
+                <button className="btn-kds btn-complete" onClick={() => updateOrderStatus(order.id, 'completed')}>
+                    Collected / Done
+                </button>
+            )}
+        </div>
+    </div>
+);

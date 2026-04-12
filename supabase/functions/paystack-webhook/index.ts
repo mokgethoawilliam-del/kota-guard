@@ -51,12 +51,11 @@ serve(async (req) => {
             .eq('id', orderData.vendor_id)
             .single()
 
-        const globalSecret = Deno.env.get('PAYSTACK_SECRET_KEY')
-        const vendorSecret = vendorData?.paystack_secret_key || globalSecret
+        const vendorSecret = vendorData?.paystack_secret_key;
 
         if (!vendorSecret) {
-            console.error("PAYSTACK_SECRET_KEY is not set for this vendor or globally.")
-            return new Response('Internal Server Error', { status: 500, headers: corsHeaders })
+            console.error(`Verification Failed: No secret key found for vendor ${orderData.vendor_id}`);
+            return new Response('Vendor secret not configured', { status: 400, headers: corsHeaders })
         }
 
         // 1c. Verify Paystack Signature with Vendor's Key

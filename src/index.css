@@ -393,15 +393,9 @@ h6 {
 }
 
 @keyframes pulse {
-
-  0%,
-  100% {
-    opacity: 0.6;
-  }
-
-  50% {
-    opacity: 1;
-  }
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.02); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 /* =========================================================================
@@ -766,7 +760,7 @@ select.form-input option {
   border-radius: 8px;
   padding: 1rem;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-  animation: slideIn 0.3s ease-out;
+  transition: all 0.3s ease;
 }
 
 @keyframes slideIn {

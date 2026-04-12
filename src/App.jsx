@@ -6,6 +6,7 @@ import AdminDashboard from '../components/AdminDashboard'
 import Login from '../components/Login'
 import RegisterShop from '../components/RegisterShop'
 import PlatformHome from '../components/PlatformHome'
+import LegalTerms from '../components/LegalTerms'
 
 function AuthGuard({ children, session }) {
     if (!session) return <Navigate to="/login" replace />;
@@ -52,6 +53,9 @@ function App() {
 
                 {/* VulaHub Platform Landing Page */}
                 <Route path="/" element={<PlatformHome />} /> 
+
+                {/* Legal Terms & Disclaimer */}
+                <Route path="/legal" element={<LegalTerms />} /> 
 
                 {/* Fallback */}
                 <Route path="*" element={<Navigate to="/" replace />} />

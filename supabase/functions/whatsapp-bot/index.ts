@@ -157,9 +157,16 @@ serve(async (req: Request) => {
                                     // Paystack Path
                                     const { data: order } = await supabase.from('orders').select('*').eq('id', sessionData.last_order_id).single();
                                     
+                                    const vendorSecret = activeVendor.paystack_secret_key || PAYSTACK_SECRET_KEY;
+
+                                    if (!vendorSecret) {
+                                        await sendWhatsAppMessage(phone_number_id, from, "Payment system is currently unavailable. Please contact the shop directly.", vendorToken);
+                                        return new Response('EVENT_RECEIVED', { status: 200 });
+                                    }
+
                                     const payResponse = await fetch('https://api.paystack.co/transaction/initialize', {
                                         method: 'POST',
-                                        headers: { 'Authorization': `Bearer ${PAYSTACK_SECRET_KEY}`, 'Content-Type': 'application/json' },
+                                        headers: { 'Authorization': `Bearer ${vendorSecret}`, 'Content-Type': 'application/json' },
                                         body: JSON.stringify({
                                             email: `${from}@whatsapp.kotaguard.com`,
                                             amount: Math.round(order.total_price * 100),

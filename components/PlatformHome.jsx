@@ -113,6 +113,10 @@ export default function PlatformHome() {
             {/* Footer */}
             <footer style={{ padding: '4rem 2rem', borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
                 <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#00e676', marginBottom: '1.5rem' }}>VulaHub</div>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '2rem', marginBottom: '2rem' }}>
+                    <Link to="/legal" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '0.9rem' }}>Terms of Service & Disclaimer</Link>
+                    <a href="mailto:support@vulahub.com" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '0.9rem' }}>Contact Support</a>
+                </div>
                 <p style={{ color: '#64748b', fontSize: '0.9rem' }}>&copy; 2026 VulaHub. Empowing local vendors through digital innovation.</p>
             </footer>
         </div>

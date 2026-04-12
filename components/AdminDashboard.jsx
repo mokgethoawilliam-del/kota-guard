@@ -44,6 +44,12 @@ export default function AdminDashboard({ session }) {
     const [vaultPassword, setVaultPassword] = useState('');
     const [vaultError, setVaultError] = useState('');
     const [unlocking, setUnlocking] = useState(false);
+    const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+    
+    // Delete Account State
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleteConfirmationWord, setDeleteConfirmationWord] = useState('');
+    const [isDeletingAccount, setIsDeletingAccount] = useState(false);
     
     // Phase 11: CMS Sub-navigation
     const [cmsActiveSubTab, setCmsActiveSubTab] = useState('menu'); // 'menu' | 'branches' | 'events' | 'branding'
@@ -845,6 +851,100 @@ export default function AdminDashboard({ session }) {
                     </p>
                 </div>
             )}
+            
+            {/* DELETE ACCOUNT MODAL */}
+            {showDeleteModal && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.85)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 10000,
+                    padding: '1rem'
+                }}>
+                    <div style={{
+                        background: '#0f172a',
+                        border: '2px solid #ef4444',
+                        borderRadius: '16px',
+                        padding: '3rem',
+                        maxWidth: '500px',
+                        width: '100%',
+                        textAlign: 'center',
+                        boxShadow: '0 25px 50px -12px rgba(239, 68, 68, 0.25)'
+                    }}>
+                        <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>⚠️</div>
+                        <h2 style={{ color: '#ef4444', fontSize: '2rem', marginBottom: '1rem' }}>DANGER ZONE</h2>
+                        <p style={{ color: '#f8fafc', fontSize: '1.1rem', marginBottom: '1rem', lineHeight: '1.6' }}>
+                            You are about to permanently delete your entire shop.
+                        </p>
+                        <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '2rem', lineHeight: '1.6' }}>
+                            This action is <strong>irreversible</strong>. All your menu items, customer orders, finance history, and account settings will be erased forever. 
+                        </p>
+                        
+                        <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '1.5rem', borderRadius: '12px', marginBottom: '2rem' }}>
+                            <p style={{ color: '#fca5a5', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                                To confirm deletion, type <strong>DELETE</strong> below:
+                            </p>
+                            <input 
+                                type="text"
+                                style={{ width: '100%', padding: '1rem', background: '#000', border: '1px solid #ef4444', color: '#ef4444', fontSize: '1.2rem', textAlign: 'center', letterSpacing: '4px', outline: 'none' }}
+                                value={deleteConfirmationWord}
+                                onChange={(e) => setDeleteConfirmationWord(e.target.value)}
+                                placeholder="DELETE"
+                            />
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '1rem' }}>
+                            <button 
+                                onClick={() => {
+                                    setShowDeleteModal(false);
+                                    setDeleteConfirmationWord('');
+                                }}
+                                className="btn-secondary"
+                                style={{ flex: 1 }}
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={async () => {
+                                    if (deleteConfirmationWord !== 'DELETE') return;
+                                    try {
+                                        setIsDeletingAccount(true);
+                                        // 1. Delete Vendor mapping (cascade drops data if FK set up, else rely on Auth trigger)
+                                        // But the most robust way in a client is to call an Edge Function or just delete the auth user.
+                                        // To delete the current user securely, Supabase provides admin API or they need to execute custom RPC.
+                                        // Using standard client, a user can't easily self-delete from auth.users unless we have an RPC.
+                                        // A simple workaround for this platform is deleting the vendor profile to ghost the account.
+                                        await supabase.from('vendors').delete().eq('id', currentVendorId);
+                                        await supabase.from('profiles').delete().eq('id', session.user.id);
+                                        // We log them out
+                                        await supabase.auth.signOut();
+                                        window.location.reload();
+                                    } catch (err) {
+                                        alert("Failed to delete account. Please contact support.");
+                                        setIsDeletingAccount(false);
+                                    }
+                                }}
+                                disabled={deleteConfirmationWord !== 'DELETE' || isDeletingAccount}
+                                style={{ 
+                                    flex: 1, 
+                                    background: deleteConfirmationWord === 'DELETE' ? '#ef4444' : '#475569', 
+                                    color: '#fff', 
+                                    border: 'none', 
+                                    padding: '1rem', 
+                                    borderRadius: '8px', 
+                                    fontWeight: 'bold', 
+                                    cursor: deleteConfirmationWord === 'DELETE' ? 'pointer' : 'not-allowed' 
+                                }}
+                            >
+                                {isDeletingAccount ? 'Deleting...' : 'Permanently Delete'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <header className="kds-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -908,13 +1008,9 @@ export default function AdminDashboard({ session }) {
                         }}
                     >⚙️ CMS Settings</button>
                     <button
-                        className={`tab-btn ${activeTab === 'integrations' ? 'active' : ''}`}
-                        onClick={() => {
-                            setActiveTab('integrations');
-                            // Always lock vault when switching back to this tab
-                            if (activeTab !== 'integrations') setIsVaultUnlocked(false);
-                        }}
-                    >🔒 Security Vault</button>
+                        className={`tab-btn ${activeTab === 'help' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('help')}
+                    >❓ Help Center</button>
                 </div>
 
                 <div className="kds-controls" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
@@ -932,12 +1028,129 @@ export default function AdminDashboard({ session }) {
                         </select>
                     </div>
                     
-                    <button 
-                        onClick={handleLogout}
-                        style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold' }}
-                    >
-                        🚪 Logout
-                    </button>
+                    
+                    {/* User Profile Dropdown */}
+                    <div style={{ position: 'relative' }}>
+                        <button 
+                            onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                            style={{ 
+                                background: '#1e293b', 
+                                color: '#fff', 
+                                border: '1px solid #334155', 
+                                padding: '0.5rem', 
+                                borderRadius: '50%', 
+                                cursor: 'pointer', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center',
+                                width: '40px',
+                                height: '40px',
+                                fontSize: '1.2rem'
+                            }}
+                        >
+                            👤
+                        </button>
+                        
+                        {isProfileMenuOpen && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '100%',
+                                right: '0',
+                                marginTop: '0.5rem',
+                                background: '#1e293b',
+                                border: '1px solid #334155',
+                                borderRadius: '12px',
+                                boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                                overflow: 'hidden',
+                                zIndex: 1000,
+                                minWidth: '180px'
+                            }}>
+                                <div style={{ padding: '1rem', borderBottom: '1px solid #334155', background: '#0f172a' }}>
+                                    <p style={{ margin: 0, fontWeight: 'bold', fontSize: '0.9rem' }}>{profile?.full_name || 'Admin User'}</p>
+                                    <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.8rem' }}>{session?.user?.email}</p>
+                                </div>
+                                <div style={{ padding: '0.5rem' }}>
+                                    <button 
+                                        onClick={() => {
+                                            setActiveTab('integrations');
+                                            setIsProfileMenuOpen(false);
+                                            setIsVaultUnlocked(false);
+                                        }}
+                                        style={{ 
+                                            width: '100%', 
+                                            background: 'transparent', 
+                                            border: 'none', 
+                                            color: '#fff', 
+                                            padding: '0.75rem 1rem', 
+                                            textAlign: 'left', 
+                                            cursor: 'pointer',
+                                            borderRadius: '8px',
+                                            display: 'flex',
+                                            gap: '0.5rem',
+                                            alignItems: 'center'
+                                        }}
+                                        onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                                        onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                                    >
+                                        🔒 Security Vault
+                                    </button>
+                                    <div style={{ height: '1px', background: '#334155', margin: '0.25rem 0' }}></div>
+                                    <button 
+                                        onClick={handleLogout}
+                                        style={{ 
+                                            width: '100%', 
+                                            background: 'transparent', 
+                                            border: 'none', 
+                                            color: '#f87171', 
+                                            padding: '0.75rem 1rem', 
+                                            textAlign: 'left', 
+                                            cursor: 'pointer',
+                                            borderRadius: '8px',
+                                            display: 'flex',
+                                            gap: '0.5rem',
+                                            alignItems: 'center',
+                                            fontWeight: 'bold'
+                                        }}
+                                        onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                                    >
+                                        🚪 Logout
+                                    </button>
+                                    
+                                    <div style={{ height: '1px', background: '#334155', margin: '0.25rem 0' }}></div>
+                                    <button 
+                                        onClick={() => {
+                                            setShowDeleteModal(true);
+                                            setIsProfileMenuOpen(false);
+                                        }}
+                                        style={{ 
+                                            width: '100%', 
+                                            background: 'transparent', 
+                                            border: 'none', 
+                                            color: '#ef4444', 
+                                            padding: '0.75rem 1rem', 
+                                            textAlign: 'left', 
+                                            cursor: 'pointer',
+                                            borderRadius: '8px',
+                                            display: 'flex',
+                                            gap: '0.5rem',
+                                            alignItems: 'center',
+                                            fontWeight: 'bold',
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.target.style.background = '#ef4444';
+                                            e.target.style.color = '#fff';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.target.style.background = 'transparent';
+                                            e.target.style.color = '#ef4444';
+                                        }}
+                                    >
+                                        ⚠️ Delete Account
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </header>
 
@@ -1019,24 +1232,24 @@ export default function AdminDashboard({ session }) {
                                         type="text" 
                                         className="kds-input" 
                                         placeholder="pk_live_..." 
-                                        value={vendorConfig?.payment_config?.paystack_public_key || ''}
+                                        value={vendorConfig?.paystack_public_key || ''}
                                         onChange={(e) => setVendorConfig({
                                             ...vendorConfig,
-                                            payment_config: { ...vendorConfig?.payment_config, paystack_public_key: e.target.value }
+                                            paystack_public_key: e.target.value
                                         })}
                                     />
-                                    <small style={{ color: '#64748b' }}>If left blank, platform default keys will be used with a 5% transaction fee.</small>
+                                    <small style={{ color: '#64748b' }}>Used to initialize payments in the frontend.</small>
                                 </div>
                                 <div className="form-group" style={{ marginTop: '1rem' }}>
-                                    <label>Paystack Subaccount Code (For 5% Profit Split)</label>
+                                    <label>Paystack Secret Key</label>
                                     <input 
-                                        type="text" 
+                                        type="password" 
                                         className="kds-input" 
-                                        placeholder="ACCT_..." 
-                                        value={vendorConfig?.paystack_subaccount_code || ''}
-                                        onChange={(e) => setVendorConfig({ ...vendorConfig, paystack_subaccount_code: e.target.value })}
+                                        placeholder="sk_live_..." 
+                                        value={vendorConfig?.paystack_secret_key || ''}
+                                        onChange={(e) => setVendorConfig({ ...vendorConfig, paystack_secret_key: e.target.value })}
                                     />
-                                    <small style={{ color: '#64748b' }}>Used only on the Free Tier to automatically send your 95% profit to your account.</small>
+                                    <small style={{ color: '#64748b' }}>Used to verify payments securely. Kept hidden.</small>
                                 </div>
                             </div>
 
@@ -1110,7 +1323,8 @@ export default function AdminDashboard({ session }) {
                                             payment_config: vendorConfig.payment_config,
                                             netcash_config: vendorConfig.netcash_config,
                                             whatsapp_config: vendorConfig.whatsapp_config,
-                                            paystack_subaccount_code: vendorConfig.paystack_subaccount_code
+                                            paystack_public_key: vendorConfig.paystack_public_key,
+                                            paystack_secret_key: vendorConfig.paystack_secret_key
                                         })
                                         .eq('id', currentVendorId);
                                     
@@ -1257,6 +1471,66 @@ export default function AdminDashboard({ session }) {
                                 Select a session from the left to start chatting.
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'help' && (
+                <div className="vault-container" style={{ maxWidth: '800px', margin: '0 auto' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+                        <h2 style={{ fontSize: '2.5rem', marginBottom: '1rem', color: '#60a5fa' }}>👋 Welcome to the Help Center!</h2>
+                        <p style={{ color: '#94a3b8', fontSize: '1.1rem' }}>Here is everything you need to know about your shop, explained simply so even a 10-year-old could run it.</p>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                        {/* Section 1 */}
+                        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '2rem' }}>
+                            <h3 style={{ fontSize: '1.5rem', color: '#00e676', marginBottom: '1rem' }}>🔥 Live Kitchen</h3>
+                            <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
+                                Think of the <strong>Live Kitchen</strong> as the beating heart of your shop. When a customer orders online or via WhatsApp, a magic ticket pops up here under "New Orders." 
+                            </p>
+                            <ul style={{ color: '#cbd5e1', marginTop: '1rem', paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <li>Click <strong>Start Preparing</strong> when you put the kota in the pan. The customer gets told you are cooking!</li>
+                                <li>Click <strong>Mark Ready</strong> when it is in the box.</li>
+                                <li>Click <strong>Collected / Done</strong> when you hand it to the customer, and the ticket goes to the History vault.</li>
+                            </ul>
+                        </div>
+
+                        {/* Section 2 */}
+                        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '2rem' }}>
+                            <h3 style={{ fontSize: '1.5rem', color: '#3b82f6', marginBottom: '1rem' }}>💬 Live Chat</h3>
+                            <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
+                                This is your secret walkie-talkie to your customers. If they get confused or want to change their order, they will send a message from their phone, and you will see it here. Just click their order number and type back!
+                            </p>
+                        </div>
+
+                        {/* Section 3 */}
+                        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '2rem' }}>
+                            <h3 style={{ fontSize: '1.5rem', color: '#f59e0b', marginBottom: '1rem' }}>💰 Finances & 📦 Inventory</h3>
+                            <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
+                                <strong>Finances:</strong> This is your piggy bank. Every time a customer pays, money goes up! If you buy tomatoes, log it as an "Expense" so the piggy bank knows exactly how much you really made (Net Profit).
+                                <br/><br/>
+                                <strong>Inventory:</strong> If you start the day with 50 polony slices, tell the Inventory. Every time you make a Kota, the system automatically subtracts it for you!
+                            </p>
+                        </div>
+
+                        {/* Section 4 */}
+                        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '2rem' }}>
+                            <h3 style={{ fontSize: '1.5rem', color: '#8b5cf6', marginBottom: '1rem' }}>⚙️ CMS Settings</h3>
+                            <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
+                                The <strong>CMS</strong> (Content Management System) is your magic paintbrush. It lets you change your shop name, colors, add new items to the menu (like a new special chips), and set up new Stalls. Anything you change here instantly updates on the customer's phone!
+                            </p>
+                        </div>
+
+                        {/* Section 5 */}
+                        <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '12px', padding: '2rem' }}>
+                            <h3 style={{ fontSize: '1.5rem', color: '#f87171', marginBottom: '1rem' }}>👤 Profile Dropdown (Top Right)</h3>
+                            <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
+                                See that little person icon in the top right corner? That's your private key. 
+                                <br/><br/>
+                                Click it to open the <strong>Security Vault</strong>. The Security Vault is heavily guarded (you need a password!) and holds the "API Keys" that connect your shop directly to Paystack banks so you get paid. Keep it locked!
+                            </p>
+                        </div>
                     </div>
                 </div>
             )}

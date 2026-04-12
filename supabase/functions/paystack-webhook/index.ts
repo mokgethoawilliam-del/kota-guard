@@ -14,25 +14,56 @@ serve(async (req) => {
     }
 
     try {
-        // 1. Verify Paystack Signature
-        const signature = req.headers.get('x-paystack-signature')
-        if (!signature) {
-            return new Response('Missing signature', { status: 401, headers: corsHeaders })
+        const bodyText = await req.text()
+        const payload = JSON.parse(bodyText)
+
+        // Initialize Supabase client
+        const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+        // Use service_role key to bypass RLS policies for webhooks
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        const supabase = createClient(supabaseUrl, supabaseKey)
+
+        const metadata = payload.data?.metadata || {}
+        const orderId = metadata.order_id
+        const cart = metadata.cart || [] // Array of { id: menu_item_id, quantity: number }
+
+        if (!orderId) {
+            console.error("Order ID missing in metadata.")
+            return new Response('Order ID missing', { status: 400, headers: corsHeaders })
         }
 
-        const bodyText = await req.text()
-        const secret = Deno.env.get('PAYSTACK_SECRET_KEY')
+        // 1b. Multi-Tenant Key Lookup
+        // We must find the vendor's secret key from the database using the orderId
+        const { data: orderData, error: orderLookupError } = await supabase
+            .from('orders')
+            .select('vendor_id')
+            .eq('id', orderId)
+            .single()
 
-        if (!secret) {
-            console.error("PAYSTACK_SECRET_KEY is not set.")
+        if (orderLookupError || !orderData) {
+            console.error("Could not find order to verify webhook.", orderLookupError)
+            return new Response('Order not found', { status: 404, headers: corsHeaders })
+        }
+
+        const { data: vendorData, error: vendorLookupError } = await supabase
+            .from('vendors')
+            .select('paystack_secret_key')
+            .eq('id', orderData.vendor_id)
+            .single()
+
+        const globalSecret = Deno.env.get('PAYSTACK_SECRET_KEY')
+        const vendorSecret = vendorData?.paystack_secret_key || globalSecret
+
+        if (!vendorSecret) {
+            console.error("PAYSTACK_SECRET_KEY is not set for this vendor or globally.")
             return new Response('Internal Server Error', { status: 500, headers: corsHeaders })
         }
 
-        // Hash the body with the secret key
+        // 1c. Verify Paystack Signature with Vendor's Key
         const encoder = new TextEncoder()
         const key = await crypto.subtle.importKey(
             "raw",
-            encoder.encode(secret),
+            encoder.encode(vendorSecret),
             { name: "HMAC", hash: "SHA-512" },
             false,
             ["sign"]
@@ -53,24 +84,10 @@ serve(async (req) => {
             return new Response('Invalid signature', { status: 401, headers: corsHeaders })
         }
 
-        const payload = JSON.parse(bodyText)
-
         // 2. Process the event if it's a successful charge
         if (payload.event === 'charge.success') {
-            // Initialize Supabase client
-            const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
-            // Use service_role key to bypass RLS policies for webhooks
-            const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-            const supabase = createClient(supabaseUrl, supabaseKey)
 
-            const metadata = payload.data.metadata || {}
-            const orderId = metadata.order_id
-            const cart = metadata.cart || [] // Array of { id: menu_item_id, quantity: number }
 
-            if (!orderId) {
-                console.error("Order ID missing in metadata.")
-                return new Response('Order ID missing', { status: 400, headers: corsHeaders })
-            }
 
             // 3. Generate a 4-digit order number (1000 - 9999)
             const orderNumber = Math.floor(1000 + Math.random() * 9000).toString()

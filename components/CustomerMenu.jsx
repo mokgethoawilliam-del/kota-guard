@@ -153,26 +153,16 @@ export default function CustomerMenu({ vendorId, branding }) {
             // 3. Initialize Paystack
             // Use Vendor's custom key if provided, otherwise use platform default
             const platformKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'YOUR_TEST_PUBLIC_KEY';
-            const vendorKey = vendorDoc?.payment_config?.paystack_public_key;
+            const vendorKey = vendorDoc?.paystack_public_key;
             
             const paystackKey = vendorKey || platformKey;
 
             // Split Logic: 5% fee for platform if on free tier and using platform keys
-            const subaccount = vendorDoc?.paystack_subaccount_code;
-            const splitConfig = (vendorDoc?.plan === 'free' && subaccount) ? {
-                subaccount: subaccount,
-                bearer: "account", // Vendor pays the transaction fee from their 95%
-                transaction_charge: 0, 
-                percentage_charge: 5
-            } : null;
-
             const handler = window.PaystackPop.setup({
                 key: paystackKey,
                 email: `${customerPhone}@whatsapp.kotaguard.com`,
                 amount: Math.round(cartTotal * 100),
                 currency: 'ZAR',
-                subaccount: splitConfig?.subaccount, // Paystack Split
-                bearer: splitConfig?.bearer,
                 metadata: {
                     order_id: order.id,
                     custom_fields: [

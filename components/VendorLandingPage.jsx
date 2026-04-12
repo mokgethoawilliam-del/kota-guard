@@ -251,6 +251,9 @@ function VendorLandingPage() {
                            <p style={{ maxWidth: '600px', margin: '0 auto 3rem auto', lineHeight: '1.8' }}>
                                {branding.about_text || 'Premium dining experience delivered straight to your neighborhood.'}
                            </p>
+                           <div style={{ display: 'flex', justifyContent: 'center', gap: '2rem', marginBottom: '2rem' }}>
+                               <a href="/legal" target="_blank" rel="noopener noreferrer" style={{ color: '#64748b', textDecoration: 'none', fontSize: '0.9rem' }}>Terms of Service & Disclaimer</a>
+                           </div>
                            <p>&copy; {new Date().getFullYear()} {vendor.name}. All rights reserved. Powered by <span style={{ color: '#00e676', fontWeight: 'bold' }}>VulaHub</span>.</p>
                         </div>
                     </footer>

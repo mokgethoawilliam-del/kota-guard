@@ -2807,7 +2807,6 @@ export default function AdminDashboard({ session }) {
                                                 <label>Welcome Text</label>
                                                 <input type="text" className="kds-input" value={vendorConfig.branding?.welcome_text || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, welcome_text: e.target.value}})} />
                                             </div>
-                                            </div>
                                             <div className="form-group">
                                                 <label>Store Logo (Top Sidebar)</label>
                                                 {vendorConfig.logo_url && (

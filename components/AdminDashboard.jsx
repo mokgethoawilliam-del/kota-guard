@@ -1032,7 +1032,14 @@ export default function AdminDashboard({ session }) {
                             className="kds-input"
                             value={kdsSearchQuery}
                             onChange={(e) => setKdsSearchQuery(e.target.value)}
-                            style={{ paddingLeft: '2.5rem', width: '100%', borderRadius: '24px', background: 'rgba(255,255,255,0.05)' }}
+                            style={{ 
+                                paddingLeft: '2.5rem', 
+                                width: '100%', 
+                                borderRadius: '24px', 
+                                background: 'rgba(255,255,255,0.08)',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                color: '#fff'
+                            }}
                         />
                         {kdsSearchQuery && (
                             <button 
@@ -1933,7 +1940,13 @@ export default function AdminDashboard({ session }) {
                                     className="kds-input"
                                     value={historySearchQuery}
                                     onChange={(e) => setHistorySearchQuery(e.target.value)}
-                                    style={{ paddingLeft: '2.5rem', width: '250px', background: 'rgba(255,255,255,0.05)' }}
+                                    style={{ 
+                                        paddingLeft: '2.5rem', 
+                                        width: '250px', 
+                                        background: 'rgba(255,255,255,0.08)',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        color: '#fff'
+                                    }}
                                 />
                                 <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>🔍</span>
                             </div>

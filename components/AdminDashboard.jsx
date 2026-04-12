@@ -84,6 +84,10 @@ export default function AdminDashboard({ session }) {
     const [vaultActiveSection, setVaultActiveSection] = useState(null); // null | 'paystack' | 'netcash' | 'domains' | 'whatsapp'
     const [isSavingVault, setIsSavingVault] = useState(false);
 
+    // Global Search State
+    const [kdsSearchQuery, setKdsSearchQuery] = useState('');
+    const [historySearchQuery, setHistorySearchQuery] = useState('');
+
     useEffect(() => {
         const timer = setInterval(() => setLiveTime(new Date().toLocaleTimeString()), 1000);
         return () => clearInterval(timer);
@@ -1019,6 +1023,25 @@ export default function AdminDashboard({ session }) {
                 </div>
 
                 <div className="kds-controls" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                    {/* 🕵️ Global Search Bar */}
+                    <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
+                        <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>🔍</span>
+                        <input 
+                            type="text"
+                            placeholder="Search Order # or Name (Global)..."
+                            className="kds-input"
+                            value={kdsSearchQuery}
+                            onChange={(e) => setKdsSearchQuery(e.target.value)}
+                            style={{ paddingLeft: '2.5rem', width: '100%', borderRadius: '24px', background: 'rgba(255,255,255,0.05)' }}
+                        />
+                        {kdsSearchQuery && (
+                            <button 
+                                onClick={() => setKdsSearchQuery('')}
+                                style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.2rem' }}
+                            >✕</button>
+                        )}
+                    </div>
+
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Stall Filter:</label>
                         <select
@@ -1484,34 +1507,80 @@ export default function AdminDashboard({ session }) {
             )}
 
             {activeTab === 'kds' && (
-                <div className="kds-columns">
-                    {/* Column 1: New / Paid */}
-                    <div className="kds-col kds-col-new">
-                        <h2>📥 NEW ORDERS ({newOrders.length})</h2>
-                        <div className="kds-list">
-                            {newOrders.map(o => <OrderCard key={o.id} order={o} updateOrderStatus={updateOrderStatus} showLocation={selectedLocation === 'all'} setIsVerifyingPin={setIsVerifyingPin} setVerificationPin={setVerificationPin} setPinError={setPinError} />)}
-                            {newOrders.length === 0 && <p className="empty-state">No new orders.</p>}
-                        </div>
-                    </div>
+                <>
+                    {kdsSearchQuery.trim() ? (
+                        <div style={{ padding: '0 2rem 2rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '1rem' }}>
+                                <h2 style={{ margin: 0, color: '#60a5fa' }}>🔎 Global Search Results for "{kdsSearchQuery}"</h2>
+                                <button className="btn-secondary" onClick={() => setKdsSearchQuery('')}>Clear Search</button>
+                            </div>
+                            
+                            {(() => {
+                                const q = kdsSearchQuery.toLowerCase().trim();
+                                const allMatches = [...orders, ...historyOrders].filter(o => 
+                                    o.order_number?.toLowerCase().includes(q) || 
+                                    o.customer_name?.toLowerCase().includes(q) ||
+                                    o.customer_phone?.includes(q)
+                                );
 
-                    {/* Column 2: Preparing */}
-                    <div className="kds-col kds-col-prep">
-                        <h2>🍳 PREPARING ({prepOrders.length})</h2>
-                        <div className="kds-list">
-                            {prepOrders.map(o => <OrderCard key={o.id} order={o} updateOrderStatus={updateOrderStatus} showLocation={selectedLocation === 'all'} setIsVerifyingPin={setIsVerifyingPin} setVerificationPin={setVerificationPin} setPinError={setPinError} />)}
-                            {prepOrders.length === 0 && <p className="empty-state">Kitchen is clear.</p>}
-                        </div>
-                    </div>
+                                if (allMatches.length === 0) {
+                                    return <p className="empty-state" style={{ textAlign: 'center', padding: '5rem' }}>No orders found matching your search. Try order number or customer name.</p>;
+                                }
 
-                    {/* Column 3: Ready */}
-                    <div className="kds-col kds-col-ready">
-                        <h2>🛍️ READY FOR COLLECTION ({readyOrders.length})</h2>
-                        <div className="kds-list">
-                            {readyOrders.map(o => <OrderCard key={o.id} order={o} updateOrderStatus={updateOrderStatus} showLocation={selectedLocation === 'all'} setIsVerifyingPin={setIsVerifyingPin} setVerificationPin={setVerificationPin} setPinError={setPinError} />)}
-                            {readyOrders.length === 0 && <p className="empty-state">No orders awaiting pickup.</p>}
+                                return (
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
+                                        {allMatches.map(o => (
+                                            <div key={o.id} style={{ position: 'relative' }}>
+                                                {(o.status === 'completed' || o.status === 'collected') && (
+                                                    <div style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 5, background: 'rgba(0,0,0,0.8)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid #10b981', color: '#10b981', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                                                        📜 ARCHIVED
+                                                    </div>
+                                                )}
+                                                <OrderCard 
+                                                    order={o} 
+                                                    updateOrderStatus={updateOrderStatus} 
+                                                    showLocation={true} 
+                                                    setIsVerifyingPin={setIsVerifyingPin} 
+                                                    setVerificationPin={setVerificationPin} 
+                                                    setPinError={setPinError} 
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                );
+                            })()}
                         </div>
-                    </div>
-                </div>
+                    ) : (
+                        <div className="kds-columns">
+                            {/* Column 1: New / Paid */}
+                            <div className="kds-col kds-col-new">
+                                <h2>📥 NEW ORDERS ({newOrders.length})</h2>
+                                <div className="kds-list">
+                                    {newOrders.map(o => <OrderCard key={o.id} order={o} updateOrderStatus={updateOrderStatus} showLocation={selectedLocation === 'all'} setIsVerifyingPin={setIsVerifyingPin} setVerificationPin={setVerificationPin} setPinError={setPinError} />)}
+                                    {newOrders.length === 0 && <p className="empty-state">No new orders.</p>}
+                                </div>
+                            </div>
+
+                            {/* Column 2: Preparing */}
+                            <div className="kds-col kds-col-prep">
+                                <h2>🍳 PREPARING ({prepOrders.length})</h2>
+                                <div className="kds-list">
+                                    {prepOrders.map(o => <OrderCard key={o.id} order={o} updateOrderStatus={updateOrderStatus} showLocation={selectedLocation === 'all'} setIsVerifyingPin={setIsVerifyingPin} setVerificationPin={setVerificationPin} setPinError={setPinError} />)}
+                                    {prepOrders.length === 0 && <p className="empty-state">Kitchen is clear.</p>}
+                                </div>
+                            </div>
+
+                            {/* Column 3: Ready */}
+                            <div className="kds-col kds-col-ready">
+                                <h2>🛍️ READY FOR COLLECTION ({readyOrders.length})</h2>
+                                <div className="kds-list">
+                                    {readyOrders.map(o => <OrderCard key={o.id} order={o} updateOrderStatus={updateOrderStatus} showLocation={selectedLocation === 'all'} setIsVerifyingPin={setIsVerifyingPin} setVerificationPin={setVerificationPin} setPinError={setPinError} />)}
+                                    {readyOrders.length === 0 && <p className="empty-state">No orders awaiting pickup.</p>}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </>
             )}
 
             {activeTab === 'logistics' && (
@@ -1857,6 +1926,18 @@ export default function AdminDashboard({ session }) {
                             <p style={{ color: '#94a3b8' }}>All collected and closed orders appear here.</p>
                         </div>
                         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                            <div style={{ position: 'relative' }}>
+                                <input 
+                                    type="text"
+                                    placeholder="Search History..."
+                                    className="kds-input"
+                                    value={historySearchQuery}
+                                    onChange={(e) => setHistorySearchQuery(e.target.value)}
+                                    style={{ paddingLeft: '2.5rem', width: '250px', background: 'rgba(255,255,255,0.05)' }}
+                                />
+                                <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>🔍</span>
+                            </div>
+
                             <select 
                                 className="kds-select" 
                                 value={historyFilter} 
@@ -1883,23 +1964,33 @@ export default function AdminDashboard({ session }) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {displayedHistoryOrders.map(o => (
-                                    <tr key={o.id}>
-                                        <td><strong>{o.order_number}</strong></td>
-                                        <td>{new Date(o.updated_at || o.created_at).toLocaleString()}</td>
-                                        <td>
-                                            {o.customer_name} ({o.customer_phone})<br />
-                                            <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>📍 {o.locations?.name || 'Local'}</span>
-                                        </td>
-                                        <td>
-                                            {o.order_items?.map(i => `${i.quantity}x ${i.menu_items?.name}`).join(', ')}
-                                        </td>
-                                        <td style={{ fontWeight: 'bold', color: '#00e676' }}>R {o.total_price}</td>
-                                    </tr>
-                                ))}
-                                {displayedHistoryOrders.length === 0 && (
-                                    <tr><td colSpan="5" className="empty-state">No historical orders found. Make some sales!</td></tr>
-                                )}
+                                {(() => {
+                                    const q = historySearchQuery.toLowerCase().trim();
+                                    const matches = displayedHistoryOrders.filter(o => 
+                                        o.order_number?.toLowerCase().includes(q) || 
+                                        o.customer_name?.toLowerCase().includes(q) ||
+                                        o.customer_phone?.includes(q)
+                                    );
+
+                                    if (matches.length === 0) {
+                                        return <tr><td colSpan="5" className="empty-state">No historical orders found matching your search.</td></tr>;
+                                    }
+
+                                    return matches.map(o => (
+                                        <tr key={o.id}>
+                                            <td><strong>{o.order_number}</strong></td>
+                                            <td>{new Date(o.updated_at || o.created_at).toLocaleString()}</td>
+                                            <td>
+                                                {o.customer_name} ({o.customer_phone})<br />
+                                                <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>📍 {o.locations?.name || 'Local'}</span>
+                                            </td>
+                                            <td>
+                                                {o.order_items?.map(i => `${i.quantity}x ${i.menu_items?.name}`).join(', ')}
+                                            </td>
+                                            <td style={{ fontWeight: 'bold', color: '#00e676' }}>R {o.total_price}</td>
+                                        </tr>
+                                    ));
+                                })()}
                             </tbody>
                         </table>
                     </div>

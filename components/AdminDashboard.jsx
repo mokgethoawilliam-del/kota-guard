@@ -2866,7 +2866,10 @@ export default function AdminDashboard({ session }) {
                                     <p>Loading vendor settings...</p>
                                 )}
                             </div>
-                        )}
+                    </div>
+                </div>
+            )}
+
                 </div>
             </main>
         </div>

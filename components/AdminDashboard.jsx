@@ -1193,6 +1193,15 @@ export default function AdminDashboard({ session }) {
                                     <div style={{ padding: '0.5rem' }}>
                                         <button 
                                             onClick={() => {
+                                                setActiveTab('integrations');
+                                                setIsProfileMenuOpen(false);
+                                            }}
+                                            style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                                        >
+                                            <span style={{ fontSize: '1rem' }}>🔒</span> Security Vault
+                                        </button>
+                                        <button 
+                                            onClick={() => {
                                                 supabase.auth.signOut();
                                                 window.location.href = '/';
                                             }}

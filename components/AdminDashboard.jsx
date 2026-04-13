@@ -89,6 +89,9 @@ export default function AdminDashboard({ session }) {
     const [kdsSearchQuery, setKdsSearchQuery] = useState('');
     const [historySearchQuery, setHistorySearchQuery] = useState('');
 
+    // Phase 15: Monetization
+    const [showBillingModal, setShowBillingModal] = useState(false);
+
     // 🎨 Navigation Icons (Minimal SVGs)
     const Icons = {
         Dashboard: () => (
@@ -150,6 +153,12 @@ export default function AdminDashboard({ session }) {
                 <circle cx="12" cy="12" r="10"></circle>
                 <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
                 <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+        ),
+        CreditCard: () => (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                <line x1="1" y1="10" x2="23" y2="10"></line>
             </svg>
         )
     };
@@ -1074,6 +1083,74 @@ export default function AdminDashboard({ session }) {
                 </div>
             )}
 
+            {/* BILLING & SUBSCRIPTION MODAL */}
+            {showBillingModal && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.85)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 10000,
+                    padding: '1rem',
+                    backdropFilter: 'blur(8px)'
+                }}>
+                    <div style={{
+                        background: '#0f172a',
+                        border: '1px solid #1e293b',
+                        borderRadius: '24px',
+                        padding: '2.5rem',
+                        maxWidth: '700px',
+                        width: '100%',
+                        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                            <h2 style={{ margin: 0, fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <Icons.CreditCard /> Billing & Subscriptions
+                            </h2>
+                            <button onClick={() => setShowBillingModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '1.5rem', cursor: 'pointer' }}>✕</button>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '2rem' }}>
+                            <div style={{ background: 'rgba(51, 65, 85, 0.3)', padding: '2rem', borderRadius: '20px', border: '1px dashed #334155' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                    <h3 style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem', textTransform: 'uppercase' }}>Current Plan</h3>
+                                    <span style={{ background: '#00e676', color: '#0f172a', padding: '0.25rem 0.75rem', borderRadius: '99px', fontSize: '0.7rem', fontWeight: 'bold' }}>ACTIVE</span>
+                                </div>
+                                <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#fff', marginBottom: '0.5rem' }}>R 399 <span style={{ fontSize: '1rem', color: '#64748b' }}>/ month</span></div>
+                                <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                                    Includes full multi-tenant access, unlimited inventory items, real-time KDS, and WhatsApp logistics notifications.
+                                </p>
+                                <button style={{ width: '100%', marginTop: '2rem', padding: '1rem', background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}>
+                                    Manage Subscription
+                                </button>
+                            </div>
+
+                            <div>
+                                <h3 style={{ margin: '0 0 1.5rem', fontSize: '1rem', color: '#fff' }}>Payment History</h3>
+                                <div style={{ display: 'grid', gap: '1rem' }}>
+                                    {[
+                                        { date: 'April 2024', amount: 'R 399', status: 'Pending' }
+                                    ].map((inv, idx) => (
+                                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'rgba(30, 41, 59, 0.5)', borderRadius: '12px' }}>
+                                            <div>
+                                                <div style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>{inv.date}</div>
+                                                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Invoice #{Math.floor(Math.random() * 9000) + 1000}</div>
+                                            </div>
+                                            <div style={{ textAlign: 'right' }}>
+                                                <div style={{ fontSize: '0.85rem' }}>{inv.amount}</div>
+                                                <div style={{ fontSize: '0.7rem', color: inv.status === 'Paid' ? '#00e676' : '#f59e0b' }}>{inv.status}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
                 <header className="content-header">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         <h1 style={{ fontSize: '1.25rem', margin: 0, fontWeight: '700' }}>
@@ -1199,6 +1276,15 @@ export default function AdminDashboard({ session }) {
                                             style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                                         >
                                             <span style={{ fontSize: '1rem' }}>🔒</span> Security Vault
+                                        </button>
+                                        <button 
+                                            onClick={() => {
+                                                setShowBillingModal(true);
+                                                setIsProfileMenuOpen(false);
+                                            }}
+                                            style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                                        >
+                                            <Icons.CreditCard /> Billing & Subscription
                                         </button>
                                         <button 
                                             onClick={() => {

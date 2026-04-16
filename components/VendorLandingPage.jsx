@@ -140,6 +140,46 @@ function VendorLandingPage() {
                         </div>
                     </main>
 
+                    {/* Featured Menu Section (Top Picks) */}
+                    {featuredMenu.length > 0 && (
+                        <section style={{ padding: '6rem 2rem', background: '#020617' }}>
+                            <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+                                <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
+                                    <h2 style={{ fontSize: '3rem', fontWeight: '800', marginBottom: '1rem' }}>Top Picks</h2>
+                                    <p style={{ color: '#94a3b8' }}>Our most loved items, prepared fresh for you.</p>
+                                    <div style={{ width: '60px', height: '4px', background: 'var(--primary-color)', margin: '1.5rem auto', borderRadius: '10px' }}></div>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem' }}>
+                                    {featuredMenu.map((item) => (
+                                        <div key={item.id} className="menu-card" style={{ 
+                                            background: 'rgba(30, 41, 59, 0.4)', 
+                                            borderRadius: '24px', 
+                                            overflow: 'hidden',
+                                            border: '1px solid rgba(255,255,255,0.05)',
+                                            transition: 'transform 0.3s'
+                                        }}>
+                                            <div style={{ 
+                                                height: '200px', 
+                                                background: item.image_url ? `url(${item.image_url}) center/cover` : 'rgba(255,255,255,0.05)',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                            }}>
+                                                {!item.image_url && <span style={{ fontSize: '3rem' }}>🍔</span>}
+                                            </div>
+                                            <div style={{ padding: '1.5rem', textAlign: 'center' }}>
+                                                <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>{item.name}</h3>
+                                                <p style={{ color: 'var(--primary-color)', fontWeight: 'bold', fontSize: '1.1rem' }}>R {item.price}</p>
+                                                <button onClick={() => setView('menu')} style={{ marginTop: '1rem', background: 'transparent', border: '1px solid var(--primary-color)', color: 'var(--primary-color)', padding: '0.5rem 1.5rem', borderRadius: '12px', cursor: 'pointer', fontSize: '0.9rem' }}>
+                                                    Order Now
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </section>
+                    )}
+
                     {/* Testimonials Section */}
                     <section style={{ padding: '6rem 2rem', background: '#0f172a' }}>
                         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>

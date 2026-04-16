@@ -23,11 +23,6 @@ export default function CustomerMenu({ vendorId, branding }) {
     // Arrival State
     const [hasArrived, setHasArrived] = useState(false);
 
-    // Phase 12: Logistics & Security PIN
-    const [fulfillmentMethod, setFulfillmentMethod] = useState('collection'); // 'collection' | 'delivery'
-    const [deliveryAddress, setDeliveryAddress] = useState('');
-    const [activeOrder, setActiveOrder] = useState(null); // stores order details after success
-
     useEffect(() => {
         const script = document.createElement('script');
         script.src = 'https://js.paystack.co/v1/inline.js';
@@ -90,22 +85,16 @@ export default function CustomerMenu({ vendorId, branding }) {
         setCart(current => current.filter(i => i.id !== itemId));
     };
 
-    const selectedLocationDoc = locations.find(l => l.id === selectedLocation);
-    const deliveryFee = (fulfillmentMethod === 'delivery' && selectedLocationDoc?.delivery_enabled) ? (selectedLocationDoc.delivery_fee || 0) : 0;
-    const cartTotal = cart.reduce((total, item) => total + (item.price * item.qty), 0) + deliveryFee;
+    const cartTotal = cart.reduce((total, item) => total + (item.price * item.qty), 0);
 
     const openCheckout = () => {
         if (cart.length === 0) return alert("Your cart is empty");
         setIsCheckoutOpen(true);
-        // Ensure modal starts at the top
-        setTimeout(() => {
-            const overlay = document.querySelector('.modal-overlay');
-            if (overlay) overlay.scrollTop = 0;
-        }, 100);
     };
 
     const cancelCheckout = () => {
         setIsCheckoutOpen(false);
+        // We keep the details filled in case they just wanted to close the modal temporarily
     };
 
     const handleBuyNow = async (e) => {
@@ -126,11 +115,8 @@ export default function CustomerMenu({ vendorId, branding }) {
         try {
             setProcessingId('processing');
 
-            // Generate temporary unique order number for initial insert
-            const tempOrderNumber = `TEMP-${Date.now()}`;
-
-            // Generate 4-digit Collection PIN
-            const pin = Math.floor(1000 + Math.random() * 9000).toString();
+            // 1. Create a "pending" order in Supabase
+            const tempOrderNumber = `PND-${Date.now().toString().slice(-4)}`;
 
             const { data: order, error: orderError } = await supabase
                 .from('kg_orders')
@@ -142,11 +128,7 @@ export default function CustomerMenu({ vendorId, branding }) {
                     customer_name: customerName,
                     customer_phone: cleanPhone,
                     total_price: cartTotal,
-                    estimated_collection_time: collectionTime || null,
-                    fulfillment_method: fulfillmentMethod,
-                    delivery_address: fulfillmentMethod === 'delivery' ? deliveryAddress : null,
-                    delivery_fee: deliveryFee,
-                    collection_pin: pin
+                    estimated_collection_time: collectionTime || null
                 })
                 .select()
                 .single();
@@ -169,21 +151,28 @@ export default function CustomerMenu({ vendorId, branding }) {
             if (itemError) throw itemError;
 
             // 3. Initialize Paystack
-            // Use Vendor's custom key ONLY. Fallback to platform is removed for security.
-            const paystackKey = vendorDoc?.paystack_public_key;
+            // Use Vendor's custom key if provided, otherwise use platform default
+            const platformKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'YOUR_TEST_PUBLIC_KEY';
+            const vendorKey = vendorDoc?.payment_config?.paystack_public_key;
             
-            if (!paystackKey) {
-                alert("This shop has not configured their payment system yet. Please contact the owner.");
-                setLoading(false);
-                return;
-            }
+            const paystackKey = vendorKey || platformKey;
 
             // Split Logic: 5% fee for platform if on free tier and using platform keys
+            const subaccount = vendorDoc?.paystack_subaccount_code;
+            const splitConfig = (vendorDoc?.plan === 'free' && subaccount) ? {
+                subaccount: subaccount,
+                bearer: "account", // Vendor pays the transaction fee from their 95%
+                transaction_charge: 0, 
+                percentage_charge: 5
+            } : null;
+
             const handler = window.PaystackPop.setup({
                 key: paystackKey,
                 email: `${customerPhone}@whatsapp.kotaguard.com`,
                 amount: Math.round(cartTotal * 100),
                 currency: 'ZAR',
+                subaccount: splitConfig?.subaccount, // Paystack Split
+                bearer: splitConfig?.bearer,
                 metadata: {
                     order_id: order.id,
                     custom_fields: [
@@ -211,33 +200,30 @@ export default function CustomerMenu({ vendorId, branding }) {
                                 .eq('location_id', selectedLocation)
                                 .gte('created_at', startOfDay.toISOString());
 
-                            const dailyNum = String(count || 1).padStart(3, '0');
+                            const dailyNum = String((count || 0) + 1).padStart(3, '0');
                             const finalOrderNum = `${prefix}/${dateStr}/${dailyNum}`;
 
-                             const { data: finalBtn, error: finalErr } = await supabase
-                                 .from('kg_orders')
-                                 .update({
-                                     status: 'paid',
-                                     order_number: finalOrderNum,
-                                     payment_reference: response.reference
-                                 })
-                                 .eq('id', order.id)
-                                 .select('*, locations(name)')
-                                 .single();
+                            const { error: updateErr } = await supabase
+                                .from('kg_orders')
+                                .update({
+                                    status: 'paid',
+                                    order_number: finalOrderNum,
+                                    payment_reference: response.reference
+                                })
+                                .eq('id', order.id);
 
-                             if (finalErr) throw finalErr;
+                            if (updateErr) throw updateErr;
 
-                             setActiveOrder(finalBtn);
-                             setPaymentSuccess(finalOrderNum);
-                             setCart([]);
-                         } catch (err) {
-                             console.error("Error finalizing order", err);
-                             setPaymentSuccess("APPROVED-WAITING-SYNC");
-                             setCart([]);
-                         } finally {
-                             setProcessingId(null);
-                             setIsCheckoutOpen(false);
-                         }
+                            setPaymentSuccess(finalOrderNum);
+                            setCart([]); // Empty the cart on success!
+                        } catch (err) {
+                            console.error("Error finalizing order", err);
+                            setPaymentSuccess("APPROVED-WAITING-SYNC");
+                            setCart([]);
+                        } finally {
+                            setProcessingId(null);
+                            setIsCheckoutOpen(false);
+                        }
                     })();
                 },
                 onClose: function () {
@@ -272,71 +258,40 @@ export default function CustomerMenu({ vendorId, branding }) {
 
     if (paymentSuccess) {
         return (
-            <div className="app-container" style={{ textAlign: 'center', padding: '2rem 1rem' }}>
-                <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '24px', padding: '2rem', maxWidth: '500px', margin: '0 auto', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
-                    <div style={{ width: '80px', height: '80px', background: 'rgba(0, 230, 118, 0.1)', borderRadius: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', border: '1px solid #00e676' }}>
-                        <span style={{ fontSize: '2.5rem' }}>✅</span>
+            <div className="success-container">
+                <div className="success-card">
+                    <div className="success-icon-wrapper">
+                        <span className="success-icon" role="img" aria-label="success">✅</span>
                     </div>
-                    
-                    <h1 style={{ color: '#00e676', marginBottom: '0.5rem' }}>Order Confirmed!</h1>
-                    <p style={{ color: '#94a3b8', marginBottom: '2rem' }}>Payment approved for Order #{paymentSuccess}</p>
-                    
-                    {/* PIN SECTION */}
-                    <div style={{ background: '#0f172a', border: '2px dashed #334155', borderRadius: '16px', padding: '2rem', marginBottom: '2rem', position: 'relative' }}>
-                        <p style={{ margin: '0 0 0.5rem 0', color: '#94a3b8', textTransform: 'uppercase', fontSize: '0.7rem', fontWeight: 'bold', letterSpacing: '2px' }}>
-                            Secret {activeOrder?.fulfillment_method === 'delivery' ? 'Delivery' : 'Collection'} PIN
-                        </p>
-                        <div style={{ fontSize: '3.5rem', fontWeight: '900', color: '#00e676', letterSpacing: '12px' }}>{activeOrder?.collection_pin || '----'}</div>
-                        <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginTop: '1rem', lineHeight: '1.4' }}>
-                            {activeOrder?.fulfillment_method === 'delivery' 
-                                ? "Give this PIN to the driver when they arrive to confirm delivery." 
-                                : "Show this PIN to the staff when collecting your order."}
-                        </p>
+                    <h1 className="success-headline">Payment Approved</h1>
+                    <p className="success-message">Thank you, {customerName}! Your transaction was successful.</p>
+
+                    <div className="order-number-display" style={{ margin: '2rem 0', padding: '1.5rem', background: 'rgba(0, 200, 83, 0.1)', border: '1px solid #00C853', borderRadius: '12px' }}>
+                        <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#888' }}>Your Official Order Number</p>
+                        <h2 style={{ margin: 0, fontSize: '2.5rem', color: '#00C853', letterSpacing: '2px' }}>
+                            {paymentSuccess !== true ? paymentSuccess : "GENERATING..."}
+                        </h2>
                     </div>
 
-                    {/* ORDER SUMMARY */}
-                    <div style={{ textAlign: 'left', background: 'rgba(255,255,255,0.02)', padding: '1.5rem', borderRadius: '12px', marginBottom: '2rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <span style={{ color: '#94a3b8' }}>Status:</span>
-                            <span style={{ color: '#60a5fa', fontWeight: 'bold' }}>{activeOrder?.status?.toUpperCase() || 'PAID'}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <span style={{ color: '#94a3b8' }}>Method:</span>
-                            <span style={{ color: '#fff' }}>{activeOrder?.fulfillment_method === 'delivery' ? '🚚 Delivery' : '🛍️ Collection'}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <span style={{ color: '#94a3b8' }}>Location:</span>
-                            <span style={{ color: '#fff' }}>{activeOrder?.locations?.name || 'Local Store'}</span>
-                        </div>
-                        {activeOrder?.fulfillment_method === 'delivery' && (
-                            <div style={{ borderTop: '1px solid #334155', marginTop: '0.5rem', paddingTop: '0.5rem' }}>
-                                <span style={{ color: '#94a3b8', display: 'block', marginBottom: '0.25rem' }}>🏠 Delivery Address:</span>
-                                <span style={{ color: '#fff', fontSize: '0.9rem' }}>{activeOrder?.delivery_address}</span>
-                            </div>
-                        )}
-                    </div>
+                    <p className="success-subtext">Please present this number at the collection point.</p>
 
-                    {!hasArrived && activeOrder?.fulfillment_method !== 'delivery' ? (
+                    {!hasArrived ? (
                         <button
                             className="btn-primary"
-                            style={{ width: '100%', marginBottom: '1.5rem', background: '#3b82f6', height: '60px', fontSize: '1.1rem' }}
+                            style={{ width: '100%', marginBottom: '1rem', background: '#3b82f6' }}
                             onClick={handleArrival}
                         >
                             📍 I HAVE ARRIVED AT THE SHOP
                         </button>
-                    ) : activeOrder?.fulfillment_method !== 'delivery' && (
-                        <div style={{ padding: '1.25rem', background: 'rgba(59, 130, 246, 0.1)', color: '#60a5fa', borderRadius: '12px', marginBottom: '1.5rem', fontWeight: 'bold', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                            ✅ Kitchen notified of your arrival.
+                    ) : (
+                        <div style={{ padding: '1rem', background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', borderRadius: '8px', marginBottom: '1rem', fontWeight: 'bold' }}>
+                            ✅ Kitchen has been notified of your arrival.
                         </div>
                     )}
 
-                    <button className="btn-secondary" style={{ width: '100%', height: '50px' }} onClick={() => { setPaymentSuccess(false); setCustomerName(''); setCustomerPhone(''); setModifiers(''); setCollectionTime(''); setHasArrived(false); setActiveOrder(null); }}>
-                        Place Another Order
+                    <button className="btn-secondary" onClick={() => { setPaymentSuccess(false); setCustomerName(''); setCustomerPhone(''); setModifiers(''); setCollectionTime(''); setHasArrived(false); }}>
+                        Order Another
                     </button>
-                    
-                    <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '1.5rem' }}>
-                        Need help? Use the Live Chat on the menu page with order #{paymentSuccess}
-                    </p>
                 </div>
             </div>
         );
@@ -419,7 +374,21 @@ export default function CustomerMenu({ vendorId, branding }) {
                         </div>
 
                         <form onSubmit={handleBuyNow} className="checkout-form">
-                            {/* 1. Customer Identity */}
+                            <div className="form-group">
+                                <label>Collection Location</label>
+                                <select
+                                    value={selectedLocation}
+                                    onChange={(e) => setSelectedLocation(e.target.value)}
+                                    required
+                                    className="form-input"
+                                >
+                                    <option value="" disabled>Select Location...</option>
+                                    {locations.map(loc => (
+                                        <option key={loc.id} value={loc.id}>{loc.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
                             <div className="form-group">
                                 <label>Your Name</label>
                                 <input
@@ -443,89 +412,28 @@ export default function CustomerMenu({ vendorId, branding }) {
                                     className="form-input"
                                 />
                                 <small style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
-                                    📱 Enter 10-digit SA number to unlock rewards.
+                                    📱 Enter a valid 10-digit South African number to unlock secret rewards.
                                 </small>
                             </div>
 
-                            {/* 2. Branch Selection */}
-                            <div className="form-group" style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                <label style={{ color: '#60a5fa' }}>📍 Choose Shop/Stall</label>
-                                <select
-                                    value={selectedLocation}
-                                    onChange={(e) => {
-                                        setSelectedLocation(e.target.value);
-                                        setFulfillmentMethod('collection'); // Reset to collection on branch change
-                                    }}
-                                    required
-                                    className="form-input"
-                                    style={{ marginTop: '0.5rem' }}
-                                >
-                                    <option value="" disabled>Select Location...</option>
-                                    {locations.map(loc => (
-                                        <option key={loc.id} value={loc.id}>{loc.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {/* 3. Fulfillment Choice */}
-                            <div className="form-group" style={{ marginBottom: '1.5rem', background: 'rgba(59, 130, 246, 0.05)', padding: '1.25rem', borderRadius: '16px', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
-                                <label style={{ display: 'block', marginBottom: '1rem', fontWeight: 'bold' }}>🍽️ How do you want your Kota?</label>
-                                
-                                {selectedLocationDoc?.delivery_enabled ? (
-                                    <>
-                                        <div style={{ display: 'flex', gap: '1rem' }}>
-                                            <button 
-                                                type="button"
-                                                onClick={() => setFulfillmentMethod('collection')}
-                                                style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', border: '1px solid', borderColor: fulfillmentMethod === 'collection' ? '#00e676' : '#334155', background: fulfillmentMethod === 'collection' ? 'rgba(0, 230, 118, 0.1)' : 'transparent', color: fulfillmentMethod === 'collection' ? '#00e676' : '#94a3b8', cursor: 'pointer', fontWeight: 'bold' }}
-                                            >🛍️ Collection</button>
-                                            <button 
-                                                type="button"
-                                                onClick={() => setFulfillmentMethod('delivery')}
-                                                style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', border: '1px solid', borderColor: fulfillmentMethod === 'delivery' ? '#3b82f6' : '#334155', background: fulfillmentMethod === 'delivery' ? 'rgba(59, 130, 246, 0.1)' : 'transparent', color: fulfillmentMethod === 'delivery' ? '#3b82f6' : '#94a3b8', cursor: 'pointer', fontWeight: 'bold' }}
-                                            >🚚 Delivery (+R {selectedLocationDoc.delivery_fee})</button>
-                                        </div>
-
-                                        {fulfillmentMethod === 'delivery' && (
-                                            <div style={{ marginTop: '1.5rem', animation: 'fadeIn 0.3s ease-out' }}>
-                                                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: '#fff' }}>🏠 Delivery Address</label>
-                                                <textarea 
-                                                    required
-                                                    className="form-input"
-                                                    placeholder="Enter street, area, house number..."
-                                                    value={deliveryAddress}
-                                                    onChange={(e) => setDeliveryAddress(e.target.value)}
-                                                    style={{ minHeight: '80px', borderRadius: '8px', width: '100%' }}
-                                                />
-                                            </div>
-                                        )}
-                                    </>
-                                ) : (
-                                    <div style={{ padding: '0.75rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', color: '#94a3b8', textAlign: 'center' }}>
-                                        🛍️ This branch only offers <b>Collection</b>.
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* 4. Scheduling & Extras */}
                             <div className="form-group">
-                                <label>Preferred {fulfillmentMethod === 'delivery' ? 'Delivery' : 'Arrival'} Time (Optional)</label>
+                                <label>Estimated Collection Time (Optional)</label>
                                 <input
                                     type="time"
                                     value={collectionTime}
                                     onChange={(e) => setCollectionTime(e.target.value)}
                                     className="form-input"
                                 />
-                                <small style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
-                                    ⏰ Helps our chefs prepare your order fresh!
+                                <small style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
+                                    ⏰ Let Chef Dips know when you'll arrive so it's fresh off the grill!
                                 </small>
                             </div>
 
                             <div className="form-group">
-                                <label>Special Instructions (Optional)</label>
+                                <label>Special Instructions for Entire Order (Optional)</label>
                                 <input
                                     type="text"
-                                    placeholder="e.g. Extra sauce, no onions..."
+                                    placeholder="e.g. Please put Atchaar on the side"
                                     value={modifiers}
                                     onChange={(e) => setModifiers(e.target.value)}
                                     className="form-input"
@@ -534,7 +442,7 @@ export default function CustomerMenu({ vendorId, branding }) {
 
                             <div className="modal-actions">
                                 <button type="button" className="btn-secondary" onClick={cancelCheckout} disabled={processingId !== null}>
-                                    Cancel
+                                    Back to Menu
                                 </button>
                                 <button type="submit" className="btn-primary" disabled={processingId !== null}>
                                     {processingId !== null ? 'Processing...' : `Pay R ${cartTotal}`}

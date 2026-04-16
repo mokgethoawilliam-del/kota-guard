@@ -270,7 +270,7 @@ export default function CustomerMenu({ vendorId, branding }) {
                     <div className="order-number-display" style={{ margin: '1.5rem 0', padding: '1.5rem', background: 'rgba(0, 200, 83, 0.1)', border: '1px solid #00C853', borderRadius: '12px', textAlign: 'center' }}>
                         <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#888', textTransform: 'uppercase', letterSpacing: '1px' }}>Your Collection Code</p>
                         <h2 style={{ margin: 0, fontSize: '3.5rem', color: '#00C853', fontWeight: '900', letterSpacing: '4px' }}>
-                            {paymentSuccess !== true ? paymentSuccess.split('/').last || paymentSuccess.split('/').pop() : "..."}
+                            {paymentSuccess !== true ? paymentSuccess.split('/').pop() : "..."}
                         </h2>
                         <p style={{ marginTop: '0.5rem', fontSize: '0.8rem', opacity: 0.7 }}>Share this code with the staff to collect your order</p>
                     </div>

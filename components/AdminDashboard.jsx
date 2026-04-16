@@ -785,7 +785,14 @@ export default function AdminDashboard({ session }) {
                     >🔒 Security Vault</button>
                 </div>
 
-                <div className="kds-controls" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                <div className="kds-controls" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <button 
+                        className="btn-secondary" 
+                        onClick={fetchInitialData}
+                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                    >
+                        🔄 Refresh Kitchen
+                    </button>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Stall Filter:</label>
                         <select

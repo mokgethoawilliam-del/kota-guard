@@ -55,6 +55,13 @@ function VendorLandingPage() {
                     .eq('is_active', true);
                 setAllLocations(locs || []);
 
+                // 4. Fetch Featured Menu items
+                const { data: menu } = await supabase
+                    .from('kg_menu_items')
+                    .select('*')
+                    .eq('vendor_id', vendorData.id)
+                    .eq('is_available', true)
+                    .limit(6);
                 setFeaturedMenu(menu || []);
 
                 // 5. Fetch Active Testimonials

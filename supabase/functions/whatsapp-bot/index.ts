@@ -43,7 +43,7 @@ serve(async (req: Request) => {
                             // --- MULTI-TENANT VENDOR LOOKUP ---
                             // Find the vendor associated with this phone_number_id
                             const { data: vendor, error: vErr } = await supabase
-                                .from('vendors')
+                                .from('kg_vendors')
                                 .select('*')
                                 .eq('whatsapp_config->>phone_number_id', phone_number_id)
                                 .single();
@@ -53,7 +53,7 @@ serve(async (req: Request) => {
                             if (vErr || !vendor) {
                                 console.log(`No vendor found for phone_id ${phone_number_id}. Falling back to default.`);
                                 const { data: defaultVendor } = await supabase
-                                    .from('vendors')
+                                    .from('kg_vendors')
                                     .select('*')
                                     .eq('slug', 'chef-dips')
                                     .single();
@@ -73,7 +73,7 @@ serve(async (req: Request) => {
 
                             // 0. FETCH BOT SESSION
                             const { data: sessionData } = await supabase
-                                .from('bot_sessions')
+                                .from('kg_bot_sessions')
                                 .select('*')
                                 .eq('phone_number', from)
                                 .single();
@@ -82,7 +82,7 @@ serve(async (req: Request) => {
 
                             // 1. Fetch live menu from database for this specific vendor
                             const { data: menuItems, error: menuErr } = await supabase
-                                .from('menu_items')
+                                .from('kg_menu_items')
                                 .select('*')
                                 .eq('vendor_id', activeVendor.id)
                                 .order('id');
@@ -101,11 +101,11 @@ serve(async (req: Request) => {
                                     try {
                                         // A. Create a "pending" order
                                         const tempOrderNumber = `WA-${Date.now().toString().slice(-4)}`;
-                                        const { data: locations } = await supabase.from('locations').select('id').eq('vendor_id', activeVendor.id).limit(1);
+                                        const { data: locations } = await supabase.from('kg_locations').select('id').eq('vendor_id', activeVendor.id).limit(1);
                                         const location_id = activeVendor.whatsapp_config?.default_location_id || (locations && locations[0]?.id) || null;
-
+ 
                                         const { data: order, error: orderErr } = await supabase
-                                            .from('orders')
+                                            .from('kg_orders')
                                             .insert({
                                                 vendor_id: activeVendor.id,
                                                 status: 'pending',
@@ -119,7 +119,7 @@ serve(async (req: Request) => {
 
                                         if (orderErr) throw orderErr;
 
-                                        await supabase.from('order_items').insert({
+                                        await supabase.from('kg_order_items').insert({
                                             order_id: order.id,
                                             menu_item_id: selectedItem.id,
                                             quantity: 1,
@@ -127,7 +127,7 @@ serve(async (req: Request) => {
                                         });
 
                                         // B. Transition Session to PICKING_PAYMENT
-                                        await supabase.from('bot_sessions').upsert({
+                                        await supabase.from('kg_bot_sessions').upsert({
                                             phone_number: from,
                                             vendor_id: activeVendor.id,
                                             state: 'AWAITING_PAYMENT_METHOD',
@@ -155,7 +155,7 @@ serve(async (req: Request) => {
                             else if (userState === 'AWAITING_PAYMENT_METHOD') {
                                 if (msg_body === '1') {
                                     // Paystack Path
-                                    const { data: order } = await supabase.from('orders').select('*').eq('id', sessionData.last_order_id).single();
+                                    const { data: order } = await supabase.from('kg_orders').select('*').eq('id', sessionData.last_order_id).single();
                                     
                                     const vendorSecret = activeVendor.paystack_secret_key;
 
@@ -178,12 +178,12 @@ serve(async (req: Request) => {
                                     const payData = await payResponse.json();
                                     if (payData.status) {
                                         await sendWhatsAppMessage(phone_number_id, from, `🍔 Pay securely here to confirm:\n🔗 ${payData.data.authorization_url}`, vendorToken);
-                                        await supabase.from('bot_sessions').upsert({ phone_number: from, state: 'IDLE' });
+                                        await supabase.from('kg_bot_sessions').upsert({ phone_number: from, state: 'IDLE' });
                                     }
                                 } else if (msg_body === '2') {
                                     // 1Voucher Path
                                     await sendWhatsAppMessage(phone_number_id, from, "💸 Excellent! Please enter your *16-digit 1Voucher PIN* below:", vendorToken);
-                                    await supabase.from('bot_sessions').upsert({ phone_number: from, state: 'AWAITING_VOUCHER_PIN' });
+                                    await supabase.from('kg_bot_sessions').upsert({ phone_number: from, state: 'AWAITING_VOUCHER_PIN' });
                                 } else {
                                     await sendWhatsAppMessage(phone_number_id, from, "Please reply with *1* for Card or *2* for 1Voucher.", vendorToken);
                                 }
@@ -201,14 +201,14 @@ serve(async (req: Request) => {
 
                                     if (isMockSuccess) {
                                         // 1. Mark Order Paid
-                                        const { data: order } = await supabase.from('orders').select('*').eq('id', sessionData.last_order_id).single();
-                                        await supabase.from('orders').update({ status: 'paid' }).eq('id', order.id);
+                                        const { data: order } = await supabase.from('kg_orders').select('*').eq('id', sessionData.last_order_id).single();
+                                        await supabase.from('kg_orders').update({ status: 'paid' }).eq('id', order.id);
 
                                         // 2. Confirm to User
                                         await sendWhatsAppMessage(phone_number_id, from, `✅ SUCCESS! Your voucher has been redeemed.\n\nYour collection number is: *${order.order_number}*\n\nChef Dips is now preparing your Kota! 🍔🔥`, vendorToken);
                                         
                                         // 3. Reset Session
-                                        await supabase.from('bot_sessions').upsert({ phone_number: from, state: 'IDLE' });
+                                        await supabase.from('kg_bot_sessions').upsert({ phone_number: from, state: 'IDLE' });
                                     } else {
                                         await sendWhatsAppMessage(phone_number_id, from, "❌ Sorry, that voucher PIN seems to be invalid or already used. Please try another or type 'menu' to start over.", vendorToken);
                                     }

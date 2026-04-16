@@ -17,7 +17,7 @@ export default function CustomerDashboard({ vendorId, onBack, branding = {} }) {
         if (!activeChatSession) return;
         
         // Fetch historical
-        supabase.from('support_chats').select('*')
+        supabase.from('kg_support_chats').select('*')
             .eq('session_identifier', activeChatSession)
             .order('created_at', { ascending: true })
             .then(({data, error}) => {
@@ -29,7 +29,7 @@ export default function CustomerDashboard({ vendorId, onBack, branding = {} }) {
             .on('postgres_changes', { 
                 event: 'INSERT', 
                 schema: 'public', 
-                table: 'support_chats',
+                table: 'kg_support_chats',
                 filter: `session_identifier=eq.${activeChatSession}`
             }, (payload) => {
                 setChatMessages(current => [...current, payload.new]);
@@ -51,7 +51,7 @@ export default function CustomerDashboard({ vendorId, onBack, branding = {} }) {
             .on('postgres_changes', {
                 event: 'UPDATE',
                 schema: 'public',
-                table: 'orders'
+                table: 'kg_orders'
             }, (payload) => {
                 const updatedOrder = payload.new;
                 if (orderIds.includes(updatedOrder.id)) {
@@ -79,7 +79,7 @@ export default function CustomerDashboard({ vendorId, onBack, branding = {} }) {
             // The user could type an Order number (e.g. ko/0308/001) or a phone number.
             // Let's search broadly across both matching fields
             let query = supabase
-                .from('orders')
+                .from('kg_orders')
                 .select(`
                     *,
                     locations ( name ),
@@ -210,7 +210,7 @@ export default function CustomerDashboard({ vendorId, onBack, branding = {} }) {
                                             className="btn-primary"
                                             style={{ background: '#3b82f6', padding: '0.5rem 1rem', fontSize: '0.9rem' }}
                                             onClick={async () => {
-                                                const { error } = await supabase.from('orders').update({ customer_arrived: true }).eq('id', order.id);
+                                                const { error } = await supabase.from('kg_orders').update({ customer_arrived: true }).eq('id', order.id);
                                                 if (!error) {
                                                     setOrders(current => current.map(o => o.id === order.id ? { ...o, customer_arrived: true } : o));
                                                     alert("Kitchen Notified!");
@@ -290,7 +290,7 @@ export default function CustomerDashboard({ vendorId, onBack, branding = {} }) {
                     <form onSubmit={async (e) => {
                         e.preventDefault();
                         if (!newMessage.trim()) return;
-                        const { error } = await supabase.from('support_chats').insert({
+                        const { error } = await supabase.from('kg_support_chats').insert({
                             vendor_id: vendorId,
                             session_identifier: activeChatSession,
                             sender_type: 'customer',

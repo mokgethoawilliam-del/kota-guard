@@ -92,6 +92,9 @@ export default function AdminDashboard({ session }) {
     // Phase 15: Monetization
     const [showBillingModal, setShowBillingModal] = useState(false);
 
+    // Phase 16: Customers & Testimonials
+    const [testimonials, setTestimonials] = useState([]);
+
     // 🎨 Navigation Icons (Minimal SVGs)
     const Icons = {
         Dashboard: () => (
@@ -148,6 +151,20 @@ export default function AdminDashboard({ session }) {
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
             </svg>
         ),
+        Testimonials: () => (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                <path d="M9 10l2 2 4-4"></path>
+            </svg>
+        ),
+        Users: () => (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+        ),
         Help: () => (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10"></circle>
@@ -174,7 +191,7 @@ export default function AdminDashboard({ session }) {
 
             // 1. Fetch Profile to get vendor_id
             const { data: profileData, error: pErr } = await supabase
-                .from('profiles')
+                .from('kg_profiles')
                 .select('vendor_id, full_name')
                 .eq('id', session.user.id)
                 .single();
@@ -209,10 +226,10 @@ export default function AdminDashboard({ session }) {
 
         // 1. Subscribe to Realtime Updates on the 'orders' table
         const channel = supabase
-            .channel('public:orders')
+            .channel('public:kg_orders')
             .on(
                 'postgres_changes',
-                { event: 'UPDATE', schema: 'public', table: 'orders' },
+                { event: 'UPDATE', schema: 'public', table: 'kg_orders' },
                 (payload) => {
                     const updatedOrder = payload.new;
 
@@ -261,7 +278,7 @@ export default function AdminDashboard({ session }) {
             )
             .on(
                 'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'orders' },
+                { event: 'INSERT', schema: 'public', table: 'kg_orders' },
                 (payload) => {
                     const newOrder = payload.new;
                     if (newOrder.status === 'paid') playDing();
@@ -274,10 +291,10 @@ export default function AdminDashboard({ session }) {
 
         // 2. Subscribe to Support Chats
         const chatChannel = supabase
-            .channel('public:support_chats')
+            .channel('public:kg_support_chats')
             .on(
                 'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'support_chats' },
+                { event: 'INSERT', schema: 'public', table: 'kg_support_chats' },
                 (payload) => {
                     const newChat = payload.new;
                     if (newChat.vendor_id === currentVendorId) {
@@ -342,16 +359,16 @@ export default function AdminDashboard({ session }) {
             // and we want a smooth transition after profile load.
 
             // Fetch Vendor Profile
-            const { data: vData } = await supabase.from('vendors').select('*').eq('id', currentVendorId).single();
+            const { data: vData } = await supabase.from('kg_vendors').select('*').eq('id', currentVendorId).single();
             if (vData) setVendorConfig(vData);
 
             // Get valid locations for this vendor
-            const { data: locData } = await supabase.from('locations').select('*').eq('vendor_id', currentVendorId);
+            const { data: locData } = await supabase.from('kg_locations').select('*').eq('vendor_id', currentVendorId);
             if (locData) setLocations(locData);
 
             // Get all non-pending orders for this vendor
             const { data: orderData, error: orderErr } = await supabase
-                .from('orders')
+                .from('kg_orders')
                 .select(`
                     *,
                     locations (name),
@@ -375,7 +392,7 @@ export default function AdminDashboard({ session }) {
 
             // Fetch Expenses for this vendor
             const { data: expData, error: expErr } = await supabase
-                .from('expenses')
+                .from('kg_expenses')
                 .select('*')
                 .eq('vendor_id', currentVendorId)
                 .order('created_at', { ascending: false });
@@ -386,7 +403,7 @@ export default function AdminDashboard({ session }) {
 
             // Fetch Ingredients for this vendor
             const { data: ingData, error: ingErr } = await supabase
-                .from('ingredients')
+                .from('kg_ingredients')
                 .select('*')
                 .eq('vendor_id', currentVendorId)
                 .order('name');
@@ -397,7 +414,7 @@ export default function AdminDashboard({ session }) {
 
             // Fetch Menu Items (For CMS) for this vendor
             const { data: menuData, error: menuErr } = await supabase
-                .from('menu_items')
+                .from('kg_menu_items')
                 .select('*')
                 .eq('vendor_id', currentVendorId)
                 .order('price');
@@ -408,13 +425,24 @@ export default function AdminDashboard({ session }) {
 
             // Fetch Support Chats
             const { data: chatData } = await supabase
-                .from('support_chats')
+                .from('kg_support_chats')
                 .select('*')
                 .eq('vendor_id', currentVendorId)
                 .order('created_at', { ascending: true });
             
             if (chatData) {
                 setChats(chatData);
+            }
+
+            // Fetch Testimonials
+            const { data: testData } = await supabase
+                .from('kg_testimonials')
+                .select('*')
+                .eq('vendor_id', currentVendorId)
+                .order('created_at', { ascending: false });
+            
+            if (testData) {
+                setTestimonials(testData);
             }
 
         } catch (err) {
@@ -456,7 +484,7 @@ export default function AdminDashboard({ session }) {
 
                         // Fetch current stock directly from DB to prevent race conditions
                         const { data: invData, error: fetchErr } = await supabase
-                            .from('ingredients')
+                            .from('kg_ingredients')
                             .select('id, current_stock')
                             .eq('name', ingredientName)
                             .eq('vendor_id', currentVendorId)
@@ -465,14 +493,14 @@ export default function AdminDashboard({ session }) {
                         if (!fetchErr && invData && invData.current_stock !== null) {
                             const newStock = Math.max(0, Number(invData.current_stock) - amountToDeduct);
                             await supabase
-                                .from('ingredients')
+                                .from('kg_ingredients')
                                 .update({ current_stock: newStock })
                                 .eq('id', invData.id);
                         }
                     }
 
                     // Refresh inventory state silently to reflect deductions
-                    supabase.from('ingredients').select('*').order('name').then(({ data }) => {
+                    supabase.from('kg_ingredients').select('*').order('name').then(({ data }) => {
                         if (data) setIngredients(data);
                     });
                 }
@@ -491,7 +519,7 @@ export default function AdminDashboard({ session }) {
             }
 
             const { error } = await supabase
-                .from('orders')
+                .from('kg_orders')
                 .update({ status: newStatus })
                 .eq('id', orderId);
 
@@ -589,6 +617,63 @@ export default function AdminDashboard({ session }) {
         doc.save(`${vendorConfig.slug}_sales_report_${new Date().getTime()}.pdf`);
     };
 
+    // Phase 16: Testimonial Management
+    const addTestimonial = async () => {
+        const quote = window.prompt("Enter the testimonial quote:");
+        if (!quote) return;
+        const author_name = window.prompt("Enter the customer's name:");
+        if (!author_name) return;
+        const author_role = window.prompt("Enter customer's role/location (optional):") || "Customer";
+
+        try {
+            const { data, error } = await supabase
+                .from('kg_testimonials')
+                .insert({
+                    vendor_id: currentVendorId,
+                    quote,
+                    author_name,
+                    author_role
+                })
+                .select()
+                .single();
+            
+            if (error) throw error;
+            setTestimonials([data, ...testimonials]);
+            alert("Testimonial added! 🎉");
+        } catch (err) {
+            alert("Error adding testimonial: " + err.message);
+        }
+    };
+
+    const toggleTestimonial = async (id, currentStatus) => {
+        try {
+            const { error } = await supabase
+                .from('kg_testimonials')
+                .update({ is_active: !currentStatus })
+                .eq('id', id);
+            
+            if (error) throw error;
+            setTestimonials(testimonials.map(t => t.id === id ? { ...t, is_active: !currentStatus } : t));
+        } catch (err) {
+            alert("Error updating testimonial: " + err.message);
+        }
+    };
+
+    const deleteTestimonial = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this testimonial?")) return;
+        try {
+            const { error } = await supabase
+                .from('kg_testimonials')
+                .delete()
+                .eq('id', id);
+            
+            if (error) throw error;
+            setTestimonials(testimonials.filter(t => t.id !== id));
+        } catch (err) {
+            alert("Error deleting testimonial: " + err.message);
+        }
+    };
+
     // Phase 8: Add Expense with Receipt Upload
     const [newExpense, setNewExpense] = useState({ description: '', amount: '', receiptFile: null });
     const [uploadingReceipt, setUploadingReceipt] = useState(false);
@@ -622,7 +707,7 @@ export default function AdminDashboard({ session }) {
 
             // 2. Insert expense record
             const { data, error } = await supabase
-                .from('expenses')
+                .from('kg_expenses')
                 .insert({
                     vendor_id: currentVendorId,
                     description: newExpense.description,
@@ -663,7 +748,7 @@ export default function AdminDashboard({ session }) {
                 low_stock_threshold: parseFloat(editingIngredient.low_stock_threshold || 10)
             };
 
-            let query = supabase.from('ingredients');
+            let query = supabase.from('kg_ingredients');
             if (editingIngredient.id) {
                 query = query.update(payload).eq('id', editingIngredient.id);
             } else {
@@ -691,7 +776,7 @@ export default function AdminDashboard({ session }) {
         if (!window.confirm(`Are you sure you want to delete ${name}? This might break recipe deductions.`)) return;
 
         try {
-            const { error } = await supabase.from('ingredients').delete().eq('id', id);
+            const { error } = await supabase.from('kg_ingredients').delete().eq('id', id);
             if (error) throw error;
             setIngredients(ingredients.filter(ing => ing.id !== id));
         } catch (err) {
@@ -706,7 +791,7 @@ export default function AdminDashboard({ session }) {
         setIsSavingStall(true);
         try {
             const { data, error } = await supabase
-                .from('locations')
+                .from('kg_locations')
                 .insert([{
                     vendor_id: currentVendorId,
                     name: newStallEvent.name || `Mobile Stall - ${newStallEvent.stall_date || Date.now()}`,
@@ -738,7 +823,7 @@ export default function AdminDashboard({ session }) {
     const handleDeleteStallEvent = async (id, name) => {
         if (!window.confirm(`Are you sure you want to delete the event '${name}'?`)) return;
         try {
-            const { error } = await supabase.from('locations').delete().eq('id', id);
+            const { error } = await supabase.from('kg_locations').delete().eq('id', id);
             if (error) throw error;
             setLocations(locations.filter(l => l.id !== id));
         } catch (err) {
@@ -759,7 +844,7 @@ export default function AdminDashboard({ session }) {
                 }
             });
 
-            const { error } = await supabase.from('menu_items')
+            const { error } = await supabase.from('kg_menu_items')
                 .update({ recipe_json: recipeJson })
                 .eq('id', editingRecipeFor.id);
 
@@ -821,7 +906,7 @@ export default function AdminDashboard({ session }) {
 
             if (editingMenuItem.id) {
                 // Update existing item
-                const { error } = await supabase.from('menu_items')
+                const { error } = await supabase.from('kg_menu_items')
                     .update({
                         name: editingMenuItem.name,
                         price: parseFloat(editingMenuItem.price),
@@ -835,7 +920,7 @@ export default function AdminDashboard({ session }) {
                 alert("Menu item updated successfully!");
             } else {
                 // Insert new item
-                const { data, error } = await supabase.from('menu_items')
+                const { data, error } = await supabase.from('kg_menu_items')
                     .insert([{
                         vendor_id: currentVendorId,
                         name: editingMenuItem.name,
@@ -862,7 +947,7 @@ export default function AdminDashboard({ session }) {
     const handleDeleteMenuItem = async (id, name) => {
         if (!window.confirm(`Are you sure you want to delete ${name}? Customers will no longer be able to order it.`)) return;
         try {
-            const { error } = await supabase.from('menu_items').delete().eq('id', id);
+            const { error } = await supabase.from('kg_menu_items').delete().eq('id', id);
             if (error) throw error;
             setMenuItems(menuItems.filter(item => item.id !== id));
         } catch (err) {
@@ -945,7 +1030,16 @@ export default function AdminDashboard({ session }) {
                         <Icons.Finance /> Finances
                     </button>
                     <button className={`sidebar-item ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>
-                        <Icons.Inventory /> Inventory
+                        <Icons.Inventory />
+                        <span>Inventory</span>
+                    </button>
+                    <button className={`sidebar-item ${activeTab === 'customers' ? 'active' : ''}`} onClick={() => setActiveTab('customers')}>
+                        <Icons.Users />
+                        <span>Customers</span>
+                    </button>
+                    <button className={`sidebar-item ${activeTab === 'testimonials' ? 'active' : ''}`} onClick={() => setActiveTab('testimonials')}>
+                        <Icons.Testimonials />
+                        <span>Testimonials</span>
                     </button>
                     <button className={`sidebar-item ${activeTab === 'logistics' ? 'active' : ''}`} onClick={() => setActiveTab('logistics')}>
                         <Icons.Logistics /> Logistics
@@ -1054,8 +1148,8 @@ export default function AdminDashboard({ session }) {
                                         // To delete the current user securely, Supabase provides admin API or they need to execute custom RPC.
                                         // Using standard client, a user can't easily self-delete from auth.users unless we have an RPC.
                                         // A simple workaround for this platform is deleting the vendor profile to ghost the account.
-                                        await supabase.from('vendors').delete().eq('id', currentVendorId);
-                                        await supabase.from('profiles').delete().eq('id', session.user.id);
+                                        await supabase.from('kg_vendors').delete().eq('id', currentVendorId);
+                                        await supabase.from('kg_profiles').delete().eq('id', session.user.id);
                                         // We log them out
                                         await supabase.auth.signOut();
                                         window.location.reload();
@@ -1534,7 +1628,7 @@ export default function AdminDashboard({ session }) {
                                                         style={{ marginTop: '1rem', background: '#00e676', color: '#000' }}
                                                         onClick={async () => {
                                                             setIsSavingVault(true);
-                                                            const { error } = await supabase.from('vendors').update({
+                                                            const { error } = await supabase.from('kg_vendors').update({
                                                                 paystack_public_key: vendorConfig.paystack_public_key,
                                                                 paystack_secret_key: vendorConfig.paystack_secret_key
                                                             }).eq('id', currentVendorId);
@@ -1572,7 +1666,7 @@ export default function AdminDashboard({ session }) {
                                                         style={{ marginTop: '1rem', background: '#00e676', color: '#000' }}
                                                         onClick={async () => {
                                                             setIsSavingVault(true);
-                                                            const { error } = await supabase.from('vendors').update({
+                                                            const { error } = await supabase.from('kg_vendors').update({
                                                                 netcash_config: vendorConfig.netcash_config
                                                             }).eq('id', currentVendorId);
                                                             setIsSavingVault(false);
@@ -1619,7 +1713,7 @@ export default function AdminDashboard({ session }) {
                                                         style={{ marginTop: '1rem', background: '#00e676', color: '#000' }}
                                                         onClick={async () => {
                                                             setIsSavingVault(true);
-                                                            const { error } = await supabase.from('vendors').update({
+                                                            const { error } = await supabase.from('kg_vendors').update({
                                                                 whatsapp_config: vendorConfig.whatsapp_config
                                                             }).eq('id', currentVendorId);
                                                             setIsSavingVault(false);
@@ -1666,7 +1760,7 @@ export default function AdminDashboard({ session }) {
                                                         style={{ marginTop: '1rem', background: '#00e676', color: '#000' }}
                                                         onClick={async () => {
                                                             setIsSavingVault(true);
-                                                            const { error } = await supabase.from('vendors').update({
+                                                            const { error } = await supabase.from('kg_vendors').update({
                                                                 custom_domain: vendorConfig.custom_domain
                                                             }).eq('id', currentVendorId);
                                                             setIsSavingVault(false);
@@ -1764,6 +1858,126 @@ export default function AdminDashboard({ session }) {
                 </>
             )}
 
+            {activeTab === 'customers' && (
+                <div style={{ padding: '2rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                        <div>
+                            <h2 style={{ color: '#fff', margin: 0 }}>👥 Customer Database</h2>
+                            <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>A complete list of your customers derived from your order history.</p>
+                        </div>
+                        <button className="btn-secondary" onClick={() => exportPDF()}>Export as PDF</button>
+                    </div>
+
+                    <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', overflow: 'hidden' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                            <thead style={{ background: '#0f172a', color: '#94a3b8', fontSize: '0.85rem', textTransform: 'uppercase' }}>
+                                <tr>
+                                    <th style={{ padding: '1rem' }}>Customer</th>
+                                    <th style={{ padding: '1rem' }}>Phone/WhatsApp</th>
+                                    <th style={{ padding: '1rem' }}>Total Orders</th>
+                                    <th style={{ padding: '1rem' }}>Total Spend</th>
+                                    <th style={{ padding: '1rem' }}>Last Order</th>
+                                    <th style={{ padding: '1rem' }}>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {(() => {
+                                    const allOrders = [...orders, ...historyOrders];
+                                    const customerMap = {};
+                                    allOrders.forEach(o => {
+                                        if (!o.customer_phone) return;
+                                        if (!customerMap[o.customer_phone]) {
+                                            customerMap[o.customer_phone] = {
+                                                name: o.customer_name,
+                                                phone: o.customer_phone,
+                                                orderCount: 0,
+                                                totalSpend: 0,
+                                                lastOrder: o.created_at
+                                            };
+                                        }
+                                        customerMap[o.customer_phone].orderCount += 1;
+                                        customerMap[o.customer_phone].totalSpend += parseFloat(o.total_price) || 0;
+                                        if (new Date(o.created_at) > new Date(customerMap[o.customer_phone].lastOrder)) {
+                                            customerMap[o.customer_phone].lastOrder = o.created_at;
+                                        }
+                                    });
+
+                                    const uniqueCustomers = Object.values(customerMap).sort((a,b) => b.totalSpend - a.totalSpend);
+                                    
+                                    if (uniqueCustomers.length === 0) return (
+                                        <tr><td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No customers found in your order history yet.</td></tr>
+                                    );
+
+                                    return uniqueCustomers.map(c => (
+                                        <tr key={c.phone} style={{ borderBottom: '1px solid #334155' }}>
+                                            <td style={{ padding: '1rem', color: '#fff', fontWeight: 'bold' }}>{c.name}</td>
+                                            <td style={{ padding: '1rem', color: '#94a3b8' }}>{c.phone}</td>
+                                            <td style={{ padding: '1rem', color: '#fff' }}>{c.orderCount}</td>
+                                            <td style={{ padding: '1rem', color: '#00e676', fontWeight: 'bold' }}>R {c.totalSpend.toFixed(2)}</td>
+                                            <td style={{ padding: '1rem', color: '#94a3b8' }}>{new Date(c.lastOrder).toLocaleDateString()}</td>
+                                            <td style={{ padding: '1rem' }}>
+                                                <button 
+                                                    onClick={() => window.open(`https://wa.me/${c.phone.replace(/\D/g, '')}`, '_blank')}
+                                                    style={{ background: '#25D366', color: '#fff', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}
+                                                >
+                                                    WhatsApp
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ));
+                                })()}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'testimonials' && (
+                <div style={{ padding: '2rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                        <div>
+                            <h2 style={{ color: '#fff', margin: 0 }}>⭐ Testimonial Manager</h2>
+                            <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Add and manage customer reviews that appear on your shop's menu page.</p>
+                        </div>
+                        <button className="btn-primary" onClick={addTestimonial}>+ Add Testimonial</button>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
+                        {testimonials.map(t => (
+                            <div key={t.id} style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', opacity: t.is_active ? 1 : 0.5 }}>
+                                <div style={{ fontSize: '1.2rem', color: '#facc15' }}>{"⭐".repeat(5)}</div>
+                                <p style={{ color: '#f8fafc', fontStyle: 'italic', margin: 0 }}>"{t.quote}"</p>
+                                <div>
+                                    <div style={{ color: '#fff', fontWeight: 'bold' }}>{t.author_name}</div>
+                                    <div style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{t.author_role}</div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <button 
+                                        className="btn-secondary" 
+                                        style={{ flex: 1, fontSize: '0.75rem' }}
+                                        onClick={() => toggleTestimonial(t.id, t.is_active)}
+                                    >
+                                        {t.is_active ? 'Hide' : 'Show'}
+                                    </button>
+                                    <button 
+                                        className="btn-secondary" 
+                                        style={{ flex: 1, fontSize: '0.75rem', color: '#ef4444' }}
+                                        onClick={() => deleteTestimonial(t.id)}
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    {testimonials.length === 0 && (
+                        <div style={{ textAlign: 'center', padding: '5rem', background: '#1e293b', borderRadius: '12px', border: '1px dashed #334155' }}>
+                            <p style={{ color: '#94a3b8' }}>No testimonials yet. Click "+ Add Testimonial" to start building your social proof! ⭐</p>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {activeTab === 'logistics' && (
                 <div className="cms-editor" style={{ maxWidth: '900px', margin: '2rem auto' }}>
                     <div className="cms-card">
@@ -1780,7 +1994,7 @@ export default function AdminDashboard({ session }) {
                                     try {
                                         for (const loc of locations) {
                                             const { error } = await supabase
-                                                .from('locations')
+                                                .from('kg_locations')
                                                 .update({
                                                     delivery_enabled: loc.delivery_enabled,
                                                     delivery_fee: loc.delivery_fee
@@ -2010,7 +2224,7 @@ export default function AdminDashboard({ session }) {
                                     <form onSubmit={async (e) => {
                                         e.preventDefault();
                                         if (!newAdminMessage.trim()) return;
-                                        const { error } = await supabase.from('support_chats').insert({
+                                        const { error } = await supabase.from('kg_support_chats').insert({
                                             vendor_id: currentVendorId,
                                             session_identifier: activeChatSession,
                                             sender_type: 'admin',
@@ -2617,7 +2831,7 @@ export default function AdminDashboard({ session }) {
                                         e.preventDefault();
                                         setIsSavingBranch(true);
                                         try {
-                                            const { error } = await supabase.from('locations').insert({
+                                            const { error } = await supabase.from('kg_locations').insert({
                                                 name: newBranch.name,
                                                 vendor_id: currentVendorId,
                                                 address: newBranch.address,
@@ -2676,7 +2890,7 @@ export default function AdminDashboard({ session }) {
                                                     <td style={{ padding: '1rem', textAlign: 'right' }}>
                                                         <button
                                                             onClick={async () => {
-                                                                const { error } = await supabase.from('locations').update({ is_active: !branch.is_active }).eq('id', branch.id);
+                                                                const { error } = await supabase.from('kg_locations').update({ is_active: !branch.is_active }).eq('id', branch.id);
                                                                 if (error) alert("Error: " + error.message);
                                                                 else fetchInitialData();
                                                             }}
@@ -2864,7 +3078,7 @@ export default function AdminDashboard({ session }) {
                                                 }
                                             }
 
-                                            const { error } = await supabase.from('vendors').update({
+                                            const { error } = await supabase.from('kg_vendors').update({
                                                 name: vendorConfig.name,
                                                 custom_domain: vendorConfig.custom_domain,
                                                 branding: finalBranding,

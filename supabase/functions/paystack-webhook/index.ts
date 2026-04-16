@@ -35,7 +35,7 @@ serve(async (req) => {
         // 1b. Multi-Tenant Key Lookup
         // We must find the vendor's secret key from the database using the orderId
         const { data: orderData, error: orderLookupError } = await supabase
-            .from('orders')
+            .from('kg_orders')
             .select('vendor_id')
             .eq('id', orderId)
             .single()
@@ -46,7 +46,7 @@ serve(async (req) => {
         }
 
         const { data: vendorData, error: vendorLookupError } = await supabase
-            .from('vendors')
+            .from('kg_vendors')
             .select('paystack_secret_key')
             .eq('id', orderData.vendor_id)
             .single()
@@ -78,6 +78,7 @@ serve(async (req) => {
         const hashArray = Array.from(new Uint8Array(signatureBuffer))
         const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 
+        const signature = req.headers.get('x-paystack-signature')
         if (hashHex !== signature) {
             console.error("Invalid signature. Expected:", signature, "Got:", hashHex)
             return new Response('Invalid signature', { status: 401, headers: corsHeaders })
@@ -93,7 +94,7 @@ serve(async (req) => {
 
             // 4. Update the order status to 'paid'
             const { error: updateError } = await supabase
-                .from('orders')
+                .from('kg_orders')
                 .update({
                     status: 'paid',
                     order_number: orderNumber
@@ -114,7 +115,7 @@ serve(async (req) => {
 
                 // Fetch recipes for the ordered items
                 const { data: menuItems, error: menuError } = await supabase
-                    .from('menu_items')
+                    .from('kg_menu_items')
                     .select('id, recipe_json')
                     .in('id', itemIds)
 
@@ -144,9 +145,9 @@ serve(async (req) => {
                 // function to decrement the value atomically: `quantity = quantity - x`
                 for (const [ingredient, amountToDeduct] of Object.entries(inventoryDeductions)) {
                     const { data: currentInv, error: fetchInvError } = await supabase
-                        .from('inventory')
-                        .select('quantity')
-                        .eq('item_name', ingredient)
+                        .from('kg_ingredients')
+                        .select('current_stock')
+                        .eq('name', ingredient)
                         .single()
 
                     if (fetchInvError || !currentInv) {
@@ -154,12 +155,12 @@ serve(async (req) => {
                         continue // Skip to next ingredient on error
                     }
 
-                    const newQuantity = currentInv.quantity - amountToDeduct
+                    const newQuantity = currentInv.current_stock - amountToDeduct
 
                     const { error: updateInvError } = await supabase
-                        .from('inventory')
-                        .update({ quantity: newQuantity })
-                        .eq('item_name', ingredient)
+                        .from('kg_ingredients')
+                        .update({ current_stock: newQuantity })
+                        .eq('name', ingredient)
 
                     if (updateInvError) {
                         console.error(`Error updating inventory for ${ingredient}:`, updateInvError)

@@ -12,13 +12,17 @@ function VendorLandingPage() {
     const [loading, setLoading] = useState(true);
     const [allLocations, setAllLocations] = useState([]);
     const [featuredMenu, setFeaturedMenu] = useState([]);
+    const [testimonials, setTestimonials] = useState([]);
+    const [isTestimonialModalOpen, setIsTestimonialModalOpen] = useState(false);
+    const [newTestimonial, setNewTestimonial] = useState({ author_name: '', quote: '', author_role: '' });
+    const [isSubmittingTestimonial, setIsSubmittingTestimonial] = useState(false);
 
     useEffect(() => {
         const fetchVendorData = async () => {
             try {
                 setLoading(true);
                 const hostname = window.location.hostname;
-                let query = supabase.from('vendors').select('*');
+                let query = supabase.from('kg_vendors').select('*');
 
                 if (vendorSlug) {
                     query = query.eq('slug', vendorSlug);
@@ -45,19 +49,22 @@ function VendorLandingPage() {
 
                 // 3. Fetch ALL Active Locations (Permanent & Mobile)
                 const { data: locs } = await supabase
-                    .from('locations')
+                    .from('kg_locations')
                     .select('*')
                     .eq('vendor_id', vendorData.id)
                     .eq('is_active', true);
                 setAllLocations(locs || []);
 
-                // 4. Fetch Vendor's Menu (for Gallery)
-                const { data: menu } = await supabase
-                    .from('menu_items')
+                setFeaturedMenu(menu || []);
+
+                // 5. Fetch Active Testimonials
+                const { data: testData } = await supabase
+                    .from('kg_testimonials')
                     .select('*')
                     .eq('vendor_id', vendorData.id)
-                    .order('price');
-                setFeaturedMenu(menu || []);
+                    .eq('is_active', true)
+                    .order('created_at', { ascending: false });
+                setTestimonials(testData || []);
 
             } catch (err) {
                 console.error("Error loading vendor:", err);
@@ -126,34 +133,119 @@ function VendorLandingPage() {
                         </div>
                     </main>
 
-                    {/* Gallery Section */}
-                    <section style={{ padding: '6rem 2rem', background: '#020617' }}>
+                    {/* Testimonials Section */}
+                    <section style={{ padding: '6rem 2rem', background: '#0f172a' }}>
                         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-                            <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
-                                <h2 style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '1rem' }}>Our Gallery</h2>
-                                <p style={{ color: '#94a3b8' }}>A taste of what we have in store for you.</p>
-                                <div style={{ width: '80px', height: '4px', background: 'var(--primary-color)', margin: '1rem auto' }}></div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '4rem', gap: '1rem', flexWrap: 'wrap' }}>
+                                <div>
+                                    <h2 style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '1rem' }}>Customer Love</h2>
+                                    <p style={{ color: '#94a3b8' }}>What people are saying about their {vendor.name} experience.</p>
+                                </div>
+                                <button className="btn-secondary" onClick={() => setIsTestimonialModalOpen(true)} style={{ padding: '0.8rem 1.5rem', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid var(--primary-color)' }}>
+                                    ✏️ Write a Review
+                                </button>
                             </div>
-                            
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '2rem' }}>
-                                {featuredMenu.filter(m => m.image_url).map((item) => (
-                                    <div key={item.id} className="gallery-item" style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)', background: '#1e293b' }}>
-                                        <img src={item.image_url} alt={item.name} style={{ width: '100%', height: '250px', objectFit: 'cover' }} />
-                                        <div style={{ padding: '1.25rem', textAlign: 'center' }}>
-                                            <h4 style={{ margin: 0, fontSize: '1.1rem' }}>{item.name}</h4>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '2rem' }}>
+                                {testimonials.map((t) => (
+                                    <div key={t.id} style={{ 
+                                        background: 'rgba(30, 41, 59, 0.4)', 
+                                        padding: '2rem', 
+                                        borderRadius: '24px', 
+                                        border: '1px solid rgba(255,255,255,0.05)',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '1rem'
+                                    }}>
+                                        <div style={{ color: '#fbbf24', fontSize: '1.2rem' }}>{"⭐".repeat(5)}</div>
+                                        <p style={{ fontStyle: 'italic', color: '#f8fafc', fontSize: '1.1rem', margin: 0, lineHeight: '1.6' }}>"{t.quote}"</p>
+                                        <div style={{ marginTop: '1rem' }}>
+                                            <div style={{ fontWeight: 'bold' }}>{t.author_name}</div>
+                                            <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>{t.author_role || 'Customer'}</div>
                                         </div>
                                     </div>
                                 ))}
-                                {featuredMenu.filter(m => m.image_url).length === 0 && (
-                                    <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '4rem', background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '2px dashed rgba(255,255,255,0.05)' }}>
-                                        <span style={{ fontSize: '3rem', display: 'block', marginBottom: '1rem' }}>📸</span>
-                                        <p style={{ color: '#64748b' }}>Upload menu photos in CMS to see them here!</p>
+                                {testimonials.length === 0 && (
+                                    <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '4rem', background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+                                        <p style={{ color: '#64748b' }}>Be the first to leave a review! ⭐</p>
                                     </div>
                                 )}
                             </div>
                         </div>
                     </section>
 
+                    {/* Testimonial Submission Modal */}
+                    {isTestimonialModalOpen && (
+                        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(2,6,23,0.9)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', backdropFilter: 'blur(8px)' }}>
+                            <div style={{ background: '#1e293b', padding: '2.5rem', borderRadius: '32px', width: '100%', maxWidth: '500px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 25px 50px rgba(0,0,0,0.5)' }}>
+                                <h2 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Share Your Experience</h2>
+                                <p style={{ color: '#94a3b8', marginBottom: '2rem' }}>Your review will be sent to the owner for approval.</p>
+                                
+                                <form onSubmit={async (e) => {
+                                    e.preventDefault();
+                                    if (!newTestimonial.author_name || !newTestimonial.quote) return;
+                                    setIsSubmittingTestimonial(true);
+                                    try {
+                                        const { error } = await supabase.from('kg_testimonials').insert({
+                                            vendor_id: vendor.id,
+                                            author_name: newTestimonial.author_name,
+                                            quote: newTestimonial.quote,
+                                            author_role: newTestimonial.author_role,
+                                            is_active: false
+                                        });
+                                        if (error) throw error;
+                                        alert("Thank you! Your testimonial has been sent for review. 🎉");
+                                        setNewTestimonial({ author_name: '', quote: '', author_role: '' });
+                                        setIsTestimonialModalOpen(false);
+                                    } catch (err) {
+                                        alert("Error: " + err.message);
+                                    } finally {
+                                        setIsSubmittingTestimonial(false);
+                                    }
+                                }}>
+                                    <div style={{ marginBottom: '1.5rem' }}>
+                                        <label style={{ display: 'block', marginBottom: '0.5rem', color: '#94a3b8' }}>Your Name</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            style={{ width: '100%', padding: '1rem', borderRadius: '12px', background: '#0f172a', border: '1px solid #334155', color: '#fff' }}
+                                            value={newTestimonial.author_name}
+                                            onChange={e => setNewTestimonial({...newTestimonial, author_name: e.target.value})}
+                                        />
+                                    </div>
+                                    <div style={{ marginBottom: '1.5rem' }}>
+                                        <label style={{ display: 'block', marginBottom: '0.5rem', color: '#94a3b8' }}>Your Role / Location (Optional)</label>
+                                        <input 
+                                            type="text" 
+                                            placeholder="e.g. Regular Customer / Johannesburg"
+                                            style={{ width: '100%', padding: '1rem', borderRadius: '12px', background: '#0f172a', border: '1px solid #334155', color: '#fff' }}
+                                            value={newTestimonial.author_role}
+                                            onChange={e => setNewTestimonial({...newTestimonial, author_role: e.target.value})}
+                                        />
+                                    </div>
+                                    <div style={{ marginBottom: '2rem' }}>
+                                        <label style={{ display: 'block', marginBottom: '0.5rem', color: '#94a3b8' }}>Your Review</label>
+                                        <textarea 
+                                            required
+                                            rows="4"
+                                            style={{ width: '100%', padding: '1rem', borderRadius: '12px', background: '#0f172a', border: '1px solid #334155', color: '#fff', resize: 'none' }}
+                                            value={newTestimonial.quote}
+                                            onChange={e => setNewTestimonial({...newTestimonial, quote: e.target.value})}
+                                        />
+                                    </div>
+                                    
+                                    <div style={{ display: 'flex', gap: '1rem' }}>
+                                        <button type="button" className="btn-secondary" onClick={() => setIsTestimonialModalOpen(false)} style={{ flex: 1 }}>Cancel</button>
+                                        <button type="submit" disabled={isSubmittingTestimonial} className="btn-primary" style={{ flex: 2 }}>
+                                            {isSubmittingTestimonial ? 'Submitting...' : 'Send Review'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Find Us Section (Locations & Maps) */}
                     {/* Find Us Section (Locations & Maps) */}
                     <section id="find-us" style={{ padding: '8rem 2rem', background: '#0f172a' }}>
                         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>

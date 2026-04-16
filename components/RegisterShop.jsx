@@ -27,7 +27,7 @@ export default function RegisterShop() {
         try {
             // 1. Check if slug is taken
             const { data: existingVendor } = await supabase
-                .from('vendors')
+                .from('kg_vendors')
                 .select('id')
                 .eq('slug', slug)
                 .single();
@@ -39,7 +39,7 @@ export default function RegisterShop() {
             // 2. Create the Vendor record first to get an ID
             // We do this first because the Auth trigger needs a valid vendor_id
             const { data: newVendor, error: vendorErr } = await supabase
-                .from('vendors')
+                .from('kg_vendors')
                 .insert([{ 
                     name: shopName, 
                     slug: slug,
@@ -69,14 +69,14 @@ export default function RegisterShop() {
 
             if (authErr) {
                 // Cleanup vendor if auth fails
-                await supabase.from('vendors').delete().eq('id', newVendor.id);
+                await supabase.from('kg_vendors').delete().eq('id', newVendor.id);
                 throw authErr;
             }
 
             // 4. Manually create profile as a fallback (triggers might be slow)
             // We use the ID from the signUp result
             if (authData?.user?.id) {
-                await supabase.from('profiles').insert([{
+                await supabase.from('kg_profiles').insert([{
                     id: authData.user.id,
                     vendor_id: newVendor.id,
                     full_name: 'Shop Owner',

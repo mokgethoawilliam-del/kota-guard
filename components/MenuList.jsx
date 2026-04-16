@@ -19,7 +19,7 @@ export default function MenuList() {
         setLoading(true);
         // Fetch data from the menu_items table
         const { data, error } = await supabase
-          .from('menu_items')
+          .from('kg_menu_items')
           .select('*')
           .order('name'); 
 

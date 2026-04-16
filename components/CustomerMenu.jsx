@@ -44,7 +44,7 @@ export default function CustomerMenu({ vendorId, branding }) {
 
             // Fetch Vendor Details (Plan, Keys, etc.)
             const { data: vData } = await supabase
-                .from('vendors')
+                .from('kg_vendors')
                 .select('*')
                 .eq('id', vendorId)
                 .single();
@@ -52,7 +52,7 @@ export default function CustomerMenu({ vendorId, branding }) {
 
             // Fetch Menu Items filtered by vendor
             const { data: menuData, error: menuErr } = await supabase
-                .from('menu_items')
+                .from('kg_menu_items')
                 .select('*')
                 .eq('vendor_id', vendorId)
                 .order('price');
@@ -61,7 +61,7 @@ export default function CustomerMenu({ vendorId, branding }) {
 
             // Fetch Locations filtered by vendor
             const { data: locData, error: locErr } = await supabase
-                .from('locations')
+                .from('kg_locations')
                 .select('*')
                 .eq('vendor_id', vendorId);
             if (locErr) throw locErr;
@@ -126,11 +126,14 @@ export default function CustomerMenu({ vendorId, branding }) {
         try {
             setProcessingId('processing');
 
+            // Generate temporary unique order number for initial insert
+            const tempOrderNumber = `TEMP-${Date.now()}`;
+
             // Generate 4-digit Collection PIN
             const pin = Math.floor(1000 + Math.random() * 9000).toString();
 
             const { data: order, error: orderError } = await supabase
-                .from('orders')
+                .from('kg_orders')
                 .insert({
                     status: 'pending',
                     vendor_id: vendorId,
@@ -160,7 +163,7 @@ export default function CustomerMenu({ vendorId, branding }) {
             }));
 
             const { error: itemError } = await supabase
-                .from('order_items')
+                .from('kg_order_items')
                 .insert(orderItemsData);
 
             if (itemError) throw itemError;
@@ -203,7 +206,7 @@ export default function CustomerMenu({ vendorId, branding }) {
                             startOfDay.setHours(0, 0, 0, 0);
 
                             const { count } = await supabase
-                                .from('orders')
+                                .from('kg_orders')
                                 .select('*', { count: 'exact', head: true })
                                 .eq('location_id', selectedLocation)
                                 .gte('created_at', startOfDay.toISOString());
@@ -212,7 +215,7 @@ export default function CustomerMenu({ vendorId, branding }) {
                             const finalOrderNum = `${prefix}/${dateStr}/${dailyNum}`;
 
                              const { data: finalBtn, error: finalErr } = await supabase
-                                 .from('orders')
+                                 .from('kg_orders')
                                  .update({
                                      status: 'paid',
                                      order_number: finalOrderNum,
@@ -254,7 +257,7 @@ export default function CustomerMenu({ vendorId, branding }) {
     const handleArrival = async () => {
         try {
             const { error } = await supabase
-                .from('orders')
+                .from('kg_orders')
                 .update({ customer_arrived: true })
                 .eq('order_number', paymentSuccess);
 

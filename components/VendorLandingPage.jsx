@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../src/supabaseClient';
 import CustomerMenu from './CustomerMenu';
@@ -128,7 +128,7 @@ function VendorLandingPage() {
                                 }}>
                                     {!branding.hero_image && (
                                         <div style={{ transform: 'rotate(2deg)' }}>
-                                            <span style={{ fontSize: '4rem', marginBottom: '1rem', display: 'block' }}>≡ƒìö</span>
+                                            <span style={{ fontSize: '4rem', marginBottom: '1rem', display: 'block' }}>🍔</span>
                                             <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#f8fafc' }}>VulaHub Premium</span>
                                         </div>
                                     )}
@@ -157,7 +157,7 @@ function VendorLandingPage() {
                                 ))}
                                 {featuredMenu.filter(m => m.image_url).length === 0 && (
                                     <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '4rem', background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '2px dashed rgba(255,255,255,0.05)' }}>
-                                        <span style={{ fontSize: '3rem', display: 'block', marginBottom: '1rem' }}>≡ƒô╕</span>
+                                        <span style={{ fontSize: '3rem', display: 'block', marginBottom: '1rem' }}>📸</span>
                                         <p style={{ color: '#64748b' }}>Upload menu photos in CMS to see them here!</p>
                                     </div>
                                 )}
@@ -196,15 +196,15 @@ function VendorLandingPage() {
                                                 fontWeight: 'bold',
                                                 textTransform: 'uppercase'
                                             }}>
-                                                {loc.is_mobile ? '≡ƒÜÜ Mobile Event' : '≡ƒÅá Permanent Branch'}
+                                                {loc.is_mobile ? '🚚 Mobile Event' : '🏠 Permanent Branch'}
                                             </span>
                                             <h3 style={{ fontSize: '1.75rem', marginTop: '1rem', marginBottom: '0.5rem' }}>{loc.name}</h3>
                                             <p style={{ color: '#94a3b8', lineHeight: '1.6' }}>
-                                                ≡ƒôì {loc.address || 'Address coming soon...'}
+                                                📍 {loc.address || 'Address coming soon...'}
                                             </p>
                                             {loc.is_mobile && loc.stall_date && (
                                                 <p style={{ color: '#fbbf24', fontWeight: 'bold', fontSize: '0.9rem', marginTop: '0.5rem' }}>
-                                                    ≡ƒùô∩╕Å Event Date: {loc.stall_date}
+                                                    🗓️ Event Date: {loc.stall_date}
                                                 </p>
                                             )}
                                         </div>
@@ -229,7 +229,7 @@ function VendorLandingPage() {
                                                         fontSize: '1rem'
                                                     }}
                                                 >
-                                                    ≡ƒù║∩╕Å Open in Google Maps
+                                                    🗺️ Open in Google Maps
                                                 </a>
                                             </div>
                                         )}

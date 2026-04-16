@@ -198,6 +198,7 @@ export default function CustomerMenu({ vendorId, branding }) {
                                 .from('orders')
                                 .select('*', { count: 'exact', head: true })
                                 .eq('location_id', selectedLocation)
+                                .neq('status', 'pending')
                                 .gte('created_at', startOfDay.toISOString());
 
                             const dailyNum = String((count || 0) + 1).padStart(3, '0');
@@ -264,7 +265,7 @@ export default function CustomerMenu({ vendorId, branding }) {
                         <span className="success-icon" role="img" aria-label="success">✅</span>
                     </div>
                     <h1 className="success-headline">Payment Approved</h1>
-                    <p className="success-message">Thank you, {customerName}! Your transaction was successful.</p>
+                    <p className="success-message">Thank you, {customerName}! Your transaction was successful. Kel rata zwap.</p>
 
                     <div className="order-number-display" style={{ margin: '2rem 0', padding: '1.5rem', background: 'rgba(0, 200, 83, 0.1)', border: '1px solid #00C853', borderRadius: '12px' }}>
                         <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#888' }}>Your Official Order Number</p>
@@ -290,7 +291,7 @@ export default function CustomerMenu({ vendorId, branding }) {
                     )}
 
                     <button className="btn-secondary" onClick={() => { setPaymentSuccess(false); setCustomerName(''); setCustomerPhone(''); setModifiers(''); setCollectionTime(''); setHasArrived(false); }}>
-                        Order Another
+                        Back to Menu
                     </button>
                 </div>
             </div>

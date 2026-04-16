@@ -89,7 +89,14 @@ function VendorLandingPage() {
 
             {view === 'landing' && (
                 <div className="landing-page-scroll">
-                    <main className="hero-section" style={{ minHeight: '90vh', display: 'flex', alignItems: 'center', padding: '8rem 2rem 4rem 2rem' }}>
+                    <main className="hero-section" style={{ 
+                        minHeight: '90vh', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        padding: '8rem 2rem 4rem 2rem',
+                        position: 'relative',
+                        background: branding.hero_image ? `linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.7)), url(${branding.hero_image}) center/cover no-repeat` : '#0f172a'
+                    }}>
                         <div className="hero-grid">
                             <div className="hero-content">
                                 <span style={{ color: 'var(--primary-color)', fontWeight: 'bold', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>
@@ -112,28 +119,9 @@ function VendorLandingPage() {
                                 </div>
                             </div>
 
-                            <div style={{ position: 'relative', width: '100%', maxWidth: '600px', margin: '0 auto' }}>
-                                <div style={{
-                                    aspectRatio: '1/1',
-                                    background: branding.hero_image ? `url(${branding.hero_image}) center/cover` : '#1e293b',
-                                    borderRadius: '30px',
-                                    boxShadow: `0 30px 60px rgba(0, 230, 118, 0.25)`,
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    color: '#94a3b8',
-                                    border: `2px solid var(--primary-color)`,
-                                    transform: 'rotate(-2deg)'
-                                }}>
-                                    {!branding.hero_image && (
-                                        <div style={{ transform: 'rotate(2deg)' }}>
-                                            <span style={{ fontSize: '4rem', marginBottom: '1rem', display: 'block' }}>🍔</span>
-                                            <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#f8fafc' }}>VulaHub Premium</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                             <div style={{ position: 'relative', width: '100%', maxWidth: '600px', margin: '0 auto' }}>
+                                {/* Image moved to main background for better impact */}
+                             </div>
                         </div>
                     </main>
 

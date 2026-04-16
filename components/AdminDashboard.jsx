@@ -158,7 +158,10 @@ export default function AdminDashboard({ session }) {
                     order_items (
                         quantity,
                         modifiers_json,
-                        menu_items (name)
+                        menu_items (
+                            name,
+                            recipe_json
+                        )
                     )
                 `)
                 .eq('vendor_id', currentVendorId)
@@ -260,6 +263,20 @@ export default function AdminDashboard({ session }) {
                     supabase.from('ingredients').select('*').order('name').then(({ data }) => {
                         if (data) setIngredients(data);
                     });
+                }
+            }
+
+            // If the order is moving to 'completed', we require a Collection Code (last 3 digits of order number)
+            if (newStatus === 'completed') {
+                const order = orders.find(o => o.id === orderId);
+                if (order && order.order_number) {
+                    const expectedCode = order.order_number.split('/').pop(); // Gets the '001' part
+                    const userInput = window.prompt(`🔒 SECURITY CHECK: Enter the Customer's 3-digit Collection Code (e.g., ${expectedCode}) to finalize delivery:`);
+                    
+                    if (userInput !== expectedCode) {
+                        alert("❌ INVALID CODE: Order cannot be marked as delivered without the correct customer secret.");
+                        return;
+                    }
                 }
             }
 

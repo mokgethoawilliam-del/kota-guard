@@ -95,7 +95,7 @@ function VendorLandingPage() {
                         alignItems: 'center', 
                         padding: '8rem 2rem 4rem 2rem',
                         position: 'relative',
-                        background: branding.hero_image ? `linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.7)), url(${branding.hero_image}) center/cover no-repeat` : '#0f172a'
+                        background: branding.hero_image ? `linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.7)), url(${branding.hero_image}) center / 100% auto no-repeat` : '#0f172a'
                     }}>
                         <div className="hero-grid">
                             <div className="hero-content">

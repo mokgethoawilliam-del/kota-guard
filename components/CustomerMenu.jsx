@@ -267,14 +267,15 @@ export default function CustomerMenu({ vendorId, branding }) {
                     <h1 className="success-headline">Payment Approved</h1>
                     <p className="success-message">Thank you, {customerName}! Your transaction was successful. Kel rata zwap.</p>
 
-                    <div className="order-number-display" style={{ margin: '2rem 0', padding: '1.5rem', background: 'rgba(0, 200, 83, 0.1)', border: '1px solid #00C853', borderRadius: '12px' }}>
-                        <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#888' }}>Your Official Order Number</p>
-                        <h2 style={{ margin: 0, fontSize: '2.5rem', color: '#00C853', letterSpacing: '2px' }}>
-                            {paymentSuccess !== true ? paymentSuccess : "GENERATING..."}
+                    <div className="order-number-display" style={{ margin: '1.5rem 0', padding: '1.5rem', background: 'rgba(0, 200, 83, 0.1)', border: '1px solid #00C853', borderRadius: '12px', textAlign: 'center' }}>
+                        <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#888', textTransform: 'uppercase', letterSpacing: '1px' }}>Your Collection Code</p>
+                        <h2 style={{ margin: 0, fontSize: '3.5rem', color: '#00C853', fontWeight: '900', letterSpacing: '4px' }}>
+                            {paymentSuccess !== true ? paymentSuccess.split('/').last || paymentSuccess.split('/').pop() : "..."}
                         </h2>
+                        <p style={{ marginTop: '0.5rem', fontSize: '0.8rem', opacity: 0.7 }}>Share this code with the staff to collect your order</p>
                     </div>
 
-                    <p className="success-subtext">Please present this number at the collection point.</p>
+                    <p style={{ fontSize: '0.9rem', color: '#94a3b8', marginBottom: '1.5rem' }}>Official Order ID: {paymentSuccess}</p>
 
                     {!hasArrived ? (
                         <button

@@ -39,7 +39,7 @@ export default function CustomerMenu({ vendorId, branding }) {
 
             // Fetch Vendor Details (Plan, Keys, etc.)
             const { data: vData } = await supabase
-                .from('kg_vendors')
+                .from('vendors')
                 .select('*')
                 .eq('id', vendorId)
                 .single();
@@ -47,7 +47,7 @@ export default function CustomerMenu({ vendorId, branding }) {
 
             // Fetch Menu Items filtered by vendor
             const { data: menuData, error: menuErr } = await supabase
-                .from('kg_menu_items')
+                .from('menu_items')
                 .select('*')
                 .eq('vendor_id', vendorId)
                 .order('price');
@@ -56,7 +56,7 @@ export default function CustomerMenu({ vendorId, branding }) {
 
             // Fetch Locations filtered by vendor
             const { data: locData, error: locErr } = await supabase
-                .from('kg_locations')
+                .from('locations')
                 .select('*')
                 .eq('vendor_id', vendorId);
             if (locErr) throw locErr;
@@ -119,7 +119,7 @@ export default function CustomerMenu({ vendorId, branding }) {
             const tempOrderNumber = `PND-${Date.now().toString().slice(-4)}`;
 
             const { data: order, error: orderError } = await supabase
-                .from('kg_orders')
+                .from('orders')
                 .insert({
                     status: 'pending',
                     vendor_id: vendorId,
@@ -145,7 +145,7 @@ export default function CustomerMenu({ vendorId, branding }) {
             }));
 
             const { error: itemError } = await supabase
-                .from('kg_order_items')
+                .from('order_items')
                 .insert(orderItemsData);
 
             if (itemError) throw itemError;
@@ -195,7 +195,7 @@ export default function CustomerMenu({ vendorId, branding }) {
                             startOfDay.setHours(0, 0, 0, 0);
 
                             const { count } = await supabase
-                                .from('kg_orders')
+                                .from('orders')
                                 .select('*', { count: 'exact', head: true })
                                 .eq('location_id', selectedLocation)
                                 .gte('created_at', startOfDay.toISOString());
@@ -204,7 +204,7 @@ export default function CustomerMenu({ vendorId, branding }) {
                             const finalOrderNum = `${prefix}/${dateStr}/${dailyNum}`;
 
                             const { error: updateErr } = await supabase
-                                .from('kg_orders')
+                                .from('orders')
                                 .update({
                                     status: 'paid',
                                     order_number: finalOrderNum,
@@ -243,7 +243,7 @@ export default function CustomerMenu({ vendorId, branding }) {
     const handleArrival = async () => {
         try {
             const { error } = await supabase
-                .from('kg_orders')
+                .from('orders')
                 .update({ customer_arrived: true })
                 .eq('order_number', paymentSuccess);
 

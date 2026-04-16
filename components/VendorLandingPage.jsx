@@ -18,7 +18,7 @@ function VendorLandingPage() {
             try {
                 setLoading(true);
                 const hostname = window.location.hostname;
-                let query = supabase.from('kg_vendors').select('*');
+                let query = supabase.from('vendors').select('*');
 
                 if (vendorSlug) {
                     query = query.eq('slug', vendorSlug);
@@ -45,7 +45,7 @@ function VendorLandingPage() {
 
                 // 3. Fetch ALL Active Locations (Permanent & Mobile)
                 const { data: locs } = await supabase
-                    .from('kg_locations')
+                    .from('locations')
                     .select('*')
                     .eq('vendor_id', vendorData.id)
                     .eq('is_active', true);
@@ -53,7 +53,7 @@ function VendorLandingPage() {
 
                 // 4. Fetch Vendor's Menu (for Gallery)
                 const { data: menu } = await supabase
-                    .from('kg_menu_items')
+                    .from('menu_items')
                     .select('*')
                     .eq('vendor_id', vendorData.id)
                     .order('price');

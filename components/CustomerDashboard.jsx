@@ -19,7 +19,7 @@ export default function CustomerDashboard({ vendorId, onBack }) {
             .on('postgres_changes', {
                 event: 'UPDATE',
                 schema: 'public',
-                table: 'kg_orders'
+                table: 'orders'
             }, (payload) => {
                 const updatedOrder = payload.new;
                 if (orderIds.includes(updatedOrder.id)) {
@@ -47,13 +47,13 @@ export default function CustomerDashboard({ vendorId, onBack }) {
             // The user could type an Order number (e.g. ko/0308/001) or a phone number.
             // Let's search broadly across both matching fields
             let query = supabase
-                .from('kg_orders')
+                .from('orders')
                 .select(`
                     *,
-                    kg_locations ( name ),
-                    kg_order_items (
+                    locations ( name ),
+                    order_items (
                         quantity,
-                        kg_menu_items ( name )
+                        menu_items ( name )
                     )
                 `)
                 .eq('vendor_id', vendorId) // Filter by vendor
@@ -177,7 +177,7 @@ export default function CustomerDashboard({ vendorId, onBack }) {
                                         className="btn-primary"
                                         style={{ background: '#3b82f6', padding: '0.5rem 1rem' }}
                                         onClick={async () => {
-                                            const { error } = await supabase.from('kg_orders').update({ customer_arrived: true }).eq('id', order.id);
+                                            const { error } = await supabase.from('orders').update({ customer_arrived: true }).eq('id', order.id);
                                             if (!error) {
                                                 setOrders(current => current.map(o => o.id === order.id ? { ...o, customer_arrived: true } : o));
                                                 alert("Kitchen Notified!");

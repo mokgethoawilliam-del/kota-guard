@@ -56,7 +56,7 @@ export default function AdminDashboard({ session }) {
 
             // 1. Fetch Profile to get vendor_id
             const { data: profileData, error: pErr } = await supabase
-                .from('kg_profiles')
+                .from('profiles')
                 .select('vendor_id, full_name')
                 .eq('id', session.user.id)
                 .single();
@@ -91,10 +91,10 @@ export default function AdminDashboard({ session }) {
 
         // 1. Subscribe to Realtime Updates on the 'orders' table
         const channel = supabase
-            .channel('public:kg_orders')
+            .channel('public:orders')
             .on(
                 'postgres_changes',
-                { event: 'UPDATE', schema: 'public', table: 'kg_orders' },
+                { event: 'UPDATE', schema: 'public', table: 'orders' },
                 (payload) => {
                     const updatedOrder = payload.new;
 
@@ -119,7 +119,7 @@ export default function AdminDashboard({ session }) {
             )
             .on(
                 'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'kg_orders' },
+                { event: 'INSERT', schema: 'public', table: 'orders' },
                 (payload) => {
                     const newOrder = payload.new;
                     if (newOrder.status === 'paid') playDing();
@@ -142,23 +142,23 @@ export default function AdminDashboard({ session }) {
             // and we want a smooth transition after profile load.
 
             // Fetch Vendor Profile
-            const { data: vData } = await supabase.from('kg_vendors').select('*').eq('id', currentVendorId).single();
+            const { data: vData } = await supabase.from('vendors').select('*').eq('id', currentVendorId).single();
             if (vData) setVendorConfig(vData);
 
             // Get valid locations for this vendor
-            const { data: locData } = await supabase.from('kg_locations').select('*').eq('vendor_id', currentVendorId);
+            const { data: locData } = await supabase.from('locations').select('*').eq('vendor_id', currentVendorId);
             if (locData) setLocations(locData);
 
             // Get all non-pending orders for this vendor
             const { data: orderData, error: orderErr } = await supabase
-                .from('kg_orders')
+                .from('orders')
                 .select(`
                     *,
-                    kg_locations (name),
-                    kg_order_items (
+                    locations (name),
+                    order_items (
                         quantity,
                         modifiers_json,
-                        kg_menu_items (name)
+                        menu_items (name)
                     )
                 `)
                 .eq('vendor_id', currentVendorId)
@@ -175,7 +175,7 @@ export default function AdminDashboard({ session }) {
 
             // Fetch Expenses for this vendor
             const { data: expData, error: expErr } = await supabase
-                .from('kg_expenses')
+                .from('expenses')
                 .select('*')
                 .eq('vendor_id', currentVendorId)
                 .order('created_at', { ascending: false });
@@ -186,7 +186,7 @@ export default function AdminDashboard({ session }) {
 
             // Fetch Ingredients for this vendor
             const { data: ingData, error: ingErr } = await supabase
-                .from('kg_ingredients')
+                .from('ingredients')
                 .select('*')
                 .eq('vendor_id', currentVendorId)
                 .order('name');
@@ -197,7 +197,7 @@ export default function AdminDashboard({ session }) {
 
             // Fetch Menu Items (For CMS) for this vendor
             const { data: menuData, error: menuErr } = await supabase
-                .from('kg_menu_items')
+                .from('menu_items')
                 .select('*')
                 .eq('vendor_id', currentVendorId)
                 .order('price');
@@ -242,7 +242,7 @@ export default function AdminDashboard({ session }) {
 
                         // Fetch current stock directly from DB to prevent race conditions
                         const { data: invData, error: fetchErr } = await supabase
-                            .from('kg_ingredients')
+                            .from('ingredients')
                             .select('id, current_stock')
                             .eq('name', ingredientName)
                             .single();
@@ -250,14 +250,14 @@ export default function AdminDashboard({ session }) {
                         if (!fetchErr && invData && invData.current_stock !== null) {
                             const newStock = Math.max(0, Number(invData.current_stock) - amountToDeduct);
                             await supabase
-                                .from('kg_ingredients')
+                                .from('ingredients')
                                 .update({ current_stock: newStock })
                                 .eq('id', invData.id);
                         }
                     }
 
                     // Refresh inventory state silently to reflect deductions
-                    supabase.from('kg_ingredients').select('*').order('name').then(({ data }) => {
+                    supabase.from('ingredients').select('*').order('name').then(({ data }) => {
                         if (data) setIngredients(data);
                     });
                 }
@@ -267,7 +267,7 @@ export default function AdminDashboard({ session }) {
             setOrders(current => current.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
 
             const { error } = await supabase
-                .from('kg_orders')
+                .from('orders')
                 .update({ status: newStatus })
                 .eq('id', orderId);
 
@@ -423,7 +423,7 @@ export default function AdminDashboard({ session }) {
                 low_stock_threshold: parseFloat(editingIngredient.low_stock_threshold || 10)
             };
 
-            let query = supabase.from('kg_ingredients');
+            let query = supabase.from('ingredients');
             if (editingIngredient.id) {
                 query = query.update(payload).eq('id', editingIngredient.id);
             } else {
@@ -451,7 +451,7 @@ export default function AdminDashboard({ session }) {
         if (!window.confirm(`Are you sure you want to delete ${name}? This might break recipe deductions.`)) return;
 
         try {
-            const { error } = await supabase.from('kg_ingredients').delete().eq('id', id);
+            const { error } = await supabase.from('ingredients').delete().eq('id', id);
             if (error) throw error;
             setIngredients(ingredients.filter(ing => ing.id !== id));
         } catch (err) {
@@ -466,7 +466,7 @@ export default function AdminDashboard({ session }) {
         setIsSavingStall(true);
         try {
             const { data, error } = await supabase
-                .from('kg_locations')
+                .from('locations')
                 .insert([{
                     vendor_id: currentVendorId,
                     name: newStallEvent.name || `Mobile Stall - ${newStallEvent.stall_date || Date.now()}`,
@@ -498,7 +498,7 @@ export default function AdminDashboard({ session }) {
     const handleDeleteStallEvent = async (id, name) => {
         if (!window.confirm(`Are you sure you want to delete the event '${name}'?`)) return;
         try {
-            const { error } = await supabase.from('kg_locations').delete().eq('id', id);
+            const { error } = await supabase.from('locations').delete().eq('id', id);
             if (error) throw error;
             setLocations(locations.filter(l => l.id !== id));
         } catch (err) {
@@ -519,7 +519,7 @@ export default function AdminDashboard({ session }) {
                 }
             });
 
-            const { error } = await supabase.from('kg_menu_items')
+            const { error } = await supabase.from('menu_items')
                 .update({ recipe_json: recipeJson })
                 .eq('id', editingRecipeFor.id);
 
@@ -555,7 +555,7 @@ export default function AdminDashboard({ session }) {
         try {
             if (editingMenuItem.id) {
                 // Update existing item
-                const { error } = await supabase.from('kg_menu_items')
+                const { error } = await supabase.from('menu_items')
                     .update({
                         name: editingMenuItem.name,
                         price: parseFloat(editingMenuItem.price),
@@ -569,7 +569,7 @@ export default function AdminDashboard({ session }) {
                 alert("Menu item updated successfully!");
             } else {
                 // Insert new item
-                const { data, error } = await supabase.from('kg_menu_items')
+                const { data, error } = await supabase.from('menu_items')
                     .insert([{
                         vendor_id: currentVendorId,
                         name: editingMenuItem.name,
@@ -593,7 +593,7 @@ export default function AdminDashboard({ session }) {
     const handleDeleteMenuItem = async (id, name) => {
         if (!window.confirm(`Are you sure you want to delete ${name}? Customers will no longer be able to order it.`)) return;
         try {
-            const { error } = await supabase.from('kg_menu_items').delete().eq('id', id);
+            const { error } = await supabase.from('menu_items').delete().eq('id', id);
             if (error) throw error;
             setMenuItems(menuItems.filter(item => item.id !== id));
         } catch (err) {

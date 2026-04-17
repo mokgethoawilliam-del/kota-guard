@@ -201,46 +201,17 @@ export default function AdminDashboard({ session }) {
     };
 
     useEffect(() => {
-        const timer = setInterval(() => setLiveTime(new Date().toLocaleTimeString()), 1000);
-        return () => clearInterval(timer);
-    }, []);
-
-    useEffect(() => {
-        const loadProfileAndData = async () => {
-            if (!session?.user?.id) return;
-            const { data: profileData, error: pErr } = await supabase.from('profiles').select('vendor_id, full_name').eq('id', session.user.id).single();
-
-            if (pErr || !profileData) {
-                console.warn("Profile table entry not found, checking fallback...");
-                const metadata = session.user.user_metadata;
-                if (metadata?.vendor_id) {
-                    setProfile({ vendor_id: metadata.vendor_id, full_name: metadata.full_name || 'Owner' });
-                    setCurrentVendorId(metadata.vendor_id);
-                }
-                setLoading(false);
-                return;
-            }
-            setProfile(profileData);
-            setCurrentVendorId(profileData.vendor_id);
-            setLoading(false);
-        };
-
-        loadProfileAndData().finally(() => setLoading(false));
-    }, [session]);
-
-    useEffect(() => {
         if (!currentVendorId) return;
         fetchInitialData();
 
         // 1. Subscribe to Realtime Updates on the 'orders' table
         const channel = supabase
-            .channel('public:orders')
+            .channel(`orders:${currentVendorId}`)
             .on(
                 'postgres_changes',
-                { event: 'UPDATE', schema: 'public', table: 'orders' },
+                { event: 'UPDATE', schema: 'public', table: 'orders', filter: `vendor_id=eq.${currentVendorId}` },
                 (payload) => {
                     const updatedOrder = payload.new;
-
                     setOrders(currentOrders => {
                         const existingOrder = currentOrders.find(o => o.id === updatedOrder.id);
                         
@@ -248,67 +219,48 @@ export default function AdminDashboard({ session }) {
                         if (updatedOrder.status === 'paid' && (!existingOrder || existingOrder.status !== 'paid')) {
                             shouldDing = true;
                         }
-                        // Customer notified they arrived
                         if (updatedOrder.customer_arrived && existingOrder && !existingOrder.customer_arrived) {
                             shouldDing = true;
-                            // Trigger visible toast notification
                             setArrivalAlert(updatedOrder);
-                            setTimeout(() => setArrivalAlert(null), 10000); // Hide after 10s
+                            setTimeout(() => setArrivalAlert(null), 10000); 
                         }
 
                         if (shouldDing) playDing();
 
                         if (existingOrder) {
                             if (updatedOrder.status === 'completed' || updatedOrder.status === 'refunded') {
-                                // Move it out of active queue and into history
-                                setHistoryOrders(curr => {
-                                    if (!curr.find(o => o.id === updatedOrder.id)) {
-                                        return [{ ...existingOrder, ...updatedOrder }, ...curr];
-                                    }
-                                    return curr;
-                                });
+                                setHistoryOrders(curr => [{ ...existingOrder, ...updatedOrder }, ...curr]);
                                 return currentOrders.filter(o => o.id !== updatedOrder.id);
                             }
-                            // Merge payload to preserve nested order_items
                             return currentOrders.map(o => o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o);
-                        } else {
-                            // Only add to dashboard if not completed
-                            if (updatedOrder.status !== 'completed' && updatedOrder.status !== 'refunded') {
-                                return [updatedOrder, ...currentOrders];
-                            } else {
-                                // If we don't have it, but it updated to completed, we should ideally fetch it.
-                                // For now it will populate on next refresh.
-                            }
-                            return currentOrders;
+                        } else if (updatedOrder.status !== 'completed' && updatedOrder.status !== 'refunded') {
+                            return [updatedOrder, ...currentOrders];
                         }
+                        return currentOrders;
                     });
                 }
             )
             .on(
                 'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'orders' },
+                { event: 'INSERT', schema: 'public', table: 'orders', filter: `vendor_id=eq.${currentVendorId}` },
                 (payload) => {
                     const newOrder = payload.new;
                     if (newOrder.status === 'paid') playDing();
-                    if (newOrder.status !== 'completed' && newOrder.status !== 'refunded') {
-                        setOrders(current => [newOrder, ...current]);
-                    }
+                    setOrders(current => [newOrder, ...current]);
                 }
             )
             .subscribe();
 
         // 2. Subscribe to Support Chats
         const chatChannel = supabase
-            .channel('public:support_chats')
+            .channel(`support_chats:${currentVendorId}`)
             .on(
                 'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'support_chats' },
+                { event: 'INSERT', schema: 'public', table: 'support_chats', filter: `vendor_id=eq.${currentVendorId}` },
                 (payload) => {
                     const newChat = payload.new;
-                    if (newChat.vendor_id === currentVendorId) {
-                        setChats(current => [...current, newChat]);
-                        if (newChat.sender_type === 'customer') playDing();
-                    }
+                    setChats(current => [...current, newChat]);
+                    if (newChat.sender_type === 'customer') playDing();
                 }
             )
             .subscribe();
@@ -3190,6 +3142,68 @@ export default function AdminDashboard({ session }) {
                     )}
                 </div>
             </main>
+
+            {/* FLOATING SUPPORT CHAT COMPONENT */}
+            <div style={{ position: 'fixed', bottom: '2rem', right: '2rem', zIndex: 1000 }}>
+                {activeChatSession ? (
+                    <div className="chat-window-glass" style={{ width: '350px', height: '450px', borderRadius: '24px', display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ padding: '1rem 1.5rem', background: 'rgba(0,0,0,0.3)', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <div style={{ width: '8px', height: '8px', background: '#00e676', borderRadius: '50%' }}></div>
+                                <span style={{ fontWeight: 'bold' }}>Customer Chat</span>
+                            </div>
+                            <button onClick={() => setActiveChatSession(null)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.2rem' }}>x</button>
+                        </div>
+                        <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            {chats.filter(c => c.customer_id === activeChatSession).map((chat, idx) => (
+                                <div key={idx} style={{ 
+                                    alignSelf: chat.sender_type === 'admin' ? 'flex-end' : 'flex-start',
+                                    background: chat.sender_type === 'admin' ? '#1e293b' : '#334155',
+                                    padding: '0.75rem 1rem',
+                                    borderRadius: '16px',
+                                    maxWidth: '85%',
+                                    fontSize: '0.9rem',
+                                    color: '#fff',
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                                }}>
+                                    {chat.message}
+                                </div>
+                            ))}
+                        </div>
+                        <div style={{ padding: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <input 
+                                    type="text" 
+                                    value={newAdminMessage}
+                                    onChange={(e) => setNewAdminMessage(e.target.value)}
+                                    placeholder="Type a message..."
+                                    style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '0.75rem', color: '#fff', outline: 'none' }}
+                                    onKeyPress={(e) => { if(e.key === 'Enter') handleSendAdminMessage(); }}
+                                />
+                                <button onClick={handleSendAdminMessage} style={{ background: '#00e676', border: 'none', borderRadius: '12px', padding: '0.75rem', cursor: 'pointer', color: '#0f172a' }}>
+                                    <Icons.Chat />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <button 
+                        onClick={() => {
+                            const lastCust = [...chats].reverse().find(c => c.sender_type === 'customer');
+                            if (lastCust) setActiveChatSession(lastCust.customer_id);
+                        }}
+                        style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#00e676', border: 'none', color: '#0f172a', display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center', boxShadow: '0 10px 30px rgba(0,230,118,0.4)', cursor: 'pointer' }}
+                    >
+                        <Icons.Chat />
+                        {chats.filter(c => c.sender_type === 'customer').length > 0 && (
+                            <div style={{ position: 'absolute', top: 0, right: 0, background: '#ef4444', color: '#fff', borderRadius: '50%', width: '20px', height: '20px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                                {Array.from(new Set(chats.filter(c => c.sender_type === 'customer').map(c => c.customer_id))).length}
+                            </div>
+                        )}
+                    </button>
+                )}
+            </div>
+    
         </div>
     );
 }

@@ -658,11 +658,16 @@ select.form-input option {
    ========================================================================= */
 
 .admin-shell {
-  display: flex;
-  height: 100vh;
-  background-color: #0f172a;
-  color: #f8fafc;
-  overflow: hidden;
+  display: flex !important;
+  flex-direction: row !important;
+  height: 100vh !important;
+  width: 100vw !important;
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+  overflow: hidden !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
 }
 
 .kds-sidebar {
@@ -1249,4 +1254,18 @@ select.form-input option {
 @keyframes timerPulse {
   from { opacity: 0.4; }
   to { opacity: 1; }
-}
+}
+
+.chat-window-glass {
+  background: rgba(30, 41, 59, 0.7) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+  animation: slideUpChat 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideUpChat {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}

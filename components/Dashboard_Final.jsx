@@ -14,7 +14,7 @@ const playDing = () => {
     }
 };
 
-export default function AdminDashboard({ session }) {
+export default function Dashboard_Final({ session }) {
     const [orders, setOrders] = useState([]);
     const [historyOrders, setHistoryOrders] = useState([]);
     const [expenses, setExpenses] = useState([]);

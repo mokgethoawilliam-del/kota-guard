@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from '../src/supabaseClient';
 import { useNavigate, Link } from 'react-router-dom';
 
-export default function RegisterShop() {
+export default function Registration_Final() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [shopName, setShopName] = useState('');

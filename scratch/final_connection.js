@@ -11,7 +11,7 @@ const newKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const newSupabase = createClient(newUrl, newKey);
 
 async function finalConnection() {
-    console.log("🚀 Starting FINAL CONNECTION...");
+    console.log(" Starting FINAL CONNECTION...");
 
     // 1. CLEAR THE SLUG CONFLICT FIRST
     console.log("Clearing slug conflicts...");
@@ -49,10 +49,10 @@ async function finalConnection() {
         console.log(`Inserting ${myMenu.length} menu items...`);
         const { error: mErr } = await newSupabase.from('kg_menu_items').upsert(myMenu);
         if (mErr) console.error("Menu error:", mErr.message);
-        else console.log("✅ Menu Successfully Restored!");
+        else console.log(" Menu Successfully Restored!");
     }
 
-    console.log("🏁 YOUR SITE IS LIVE!");
+    console.log(" YOUR SITE IS LIVE!");
 }
 
 finalConnection();

@@ -11,7 +11,7 @@ const newKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const newSupabase = createClient(newUrl, newKey);
 
 async function smartMigrate() {
-    console.log("🚀 Starting SMART Data Migration...");
+    console.log(" Starting SMART Data Migration...");
 
     const tableMapping = [
         { old: 'vendors', new: 'kg_vendors' },
@@ -71,7 +71,7 @@ async function smartMigrate() {
         console.log(`Finished ${mapping.new}.`);
     }
 
-    console.log("✅ SMART Migration Finished Successfully!");
+    console.log(" SMART Migration Finished Successfully!");
 }
 
 smartMigrate();

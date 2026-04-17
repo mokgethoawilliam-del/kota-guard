@@ -11,7 +11,7 @@ const newKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const newSupabase = createClient(newUrl, newKey);
 
 async function absoluteFinalColumnSafe() {
-    console.log("🚀 Starting COLUMN-SAFE FINAL RESTORATION...");
+    console.log(" Starting COLUMN-SAFE FINAL RESTORATION...");
 
     const trueVendorId = '1bef931b-e562-42cb-8838-a3240102ed6f';
 
@@ -50,10 +50,10 @@ async function absoluteFinalColumnSafe() {
         }));
         const { error: mErr } = await newSupabase.from('kg_menu_items').upsert(cleanedMenu);
         if (mErr) console.error("Menu Insert Failed:", mErr.message);
-        else console.log("✅ Menu Successfully Restored!");
+        else console.log(" Menu Successfully Restored!");
     }
 
-    console.log("🏁 SUCCESS! The Kota Guard platform is restored.");
+    console.log(" SUCCESS! The Kota Guard platform is restored.");
 }
 
 absoluteFinalColumnSafe();

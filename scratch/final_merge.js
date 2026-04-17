@@ -6,7 +6,7 @@ const key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZi
 const supabase = createClient(url, key);
 
 async function finalIdentityMerge() {
-    console.log("🚀 Starting ABSOLUTE IDENTITY MERGE...");
+    console.log(" Starting ABSOLUTE IDENTITY MERGE...");
 
     const goodBrandingId = '4fa85df3-4563-482e-943f-3b92d960b45e';
     const trueDataId = '1bef931b-e562-42cb-8838-a3240102ed6f';
@@ -37,7 +37,7 @@ async function finalIdentityMerge() {
     await supabase.from('kg_menu_items').update({ vendor_id: trueDataId }).not('id', 'is', null);
     await supabase.from('kg_locations').update({ is_active: true, vendor_id: trueDataId }).not('id', 'is', null);
 
-    console.log("🏁 THE SITE IS NOW 100% RESTORED!");
+    console.log(" THE SITE IS NOW 100% RESTORED!");
 }
 
 finalIdentityMerge();

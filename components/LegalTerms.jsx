@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function LegalTerms() {
@@ -39,7 +39,7 @@ export default function LegalTerms() {
                 <section style={{ marginBottom: '2.5rem' }}>
                     <h2 style={{ color: '#00e676', marginBottom: '1rem' }}>3. Payments and Decentralized Infrastructure</h2>
                     <p style={{ lineHeight: '1.6', color: '#cbd5e1' }}>
-                        Our platform operates a decentralized payment architecture. When an End-User purchases from a Vendor, the payment is securely processed directly into the Vendor’s own registered payment gateway accounts (e.g., Paystack). VulaHub does not hold, intercept, or directly manage consumer funds for food orders. Consequently, we cannot issue chargebacks or refunds on behalf of the Vendor.
+                        Our platform operates a decentralized payment architecture. When an End-User purchases from a Vendor, the payment is securely processed directly into the Vendors own registered payment gateway accounts (e.g., Paystack). VulaHub does not hold, intercept, or directly manage consumer funds for food orders. Consequently, we cannot issue chargebacks or refunds on behalf of the Vendor.
                     </p>
                 </section>
 

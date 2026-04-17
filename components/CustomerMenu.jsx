@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../src/supabaseClient';
 
 export default function CustomerMenu({ vendorId, branding }) {
@@ -262,7 +262,7 @@ export default function CustomerMenu({ vendorId, branding }) {
             <div className="success-container">
                 <div className="success-card">
                     <div className="success-icon-wrapper">
-                        <span className="success-icon" role="img" aria-label="success">✅</span>
+                        <span className="success-icon" role="img" aria-label="success"></span>
                     </div>
                     <h1 className="success-headline">Payment Approved</h1>
                     <p className="success-message">Thank you, {customerName}! Your transaction was successful. Kel rata zwap.</p>
@@ -283,11 +283,11 @@ export default function CustomerMenu({ vendorId, branding }) {
                             style={{ width: '100%', marginBottom: '1rem', background: '#3b82f6' }}
                             onClick={handleArrival}
                         >
-                            📍 I HAVE ARRIVED AT THE SHOP
+                             I HAVE ARRIVED AT THE SHOP
                         </button>
                     ) : (
                         <div style={{ padding: '1rem', background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', borderRadius: '8px', marginBottom: '1rem', fontWeight: 'bold' }}>
-                            ✅ Kitchen has been notified of your arrival.
+                             Kitchen has been notified of your arrival.
                         </div>
                     )}
 
@@ -322,7 +322,7 @@ export default function CustomerMenu({ vendorId, branding }) {
                                 background: item.image_url ? `url(${item.image_url}) center/cover` : '#334155',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8'
                             }}>
-                                {!item.image_url && <span style={{ fontSize: '2rem' }}>🍔</span>}
+                                {!item.image_url && <span style={{ fontSize: '2rem' }}></span>}
                             </div>
 
                             <div className="menu-card-content" style={{ padding: '1rem', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
@@ -351,7 +351,7 @@ export default function CustomerMenu({ vendorId, branding }) {
                         style={{ maxWidth: '400px', boxShadow: '0 10px 30px rgba(0, 230, 118, 0.5)' }}
                         onClick={openCheckout}
                     >
-                        🛒 Checkout {cart.reduce((sum, i) => sum + i.qty, 0)} Items (R {cartTotal})
+                         Checkout {cart.reduce((sum, i) => sum + i.qty, 0)} Items (R {cartTotal})
                     </button>
                 </div>
             )}
@@ -414,7 +414,7 @@ export default function CustomerMenu({ vendorId, branding }) {
                                     className="form-input"
                                 />
                                 <small style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
-                                    📱 Enter a valid 10-digit South African number to unlock secret rewards.
+                                     Enter a valid 10-digit South African number to unlock secret rewards.
                                 </small>
                             </div>
 
@@ -427,7 +427,7 @@ export default function CustomerMenu({ vendorId, branding }) {
                                     className="form-input"
                                 />
                                 <small style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
-                                    ⏰ Let Chef Dips know when you'll arrive so it's fresh off the grill!
+                                     Let Chef Dips know when you'll arrive so it's fresh off the grill!
                                 </small>
                             </div>
 

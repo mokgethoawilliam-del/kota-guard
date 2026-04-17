@@ -11,7 +11,7 @@ const newKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const newSupabase = createClient(newUrl, newKey);
 
 async function forceLinkMigration() {
-    console.log("🚀 Starting FORCE-LINK Migration...");
+    console.log(" Starting FORCE-LINK Migration...");
 
     // 1. PULL EVERYTHING FROM OLD
     const { data: vendors } = await oldSupabase.from('vendors').select('*').ilike('name', '%Fabri%');
@@ -40,7 +40,7 @@ async function forceLinkMigration() {
         console.error("Failed to create parent vendor:", vErr.message);
         return;
     }
-    console.log("✅ Parent Vendor Created.");
+    console.log(" Parent Vendor Created.");
 
     // 3. INSERT MENU ITEMS
     if (menu) {
@@ -54,7 +54,7 @@ async function forceLinkMigration() {
 
         const { error: mErr } = await newSupabase.from('kg_menu_items').upsert(myMenu);
         if (mErr) console.error("Menu link error:", mErr.message);
-        else console.log(`✅ ${myMenu.length} items linked successfully.`);
+        else console.log(` ${myMenu.length} items linked successfully.`);
     }
 
     // 4. INSERT LOCATIONS
@@ -67,10 +67,10 @@ async function forceLinkMigration() {
         });
         const { error: lErr } = await newSupabase.from('kg_locations').upsert(myLocs);
         if (lErr) console.error("Location link error:", lErr.message);
-        else console.log("✅ Locations linked successfully.");
+        else console.log(" Locations linked successfully.");
     }
 
-    console.log("🏁 FORCE-LINK COMPLETE! Your storefront is now alive.");
+    console.log(" FORCE-LINK COMPLETE! Your storefront is now alive.");
 }
 
 forceLinkMigration();

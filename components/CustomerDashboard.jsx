@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../src/supabaseClient';
 
 export default function CustomerDashboard({ vendorId, onBack }) {
@@ -118,7 +118,7 @@ export default function CustomerDashboard({ vendorId, onBack }) {
             <div className="orders-timeline">
                 {searched && orders.length === 0 && (
                     <div className="empty-state" style={{ padding: '3rem', textAlign: 'center', background: 'rgba(0,0,0,0.2)', borderRadius: '12px' }}>
-                        <span style={{ fontSize: '3rem', display: 'block', marginBottom: '1rem' }}>🔍</span>
+                        <span style={{ fontSize: '3rem', display: 'block', marginBottom: '1rem' }}></span>
                         No orders found for that number.
                     </div>
                 )}
@@ -141,7 +141,7 @@ export default function CustomerDashboard({ vendorId, onBack }) {
                                 <div>
                                     <h3 style={{ margin: 0, color: '#f8fafc', fontSize: '1.25rem' }}>{order.order_number}</h3>
                                     <p style={{ margin: '0.25rem 0 0 0', color: '#94a3b8', fontSize: '0.9rem' }}>
-                                        {new Date(order.created_at).toLocaleString()} • {order.locations?.name || 'Online'}
+                                        {new Date(order.created_at).toLocaleString()}  {order.locations?.name || 'Online'}
                                     </p>
                                 </div>
                                 <div style={{
@@ -184,7 +184,7 @@ export default function CustomerDashboard({ vendorId, onBack }) {
                                             }
                                         }}
                                     >
-                                        📍 Notify Arrival
+                                         Notify Arrival
                                     </button>
                                 )}
                             </div>

@@ -3,19 +3,52 @@ const fs = require('fs');
 const blueprintFile = 'components/AdminDashboard_modern.jsx';
 const targetFile = 'components/AdminDashboard.jsx';
 
-console.log('--- Titanium Clean-Room Rebuild Initiated ---');
+console.log('--- Sledgehammer RECONSTRUCTION Initiated ---');
 
-// 1. Read Blueprint and Force Remove BOM
+// 1. Read Blueprint
 let content = fs.readFileSync(blueprintFile, 'utf8');
-content = content.replace(/^\uFEFF/, ''); 
 
-// 2. Global Database Re-wiring (Stripping kg_)
+// 2. STRIP ALL NON-ASCII CHARACTERS (The Nuclear Option)
+// This removes ALL emojis and ghost characters, leaving only clean code.
+content = content.replace(/[^\x00-\x7F]/g, '');
+
+// 3. Global Database Re-wiring (No kg_)
 content = content.split("'kg_orders'").join("'orders'");
 content = content.split("'kg_support_chats'").join("'support_chats'");
 content = content.split("'kg_profiles'").join("'profiles'");
 content = content.split("'kg_vendors'").join("'vendors'");
 
-// 3. Inject Inventory Sync (Recipe JSON)
+// 4. Inject SVG Header Icons logic
+// We add more SVG icons to the Icons object
+const iconInsertionPoint = 'CreditCard: () => (';
+const newIcons = `Bell: () => (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+        ),
+        Chef: () => (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 13.8V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v9.8"></path>
+                <path d="M19 13c-1.7 0-3 1.3-3 3s1.3 3 3 3 3-1.3 3-3-1.3-3-3-3z"></path>
+                <path d="M5 13c-1.7 0-3 1.3-3 3s1.3 3 3 3 3-1.3 3-3-1.3-3-3-3z"></path>
+                <path d="M2 16h20"></path>
+            </svg>
+        ),
+        Check: () => (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+        ),
+        `;
+content = content.replace(iconInsertionPoint, newIcons + iconInsertionPoint);
+
+// 5. Replace Corrupted Header Text with Icons + Clean Text
+content = content.replace(/<h2>.*NEW ORDERS.*<\/h2>/g, '<h2><Icons.Bell style={{marginRight:"8px", verticalAlign:"middle", width:"24px", display:"inline-block"}} /> NEW ORDERS ({newOrders.length})</h2>');
+content = content.replace(/<h2>.*PREPARING.*<\/h2>/g, '<h2><Icons.Chef style={{marginRight:"8px", verticalAlign:"middle", width:"24px", display:"inline-block"}} /> PREPARING ({prepOrders.length})</h2>');
+content = content.replace(/<h2>.*READY FOR COLLECTION.*<\/h2>/g, '<h2><Icons.Check style={{marginRight:"8px", verticalAlign:"middle", width:"24px", display:"inline-block"}} /> READY FOR COLLECTION ({readyOrders.length})</h2>');
+
+// 6. Inject Inventory Sync (Recipe JSON)
 const inventorySearch = "if ((newStatus === 'preparing' || newStatus === 'ready') && order.status === 'paid') {";
 const inventoryLogic = `if ((newStatus === 'preparing' || newStatus === 'ready') && order.status === 'paid') {
                 console.log(\`Inventory: Deducting for order \${orderId} moving to \${newStatus}\`);
@@ -47,20 +80,20 @@ const inventoryLogic = `if ((newStatus === 'preparing' || newStatus === 'ready')
                 }`;
 content = content.replace(inventorySearch, inventoryLogic);
 
-// 4. Inject Collection Code Security
+// 7. Inject Collection Code Security
 const completionSearch = "if (newStatus === 'completed') {";
 const completionLogic = `if (newStatus === 'completed') {
                 if (order && order.order_number) {
                     const expectedCode = order.order_number.split('/').pop(); 
-                    const userInput = window.prompt(\` SECURITY CHECK: Enter the Customer's 3-digit Collection Code (e.g., \${expectedCode}) to finalize delivery:\`);
+                    const userInput = window.prompt(\`SECURITY CHECK: Enter the Customer\\'s 3-digit Collection Code (e.g., \${expectedCode}) to finalize delivery:\`);
                     if (userInput !== expectedCode) {
-                        alert(" INVALID CODE: Order cannot be marked as delivered without the correct customer secret.");
+                        alert("INVALID CODE: Order cannot be marked as delivered without the correct customer secret.");
                         return;
                     }
                 }`;
 content = content.replace(completionSearch, completionLogic);
 
-// 5. Fix infinite loading bug
+// 8. Fix infinite loading bug
 const loadingSearch = "if (pErr || !profileData) {";
 const loadingFix = `if (pErr || !profileData) {
                 console.warn("Profile table entry not found, checking session metadata fallback...");
@@ -80,25 +113,12 @@ const loadingFix = `if (pErr || !profileData) {
             }`;
 content = content.replace(loadingSearch, loadingFix);
 
-// 6. Final "Purification" - Strip all non-ASCII unless explicitly allowed (Emojis)
-// Allowed Emojis:                              
-const allowedEmojis = '';
-const purificationRegex = new RegExp(`[^\x00-\x7F${allowedEmojis}]`, 'g');
+// 9. Add Cache Breaking Signature
+const buildId = 'BUILD_v_' + Date.now();
+content = '/* ' + buildId + ' - SLEDGEHAMMER PURIFIED */\n' + content;
 
-// Before stripping, replace KNOWN corrupted pairs with their clean emoji equivalents
-const cleanup = {
-    '': '', '': '', '': '', '': '', '': '', '': '',
-    '': '', '': '', '': '', '': '', '': ''
-};
-Object.keys(cleanup).forEach(k => { content = content.split(k).join(cleanup[k]); });
-
-// Now strip any remaining multi-byte corruption
-content = content.replace(purificationRegex, '');
-
-// Ensure no double-spaces or weird residues
-content = content.replace(/ +(?= )/g,'');
-
+// 10. Write File
 fs.writeFileSync(targetFile, content, 'utf8');
 
-console.log('--- Titanium Clean-Room Rebuild Successful ---');
-console.log('File written: components/AdminDashboard.jsx');
+console.log('--- Sledgehammer Reconstruction Successful ---');
+console.log('Build ID: ' + buildId);

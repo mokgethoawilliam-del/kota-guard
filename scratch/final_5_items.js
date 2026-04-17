@@ -11,7 +11,7 @@ const newKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const newSupabase = createClient(newUrl, newKey);
 
 async function absoluteFinalRestoration5Items() {
-    console.log("🚀 Starting FINAL 5-ITEM RESTORATION...");
+    console.log(" Starting FINAL 5-ITEM RESTORATION...");
 
     const trueVendorId = '1bef931b-e562-42cb-8838-a3240102ed6f';
 
@@ -51,7 +51,7 @@ async function absoluteFinalRestoration5Items() {
         }));
     }
 
-    console.log("🏁 THE 5 ITEMS ARE MOVE COMPLETE!");
+    console.log(" THE 5 ITEMS ARE MOVE COMPLETE!");
 }
 
 absoluteFinalRestoration5Items();

@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 
 export default function PlatformHome() {
@@ -43,9 +43,9 @@ export default function PlatformHome() {
                 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
                     {[
-                        { title: '🟢 WhatsApp Integrated', desc: 'Your customers order directly on WhatsApp. No complex apps to download.', icon: '📱' },
-                        { title: '💳 Secure Payments', desc: 'Accept Card, EFT, and 1Vouchers easily with local gateway integrations.', icon: '💰' },
-                        { title: '🏪 Custom Branding', desc: 'Get a beautiful, professional website for your kitchen that works on any phone.', icon: '🎨' }
+                        { title: ' WhatsApp Integrated', desc: 'Your customers order directly on WhatsApp. No complex apps to download.', icon: '' },
+                        { title: ' Secure Payments', desc: 'Accept Card, EFT, and 1Vouchers easily with local gateway integrations.', icon: '' },
+                        { title: ' Custom Branding', desc: 'Get a beautiful, professional website for your kitchen that works on any phone.', icon: '' }
                     ].map((f, i) => (
                         <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', padding: '2.5rem', borderRadius: '24px' }}>
                             <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>{f.icon}</div>
@@ -70,10 +70,10 @@ export default function PlatformHome() {
                             <h3 style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }}>Free Forever</h3>
                             <div style={{ fontSize: '3rem', fontWeight: 900, marginBottom: '1.5rem' }}>R0 <span style={{ fontSize: '1rem', color: '#64748b' }}>/month</span></div>
                             <ul style={{ listStyle: 'none', padding: 0, marginBottom: '2.5rem', color: '#cbd5e1' }}>
-                                <li style={{ marginBottom: '1rem' }}>✅ Digital Menu & Ordering</li>
-                                <li style={{ marginBottom: '1rem' }}>✅ WhatsApp Bot Integration</li>
-                                <li style={{ marginBottom: '1rem' }}>✅ POS Kitchen Dashboard</li>
-                                <li style={{ color: '#00e676', fontWeight: 'bold' }}>⭐ 5% Platform Transaction Fee</li>
+                                <li style={{ marginBottom: '1rem' }}> Digital Menu & Ordering</li>
+                                <li style={{ marginBottom: '1rem' }}> WhatsApp Bot Integration</li>
+                                <li style={{ marginBottom: '1rem' }}> POS Kitchen Dashboard</li>
+                                <li style={{ color: '#00e676', fontWeight: 'bold' }}> 5% Platform Transaction Fee</li>
                             </ul>
                             <Link to="/register" style={{ display: 'block', textAlign: 'center', background: 'rgba(255,255,255,0.05)', color: '#fff', padding: '1rem', borderRadius: '12px', textDecoration: 'none', fontWeight: 'bold', border: '1px solid rgba(255,255,255,0.1)' }}>Start Registration</Link>
                         </div>
@@ -84,10 +84,10 @@ export default function PlatformHome() {
                             <h3 style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }}>Growth</h3>
                             <div style={{ fontSize: '3rem', fontWeight: 900, marginBottom: '1.5rem' }}>R399 <span style={{ fontSize: '1rem', color: '#000' }}>/month</span></div>
                             <ul style={{ listStyle: 'none', padding: 0, marginBottom: '2.5rem', color: '#fff' }}>
-                                <li style={{ marginBottom: '1rem' }}>✅ Everything in Free</li>
-                                <li style={{ marginBottom: '1rem' }}>✅ Use Your Own API Keys</li>
-                                <li style={{ marginBottom: '1rem' }}>✅ Custom Domain Support</li>
-                                <li style={{ fontWeight: 'bold' }}>🚀 0% Platform Fees</li>
+                                <li style={{ marginBottom: '1rem' }}> Everything in Free</li>
+                                <li style={{ marginBottom: '1rem' }}> Use Your Own API Keys</li>
+                                <li style={{ marginBottom: '1rem' }}> Custom Domain Support</li>
+                                <li style={{ fontWeight: 'bold' }}> 0% Platform Fees</li>
                             </ul>
                             <Link to="/register" style={{ display: 'block', textAlign: 'center', background: '#fff', color: '#000', padding: '1rem', borderRadius: '12px', textDecoration: 'none', fontWeight: 'bold' }}>Go Premium</Link>
                         </div>

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../src/supabaseClient';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -95,7 +95,7 @@ export default function AdminDashboard({ session }) {
     // Phase 16: Customers & Testimonials
     const [testimonials, setTestimonials] = useState([]);
 
-    // ≡ƒÄ¿ Navigation Icons (Minimal SVGs)
+    //  Navigation Icons (Minimal SVGs)
     const Icons = {
         Dashboard: () => (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -612,7 +612,7 @@ export default function AdminDashboard({ session }) {
         
         doc.setFontSize(9);
         doc.setTextColor(150);
-        doc.text(`KASI BUSINESSHUB ΓÇó A Product of Atlas Automation Group`, 14, finalRevY + 20);
+        doc.text(`KASI BUSINESSHUB  A Product of Atlas Automation Group`, 14, finalRevY + 20);
 
         doc.save(`${vendorConfig.slug}_sales_report_${new Date().getTime()}.pdf`);
     };
@@ -639,7 +639,7 @@ export default function AdminDashboard({ session }) {
             
             if (error) throw error;
             setTestimonials([data, ...testimonials]);
-            alert("Testimonial added! ≡ƒÄë");
+            alert("Testimonial added! ");
         } catch (err) {
             alert("Error adding testimonial: " + err.message);
         }
@@ -992,21 +992,21 @@ export default function AdminDashboard({ session }) {
                 onClick={() => window.location.reload()}
                 style={{ background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', padding: '0.75rem 1.5rem', borderRadius: '12px', cursor: 'pointer' }}
             >
-                ≡ƒöä Refresh Page
+                 Refresh Page
             </button>
         </div>
     );
 
     return (
         <div className="admin-shell">
-            {/* Γ¼à∩╕Å Sidebar Navigation */}
+            {/*  Sidebar Navigation */}
             <nav className="kds-sidebar">
                 <div className="sidebar-branding">
                     <div className="vendor-logo-container">
                         {vendorConfig?.logo_url ? (
                             <img src={vendorConfig.logo_url} alt="Logo" className="vendor-logo" />
                         ) : (
-                            <div className="vendor-logo" style={{ background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem' }}>≡ƒÅ¬</div>
+                            <div className="vendor-logo" style={{ background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem' }}></div>
                         )}
                         <span className="vendor-name">{vendorConfig?.name || 'My Shop'}</span>
                     </div>
@@ -1076,7 +1076,7 @@ export default function AdminDashboard({ session }) {
                     border: '2px solid #fca5a5',
                     animation: 'pulse 1s infinite'
                 }}>
-                    <h2 style={{ margin: 0, fontSize: '2rem' }}>≡ƒÜ¿ ARRIVAL ALERT</h2>
+                    <h2 style={{ margin: 0, fontSize: '2rem' }}> ARRIVAL ALERT</h2>
                     <p style={{ margin: '0.5rem 0 0', fontSize: '1.2rem', fontWeight: 'bold' }}>
                         Customer for {arrivalAlert.order_number} is waiting outside!
                     </p>
@@ -1105,7 +1105,7 @@ export default function AdminDashboard({ session }) {
                         textAlign: 'center',
                         boxShadow: '0 25px 50px -12px rgba(239, 68, 68, 0.25)'
                     }}>
-                        <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>ΓÜá∩╕Å</div>
+                        <div style={{ fontSize: '4rem', marginBottom: '1rem' }}></div>
                         <h2 style={{ color: '#ef4444', fontSize: '2rem', marginBottom: '1rem' }}>DANGER ZONE</h2>
                         <p style={{ color: '#f8fafc', fontSize: '1.1rem', marginBottom: '1rem', lineHeight: '1.6' }}>
                             You are about to permanently delete your entire shop.
@@ -1203,7 +1203,7 @@ export default function AdminDashboard({ session }) {
                             <h2 style={{ margin: 0, fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                 <Icons.CreditCard /> Billing & Subscriptions
                             </h2>
-                            <button onClick={() => setShowBillingModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '1.5rem', cursor: 'pointer' }}>Γ£ò</button>
+                            <button onClick={() => setShowBillingModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '1.5rem', cursor: 'pointer' }}></button>
                         </div>
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '2rem' }}>
@@ -1248,15 +1248,15 @@ export default function AdminDashboard({ session }) {
                 <header className="content-header">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         <h1 style={{ fontSize: '1.25rem', margin: 0, fontWeight: '700' }}>
-                            {activeTab === 'overview' && '≡ƒôè Dashboard Overview'}
-                            {activeTab === 'kds' && '≡ƒöÑ Live Kitchen'}
-                            {activeTab === 'support' && '≡ƒÆ¼ Customer Support'}
-                            {activeTab === 'history' && '≡ƒùä∩╕Å Order History'}
-                            {activeTab === 'finances' && '≡ƒÆ░ Financial Management'}
-                            {activeTab === 'inventory' && '≡ƒôª Stock Control'}
-                            {activeTab === 'logistics' && '≡ƒÜÜ Logistics & Delivery'}
-                            {activeTab === 'cms' && 'ΓÜÖ∩╕Å CMS Settings'}
-                            {activeTab === 'help' && 'Γ¥ô Support Center'}
+                            {activeTab === 'overview' && ' Dashboard Overview'}
+                            {activeTab === 'kds' && ' Live Kitchen'}
+                            {activeTab === 'support' && ' Customer Support'}
+                            {activeTab === 'history' && ' Order History'}
+                            {activeTab === 'finances' && ' Financial Management'}
+                            {activeTab === 'inventory' && ' Stock Control'}
+                            {activeTab === 'logistics' && ' Logistics & Delivery'}
+                            {activeTab === 'cms' && ' CMS Settings'}
+                            {activeTab === 'help' && ' Support Center'}
                         </h1>
                         {activeTab === 'kds' && <span style={{ color: '#00e676', fontWeight: 'bold' }}>{liveTime}</span>}
                         {vendorConfig && (
@@ -1276,15 +1276,15 @@ export default function AdminDashboard({ session }) {
                                     marginLeft: '1rem'
                                 }}
                             >
-                                ≡ƒîÉ View Shop
+                                 View Shop
                             </a>
                         )}
                     </div>
 
                     <div className="kds-controls">
-                        {/* ≡ƒò╡∩╕Å Global Search Bar */}
+                        {/*  Global Search Bar */}
                         <div style={{ position: 'relative', flex: 1, minWidth: '350px' }}>
-                            <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>≡ƒöì</span>
+                            <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}></span>
                             <input 
                                 type="text"
                                 placeholder="Search Order # or Name..."
@@ -1304,7 +1304,7 @@ export default function AdminDashboard({ session }) {
                                 <button 
                                     onClick={() => setKdsSearchQuery('')}
                                     style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.2rem' }}
-                                >Γ£ò</button>
+                                ></button>
                             )}
                         </div>
 
@@ -1340,7 +1340,7 @@ export default function AdminDashboard({ session }) {
                                     fontSize: '1.2rem'
                                 }}
                             >
-                                ≡ƒæñ
+                                
                             </button>
                             
                             {isProfileMenuOpen && (
@@ -1369,7 +1369,7 @@ export default function AdminDashboard({ session }) {
                                             }}
                                             style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                                         >
-                                            <span style={{ fontSize: '1rem' }}>≡ƒöÆ</span> Security Vault
+                                            <span style={{ fontSize: '1rem' }}></span> Security Vault
                                         </button>
                                         <button 
                                             onClick={() => {
@@ -1402,7 +1402,7 @@ export default function AdminDashboard({ session }) {
                     </div>
                 </header>
 
-                {/* ≡ƒÅ¢∩╕Å Tab Content Area */}
+                {/*  Tab Content Area */}
                 <div style={{ flex: 1, overflowY: 'auto' }}>
                     {activeTab === 'overview' && (
                         <div style={{ padding: '2rem' }}>
@@ -1454,9 +1454,9 @@ export default function AdminDashboard({ session }) {
                                 <div className="finances-card">
                                     <h3 style={{ marginBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.75rem' }}>Quick Actions</h3>
                                     <div style={{ display: 'grid', gap: '1rem' }}>
-                                        <button className="sidebar-item" onClick={() => setActiveTab('kds')} style={{ background: 'rgba(0, 230, 118, 0.1)', color: '#00e676', padding: '1rem', justifyContent: 'center' }}>≡ƒöÑ Go to Kitchen</button>
-                                        <button className="sidebar-item" onClick={() => setActiveTab('cms')} style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#60a5fa', padding: '1rem', justifyContent: 'center' }}>ΓÜÖ∩╕Å Manage Menu</button>
-                                        <button className="sidebar-item" onClick={() => setActiveTab('finances')} style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', padding: '1rem', justifyContent: 'center' }}>≡ƒÆ░ View Financials</button>
+                                        <button className="sidebar-item" onClick={() => setActiveTab('kds')} style={{ background: 'rgba(0, 230, 118, 0.1)', color: '#00e676', padding: '1rem', justifyContent: 'center' }}> Go to Kitchen</button>
+                                        <button className="sidebar-item" onClick={() => setActiveTab('cms')} style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#60a5fa', padding: '1rem', justifyContent: 'center' }}> Manage Menu</button>
+                                        <button className="sidebar-item" onClick={() => setActiveTab('finances')} style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', padding: '1rem', justifyContent: 'center' }}> View Financials</button>
                                     </div>
                                 </div>
                             </div>
@@ -1479,14 +1479,14 @@ export default function AdminDashboard({ session }) {
 
                         <div className="vault-header">
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                <span style={{ fontSize: '1.5rem' }}>≡ƒöÆ</span>
+                                <span style={{ fontSize: '1.5rem' }}></span>
                                 <div>
                                     <h2 style={{ margin: 0, color: '#fff', fontSize: '1.2rem' }}>High-Security Vault</h2>
                                     {isVaultUnlocked && (
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                             <small style={{ color: vaultTimer < 5 ? '#ef4444' : '#94a3b8' }}>Auto-locking in {vaultTimer}s</small>
                                             {vaultActiveSection && (
-                                                <small style={{ color: '#00e676', fontWeight: 'bold' }}>ΓÇó Viewing {vaultActiveSection.toUpperCase()}</small>
+                                                <small style={{ color: '#00e676', fontWeight: 'bold' }}> Viewing {vaultActiveSection.toUpperCase()}</small>
                                             )}
                                         </div>
                                     )}
@@ -1499,12 +1499,12 @@ export default function AdminDashboard({ session }) {
                                     setActiveTab('kds');
                                 }}
                                 style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '1.5rem', cursor: 'pointer' }}
-                            >Γ£ò</button>
+                            ></button>
                         </div>
 
                         {!isVaultUnlocked ? (
                             <div style={{ padding: '3rem', textAlign: 'center' }}>
-                                <div style={{ fontSize: '3rem', marginBottom: '1.5rem' }}>≡ƒöÉ</div>
+                                <div style={{ fontSize: '3rem', marginBottom: '1.5rem' }}></div>
                                 <h2 style={{ color: '#fff', marginBottom: '1rem' }}>Vault Access Required</h2>
                                 <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '2rem', maxWidth: '400px', margin: '0 auto 2rem' }}>
                                     Please enter your password to view and edit sensitive API keys. This session will auto-lock after 20 seconds of inactivity.
@@ -1512,7 +1512,7 @@ export default function AdminDashboard({ session }) {
                                 
                                 {vaultError && (
                                     <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#f87171', padding: '0.75rem', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
-                                        Γ¥î {vaultError}
+                                         {vaultError}
                                     </div>
                                 )}
 
@@ -1538,7 +1538,7 @@ export default function AdminDashboard({ session }) {
                                     <input 
                                         type="password" 
                                         className="kds-input" 
-                                        placeholder="ΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇó" 
+                                        placeholder="" 
                                         required
                                         autoFocus
                                         value={vaultPassword}
@@ -1551,7 +1551,7 @@ export default function AdminDashboard({ session }) {
                                         className="btn-primary" 
                                         style={{ width: '100%', padding: '1rem' }}
                                     >
-                                        {unlocking ? 'Unlocking...' : '≡ƒöô Open Vault'}
+                                        {unlocking ? 'Unlocking...' : ' Open Vault'}
                                                                         </button>
                                 </form>
                             </div>
@@ -1565,22 +1565,22 @@ export default function AdminDashboard({ session }) {
                                         </p>
                                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
                                             <div className="vault-card" onClick={() => setVaultActiveSection('paystack')}>
-                                                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>≡ƒÆ│</div>
+                                                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}></div>
                                                 <h3 style={{ margin: 0, color: '#fff', fontSize: '1rem' }}>Paystack</h3>
                                                 <p style={{ margin: '0.5rem 0 0', color: '#94a3b8', fontSize: '0.8rem' }}>Payment processing keys</p>
                                             </div>
                                             <div className="vault-card" onClick={() => setVaultActiveSection('netcash')}>
-                                                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>≡ƒÆ╕</div>
+                                                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}></div>
                                                 <h3 style={{ margin: 0, color: '#fff', fontSize: '1rem' }}>Netcash</h3>
                                                 <p style={{ margin: '0.5rem 0 0', color: '#94a3b8', fontSize: '0.8rem' }}>Alternative payments</p>
                                             </div>
                                             <div className="vault-card" onClick={() => setVaultActiveSection('domains')}>
-                                                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>≡ƒîÉ</div>
+                                                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}></div>
                                                 <h3 style={{ margin: 0, color: '#fff', fontSize: '1rem' }}>Custom Domains</h3>
                                                 <p style={{ margin: '0.5rem 0 0', color: '#94a3b8', fontSize: '0.8rem' }}>DNS & Branding URLs</p>
                                             </div>
                                             <div className="vault-card" onClick={() => setVaultActiveSection('whatsapp')}>
-                                                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>≡ƒƒó</div>
+                                                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}></div>
                                                 <h3 style={{ margin: 0, color: '#fff', fontSize: '1rem' }}>WhatsApp Bot</h3>
                                                 <p style={{ margin: '0.5rem 0 0', color: '#94a3b8', fontSize: '0.8rem' }}>Automated notifications</p>
                                             </div>
@@ -1592,14 +1592,14 @@ export default function AdminDashboard({ session }) {
                                             onClick={() => setVaultActiveSection(null)}
                                             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid #334155', color: '#94a3b8', padding: '0.5rem 1rem', borderRadius: '4px', cursor: 'pointer', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                                         >
-                                            ΓåÉ Back to All Categories
+                                             Back to All Categories
                                         </button>
 
                                         {/* Paystack View */}
                                         {vaultActiveSection === 'paystack' && (
                                             <div style={{ maxWidth: '500px' }}>
                                                 <h3 style={{ color: '#fff', fontSize: '1.2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                    ≡ƒÆ│ Paystack Settings
+                                                     Paystack Settings
                                                 </h3>
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                                                     <div>
@@ -1634,10 +1634,10 @@ export default function AdminDashboard({ session }) {
                                                             }).eq('id', currentVendorId);
                                                             setIsSavingVault(false);
                                                             if (error) alert("Save failed: " + error.message);
-                                                            else alert("Paystack keys updated! ≡ƒÆ│");
+                                                            else alert("Paystack keys updated! ");
                                                         }}
                                                     >
-                                                        {isSavingVault ? 'Saving...' : '≡ƒÆ╛ Save Paystack Keys'}
+                                                        {isSavingVault ? 'Saving...' : ' Save Paystack Keys'}
                                                     </button>
                                                 </div>
                                             </div>
@@ -1647,7 +1647,7 @@ export default function AdminDashboard({ session }) {
                                         {vaultActiveSection === 'netcash' && (
                                             <div style={{ maxWidth: '500px' }}>
                                                 <h3 style={{ color: '#fff', fontSize: '1.2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                    ≡ƒÆ╕ Netcash Settings
+                                                     Netcash Settings
                                                 </h3>
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                                                     <div>
@@ -1671,10 +1671,10 @@ export default function AdminDashboard({ session }) {
                                                             }).eq('id', currentVendorId);
                                                             setIsSavingVault(false);
                                                             if (error) alert("Save failed: " + error.message);
-                                                            else alert("Netcash settings updated! ≡ƒÆ╕");
+                                                            else alert("Netcash settings updated! ");
                                                         }}
                                                     >
-                                                        {isSavingVault ? 'Saving...' : '≡ƒÆ╛ Save Netcash Settings'}
+                                                        {isSavingVault ? 'Saving...' : ' Save Netcash Settings'}
                                                     </button>
                                                 </div>
                                             </div>
@@ -1684,7 +1684,7 @@ export default function AdminDashboard({ session }) {
                                         {vaultActiveSection === 'whatsapp' && (
                                             <div style={{ maxWidth: '500px' }}>
                                                 <h3 style={{ color: '#fff', fontSize: '1.2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                    ≡ƒƒó WhatsApp Settings
+                                                     WhatsApp Settings
                                                 </h3>
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                                                     <div>
@@ -1718,10 +1718,10 @@ export default function AdminDashboard({ session }) {
                                                             }).eq('id', currentVendorId);
                                                             setIsSavingVault(false);
                                                             if (error) alert("Save failed: " + error.message);
-                                                            else alert("WhatsApp settings updated! ≡ƒƒó");
+                                                            else alert("WhatsApp settings updated! ");
                                                         }}
                                                     >
-                                                        {isSavingVault ? 'Saving...' : '≡ƒÆ╛ Save WhatsApp Settings'}
+                                                        {isSavingVault ? 'Saving...' : ' Save WhatsApp Settings'}
                                                     </button>
                                                 </div>
                                             </div>
@@ -1731,10 +1731,10 @@ export default function AdminDashboard({ session }) {
                                         {vaultActiveSection === 'domains' && (
                                             <div style={{ maxWidth: '600px' }}>
                                                 <h3 style={{ color: '#fff', fontSize: '1.2rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                    ≡ƒîÉ Domain Configuration
+                                                     Domain Configuration
                                                 </h3>
                                                 <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.85rem', color: '#94a3b8', lineHeight: '1.5' }}>
-                                                    <strong>≡ƒôï Required DNS Records</strong>
+                                                    <strong> Required DNS Records</strong>
                                                     Connect domain via registrar:
                                                     <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                                         <div style={{ background: '#0f172a', padding: '0.75rem', borderRadius: '6px', border: '1px solid #334155' }}>
@@ -1765,10 +1765,10 @@ export default function AdminDashboard({ session }) {
                                                             }).eq('id', currentVendorId);
                                                             setIsSavingVault(false);
                                                             if (error) alert("Save failed: " + error.message);
-                                                            else alert("Custom domain updated! ≡ƒîÉ");
+                                                            else alert("Custom domain updated! ");
                                                         }}
                                                     >
-                                                        {isSavingVault ? 'Saving...' : '≡ƒÆ╛ Verify & Link Domain'}
+                                                        {isSavingVault ? 'Saving...' : ' Verify & Link Domain'}
                                                     </button>
                                                 </div>
                                             </div>
@@ -1786,7 +1786,7 @@ export default function AdminDashboard({ session }) {
                     {kdsSearchQuery.trim() ? (
                         <div style={{ padding: '0 2rem 2rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '1rem' }}>
-                                <h2 style={{ margin: 0, color: '#60a5fa' }}>≡ƒöÄ Global Search Results for "{kdsSearchQuery}"</h2>
+                                <h2 style={{ margin: 0, color: '#60a5fa' }}> Global Search Results for "{kdsSearchQuery}"</h2>
                                 <button className="btn-secondary" onClick={() => setKdsSearchQuery('')}>Clear Search</button>
                             </div>
                             
@@ -1808,7 +1808,7 @@ export default function AdminDashboard({ session }) {
                                             <div key={o.id} style={{ position: 'relative' }}>
                                                 {(o.status === 'completed' || o.status === 'collected') && (
                                                     <div style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 5, background: 'rgba(0,0,0,0.8)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid #10b981', color: '#10b981', fontSize: '0.7rem', fontWeight: 'bold' }}>
-                                                        ≡ƒô£ ARCHIVED
+                                                         ARCHIVED
                                                     </div>
                                                 )}
                                                 <OrderCard 
@@ -1829,7 +1829,7 @@ export default function AdminDashboard({ session }) {
                         <div className="kds-columns">
                             {/* Column 1: New / Paid */}
                             <div className="kds-col kds-col-new">
-                                <h2>≡ƒôÑ NEW ORDERS ({newOrders.length})</h2>
+                                <h2> NEW ORDERS ({newOrders.length})</h2>
                                 <div className="kds-list">
                                     {newOrders.map(o => <OrderCard key={o.id} order={o} updateOrderStatus={updateOrderStatus} showLocation={selectedLocation === 'all'} setIsVerifyingPin={setIsVerifyingPin} setVerificationPin={setVerificationPin} setPinError={setPinError} />)}
                                     {newOrders.length === 0 && <p className="empty-state">No new orders.</p>}
@@ -1838,7 +1838,7 @@ export default function AdminDashboard({ session }) {
 
                             {/* Column 2: Preparing */}
                             <div className="kds-col kds-col-prep">
-                                <h2>≡ƒì│ PREPARING ({prepOrders.length})</h2>
+                                <h2> PREPARING ({prepOrders.length})</h2>
                                 <div className="kds-list">
                                     {prepOrders.map(o => <OrderCard key={o.id} order={o} updateOrderStatus={updateOrderStatus} showLocation={selectedLocation === 'all'} setIsVerifyingPin={setIsVerifyingPin} setVerificationPin={setVerificationPin} setPinError={setPinError} />)}
                                     {prepOrders.length === 0 && <p className="empty-state">Kitchen is clear.</p>}
@@ -1847,7 +1847,7 @@ export default function AdminDashboard({ session }) {
 
                             {/* Column 3: Ready */}
                             <div className="kds-col kds-col-ready">
-                                <h2>≡ƒ¢ì∩╕Å READY FOR COLLECTION ({readyOrders.length})</h2>
+                                <h2> READY FOR COLLECTION ({readyOrders.length})</h2>
                                 <div className="kds-list">
                                     {readyOrders.map(o => <OrderCard key={o.id} order={o} updateOrderStatus={updateOrderStatus} showLocation={selectedLocation === 'all'} setIsVerifyingPin={setIsVerifyingPin} setVerificationPin={setVerificationPin} setPinError={setPinError} />)}
                                     {readyOrders.length === 0 && <p className="empty-state">No orders awaiting pickup.</p>}
@@ -1862,7 +1862,7 @@ export default function AdminDashboard({ session }) {
                 <div style={{ padding: '2rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                         <div>
-                            <h2 style={{ color: '#fff', margin: 0 }}>≡ƒæÑ Customer Database</h2>
+                            <h2 style={{ color: '#fff', margin: 0 }}> Customer Database</h2>
                             <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>A complete list of your customers derived from your order history.</p>
                         </div>
                         <button className="btn-secondary" onClick={() => exportPDF()}>Export as PDF</button>
@@ -1936,7 +1936,7 @@ export default function AdminDashboard({ session }) {
                 <div style={{ padding: '2rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                         <div>
-                            <h2 style={{ color: '#fff', margin: 0 }}>Γ¡É Testimonial Manager</h2>
+                            <h2 style={{ color: '#fff', margin: 0 }}> Testimonial Manager</h2>
                             <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Add and manage customer reviews that appear on your shop's menu page.</p>
                         </div>
                         <button className="btn-primary" onClick={addTestimonial}>+ Add Testimonial</button>
@@ -1945,7 +1945,7 @@ export default function AdminDashboard({ session }) {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
                         {testimonials.map(t => (
                             <div key={t.id} style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', opacity: t.is_active ? 1 : 0.5 }}>
-                                <div style={{ fontSize: '1.2rem', color: '#facc15' }}>{"Γ¡É".repeat(5)}</div>
+                                <div style={{ fontSize: '1.2rem', color: '#facc15' }}>{"".repeat(5)}</div>
                                 <p style={{ color: '#f8fafc', fontStyle: 'italic', margin: 0 }}>"{t.quote}"</p>
                                 <div>
                                     <div style={{ color: '#fff', fontWeight: 'bold' }}>{t.author_name}</div>
@@ -1972,7 +1972,7 @@ export default function AdminDashboard({ session }) {
                     </div>
                     {testimonials.length === 0 && (
                         <div style={{ textAlign: 'center', padding: '5rem', background: '#1e293b', borderRadius: '12px', border: '1px dashed #334155' }}>
-                            <p style={{ color: '#94a3b8' }}>No testimonials yet. Click "+ Add Testimonial" to start building your social proof! Γ¡É</p>
+                            <p style={{ color: '#94a3b8' }}>No testimonials yet. Click "+ Add Testimonial" to start building your social proof! </p>
                         </div>
                     )}
                 </div>
@@ -1983,7 +1983,7 @@ export default function AdminDashboard({ session }) {
                     <div className="cms-card">
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '1rem' }}>
                             <div>
-                                <h2 style={{ color: '#00e676', margin: 0 }}>≡ƒÜÜ Logistics & Delivery Manager</h2>
+                                <h2 style={{ color: '#00e676', margin: 0 }}> Logistics & Delivery Manager</h2>
                                 <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginTop: '0.5rem' }}>Configure delivery availability and fees for each of your branches.</p>
                             </div>
                             <button 
@@ -2002,7 +2002,7 @@ export default function AdminDashboard({ session }) {
                                                 .eq('id', loc.id);
                                             if (error) throw error;
                                         }
-                                        alert("Logistics updated successfully! ≡ƒÜÜ");
+                                        alert("Logistics updated successfully! ");
                                     } catch (err) {
                                         alert("Error saving logistics: " + err.message);
                                     } finally {
@@ -2010,7 +2010,7 @@ export default function AdminDashboard({ session }) {
                                     }
                                 }}
                             >
-                                {isSavingLogistics ? 'Saving...' : '≡ƒÆ╛ Save Logistics Config'}
+                                {isSavingLogistics ? 'Saving...' : ' Save Logistics Config'}
                             </button>
                         </div>
 
@@ -2018,7 +2018,7 @@ export default function AdminDashboard({ session }) {
                             {locations.map(loc => (
                                 <div key={loc.id} style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '1.5rem' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-                                        <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#fff' }}>≡ƒôì {loc.name}</h3>
+                                        <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#fff' }}> {loc.name}</h3>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                             <span style={{ fontSize: '0.8rem', color: loc.delivery_enabled ? '#00e676' : '#64748b' }}>
                                                 {loc.delivery_enabled ? 'Delivery ON' : 'Delivery OFF'}
@@ -2081,7 +2081,7 @@ export default function AdminDashboard({ session }) {
                             backdropFilter: 'blur(10px)'
                         }}>
                             <div className="cms-card" style={{ width: '400px', textAlign: 'center', border: '1px solid rgba(0, 230, 118, 0.3)', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
-                                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>≡ƒöÉ</div>
+                                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}></div>
                                 <h2 style={{ color: '#00e676', marginBottom: '0.5rem' }}>Verify Collection PIN</h2>
                                 <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>
                                     Enter the 4-digit secret PIN from <strong>{isVerifyingPin.customer_name}'s</strong> order to verify hand-off.
@@ -2136,7 +2136,7 @@ export default function AdminDashboard({ session }) {
                     {/* Left Pane: Sessions */}
                     <div style={{ width: '350px', background: '#1e293b', borderRight: '1px solid #334155', display: 'flex', flexDirection: 'column' }}>
                         <div style={{ padding: '1rem', borderBottom: '1px solid #334155', background: '#0f172a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h2 style={{ fontSize: '1.2rem', margin: 0 }}>≡ƒÆ¼ Active Chats</h2>
+                            <h2 style={{ fontSize: '1.2rem', margin: 0 }}> Active Chats</h2>
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
                                 <button 
                                     onClick={() => setChatMode('active')}
@@ -2256,14 +2256,14 @@ export default function AdminDashboard({ session }) {
             {activeTab === 'help' && (
                 <div className="vault-container" style={{ maxWidth: '800px', margin: '0 auto' }}>
                     <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-                        <h2 style={{ fontSize: '2.5rem', marginBottom: '1rem', color: '#60a5fa' }}>≡ƒæï Welcome to the Help Center!</h2>
+                        <h2 style={{ fontSize: '2.5rem', marginBottom: '1rem', color: '#60a5fa' }}> Welcome to the Help Center!</h2>
                         <p style={{ color: '#94a3b8', fontSize: '1.1rem' }}>Here is everything you need to know about your shop, explained simply so even a 10-year-old could run it.</p>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                         {/* Section 1 */}
                         <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '2rem' }}>
-                            <h3 style={{ fontSize: '1.5rem', color: '#00e676', marginBottom: '1rem' }}>≡ƒöÑ Live Kitchen</h3>
+                            <h3 style={{ fontSize: '1.5rem', color: '#00e676', marginBottom: '1rem' }}> Live Kitchen</h3>
                             <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
                                 Think of the <strong>Live Kitchen</strong> as the beating heart of your shop. When a customer orders online or via WhatsApp, a magic ticket pops up here under "New Orders." 
                             </p>
@@ -2276,7 +2276,7 @@ export default function AdminDashboard({ session }) {
 
                         {/* Section 2 */}
                         <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '2rem' }}>
-                            <h3 style={{ fontSize: '1.5rem', color: '#3b82f6', marginBottom: '1rem' }}>≡ƒÆ¼ Live Chat</h3>
+                            <h3 style={{ fontSize: '1.5rem', color: '#3b82f6', marginBottom: '1rem' }}> Live Chat</h3>
                             <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
                                 This is your secret walkie-talkie to your customers. If they get confused or want to change their order, they will send a message from their phone, and you will see it here. Just click their order number and type back!
                             </p>
@@ -2284,7 +2284,7 @@ export default function AdminDashboard({ session }) {
 
                         {/* Section 3 */}
                         <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '2rem' }}>
-                            <h3 style={{ fontSize: '1.5rem', color: '#f59e0b', marginBottom: '1rem' }}>≡ƒÆ░ Finances & ≡ƒôª Inventory</h3>
+                            <h3 style={{ fontSize: '1.5rem', color: '#f59e0b', marginBottom: '1rem' }}> Finances &  Inventory</h3>
                             <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
                                 <strong>Finances:</strong> This is your piggy bank. Every time a customer pays, money goes up! If you buy tomatoes, log it as an "Expense" so the piggy bank knows exactly how much you really made (Net Profit).
                                 <br/><br/>
@@ -2294,7 +2294,7 @@ export default function AdminDashboard({ session }) {
 
                         {/* Section 4 */}
                         <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '2rem' }}>
-                            <h3 style={{ fontSize: '1.5rem', color: '#8b5cf6', marginBottom: '1rem' }}>ΓÜÖ∩╕Å CMS Settings</h3>
+                            <h3 style={{ fontSize: '1.5rem', color: '#8b5cf6', marginBottom: '1rem' }}> CMS Settings</h3>
                             <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
                                 The <strong>CMS</strong> (Content Management System) is your magic paintbrush. It lets you change your shop name, colors, add new items to the menu (like a new special chips), and set up new Stalls. Anything you change here instantly updates on the customer's phone!
                             </p>
@@ -2302,7 +2302,7 @@ export default function AdminDashboard({ session }) {
 
                         {/* Section 5 */}
                         <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '12px', padding: '2rem' }}>
-                            <h3 style={{ fontSize: '1.5rem', color: '#f87171', marginBottom: '1rem' }}>≡ƒæñ Profile Dropdown (Top Right)</h3>
+                            <h3 style={{ fontSize: '1.5rem', color: '#f87171', marginBottom: '1rem' }}> Profile Dropdown (Top Right)</h3>
                             <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
                                 See that little person icon in the top right corner? That's your private key. 
                                 <br/><br/>
@@ -2336,7 +2336,7 @@ export default function AdminDashboard({ session }) {
                                         color: '#fff'
                                     }}
                                 />
-                                <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>≡ƒöì</span>
+                                <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}></span>
                             </div>
 
                             <select 
@@ -2348,8 +2348,8 @@ export default function AdminDashboard({ session }) {
                                 <option value="all">All Time</option>
                                 <option value="today">Today's Orders</option>
                             </select>
-                            <button className="btn-secondary" onClick={exportToCSV}>≡ƒôè Active Queue CSV</button>
-                            <button className="btn-primary" onClick={exportPDF}>≡ƒôä Download PDF Report</button>
+                            <button className="btn-secondary" onClick={exportToCSV}> Active Queue CSV</button>
+                            <button className="btn-primary" onClick={exportPDF}> Download PDF Report</button>
                         </div>
                     </div>
 
@@ -2383,7 +2383,7 @@ export default function AdminDashboard({ session }) {
                                             <td>{new Date(o.updated_at || o.created_at).toLocaleString()}</td>
                                             <td>
                                                 {o.customer_name} ({o.customer_phone})<br />
-                                                <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>≡ƒôì {o.locations?.name || 'Local'}</span>
+                                                <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}> {o.locations?.name || 'Local'}</span>
                                             </td>
                                             <td>
                                                 {o.order_items?.map(i => `${i.quantity}x ${i.menu_items?.name}`).join(', ')}
@@ -2428,7 +2428,7 @@ export default function AdminDashboard({ session }) {
                     {/* Expense Form & List */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem' }}>
                         <div className="kds-card" style={{ padding: '1.5rem', height: 'max-content' }}>
-                            <h3 style={{ marginBottom: '1rem', borderBottom: '1px solid #334155', paddingBottom: '0.5rem' }}>ΓÜí Quick Add Expense</h3>
+                            <h3 style={{ marginBottom: '1rem', borderBottom: '1px solid #334155', paddingBottom: '0.5rem' }}> Quick Add Expense</h3>
                             <form className="checkout-form" onSubmit={handleAddExpense}>
                                 <div className="form-group">
                                     <label>Expense Description</label>
@@ -2512,9 +2512,9 @@ export default function AdminDashboard({ session }) {
                             <p style={{ color: '#94a3b8' }}>Manage raw ingredients. Stock automatically deducts when Kitchen Staff click "Start Preparing".</p>
                         </div>
                         <div style={{ display: 'flex', gap: '1rem' }}>
-                            <button className="btn-secondary" onClick={fetchInitialData}>≡ƒöä Refresh</button>
+                            <button className="btn-secondary" onClick={fetchInitialData}> Refresh</button>
                             <button className="btn-primary" onClick={() => setIsAddingIngredient(!isAddingIngredient)}>
-                                {isAddingIngredient ? 'Cancel' : 'Γ₧ò Add Ingredient'}
+                                {isAddingIngredient ? 'Cancel' : ' Add Ingredient'}
                             </button>
                         </div>
                     </div>
@@ -2630,10 +2630,10 @@ export default function AdminDashboard({ session }) {
                         borderBottom: '1px solid rgba(255,255,255,0.05)' 
                     }}>
                         {[
-                            { id: 'menu', label: '≡ƒìö Live Menu Manager', icon: '≡ƒìö' },
-                            { id: 'branches', label: '≡ƒôì Branch Manager', icon: '≡ƒôì' },
-                            { id: 'events', label: '≡ƒùô∩╕Å Mobile Stalls & Events', icon: '≡ƒùô∩╕Å' },
-                            { id: 'branding', label: '≡ƒÄ¿ Brand & Website Identity', icon: '≡ƒÄ¿' }
+                            { id: 'menu', label: ' Live Menu Manager', icon: '' },
+                            { id: 'branches', label: ' Branch Manager', icon: '' },
+                            { id: 'events', label: ' Mobile Stalls & Events', icon: '' },
+                            { id: 'branding', label: ' Brand & Website Identity', icon: '' }
                         ].map(sub => (
                             <button
                                 key={sub.id}
@@ -2664,7 +2664,7 @@ export default function AdminDashboard({ session }) {
                         {cmsActiveSubTab === 'menu' && (
                             <div className="finances-card">
                                 <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    ≡ƒìö Live Menu Manager
+                                     Live Menu Manager
                                 </h2>
 
                                 {/* Recipe Builder Modal UI */}
@@ -2706,12 +2706,12 @@ export default function AdminDashboard({ session }) {
                                                         style={{ padding: '0.5rem' }}
                                                         onClick={() => handleRemoveRecipeIngredientRow(idx)}
                                                     >
-                                                        Γ£û
+                                                        
                                                     </button>
                                                 </div>
                                             ))}
                                             <button className="btn-secondary" type="button" style={{ marginTop: '0.5rem' }} onClick={handleAddRecipeIngredientRow}>
-                                                Γ₧ò Add Another Ingredient
+                                                 Add Another Ingredient
                                             </button>
                                         </div>
 
@@ -2821,7 +2821,7 @@ export default function AdminDashboard({ session }) {
                         {cmsActiveSubTab === 'branches' && (
                             <div className="finances-card">
                                 <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    ≡ƒôì Branch Manager (Permanent Locations)
+                                     Branch Manager (Permanent Locations)
                                 </h2>
                                 <p style={{ color: '#94a3b8', marginBottom: '2rem' }}>Manage your physical shop locations. Customers will select these during checkout.</p>
 
@@ -2862,7 +2862,7 @@ export default function AdminDashboard({ session }) {
                                             />
                                         </div>
                                         <button type="submit" className="btn-primary" disabled={isSavingBranch} style={{ padding: '0.75rem 2rem' }}>
-                                            {isSavingBranch ? 'Saving...' : 'Γ₧ò Add Branch'}
+                                            {isSavingBranch ? 'Saving...' : ' Add Branch'}
                                         </button>
                                     </form>
                                 </div>
@@ -2881,7 +2881,7 @@ export default function AdminDashboard({ session }) {
                                             {locations.filter(l => !l.is_mobile).map(branch => (
                                                 <tr key={branch.id} style={{ borderBottom: '1px solid #334155' }}>
                                                     <td style={{ padding: '1rem' }}><strong>{branch.name}</strong></td>
-                                                    <td style={{ padding: '1rem' }}><span className="status-badge" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#60a5fa' }}>≡ƒÅ¬ Permanent</span></td>
+                                                    <td style={{ padding: '1rem' }}><span className="status-badge" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#60a5fa' }}> Permanent</span></td>
                                                     <td style={{ padding: '1rem' }}>
                                                         <span className={`status-badge ${branch.is_active ? 'status-ready' : 'status-paid'}`}>
                                                             {branch.is_active ? 'Active' : 'Hidden'}
@@ -2921,7 +2921,7 @@ export default function AdminDashboard({ session }) {
                         {/* 3. Mobile Stalls & Events */}
                         {cmsActiveSubTab === 'events' && (
                             <div className="finances-card">
-                                <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>≡ƒùô∩╕Å Mobile Stalls & Events</h2>
+                                <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem' }}> Mobile Stalls & Events</h2>
 
                                 {/* List Existing Stalls */}
                                 <div style={{ marginBottom: '2rem' }}>
@@ -3028,7 +3028,7 @@ export default function AdminDashboard({ session }) {
                         {cmsActiveSubTab === 'branding' && (
                             <div className="finances-card" style={{ border: '1px solid #00e676' }}>
                                 <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                    ≡ƒÄ¿ Brand & Website Identity
+                                     Brand & Website Identity
                                 </h2>
                                 {vendorConfig ? (
                                     <form onSubmit={async (e) => {
@@ -3086,7 +3086,7 @@ export default function AdminDashboard({ session }) {
                                             }).eq('id', currentVendorId);
                                             
                                             if (error) throw error;
-                                            alert("Branding settings updated! Γ£¿");
+                                            alert("Branding settings updated! ");
                                             setVendorConfig({ ...vendorConfig, name: vendorConfig.name, branding: finalBranding, logo_url: finalLogoUrl });
                                             setHeroImageFile(null);
                                             setLogoFile(null);
@@ -3210,13 +3210,13 @@ const OrderCard = ({ order, updateOrderStatus, showLocation, setIsVerifyingPin, 
                     gap: '0.3rem',
                     border: '2px solid #0f172a'
                 }}>
-                    ≡ƒÜÜ DELIVERY
+                     DELIVERY
                 </div>
             )}
             
             {order.customer_arrived && (
                 <div style={{ background: '#ef4444', color: '#fff', padding: '0.5rem', textAlign: 'center', fontWeight: 'bold', fontSize: '1rem', borderTopLeftRadius: '10px', borderTopRightRadius: '10px', marginBottom: '-1px' }}>
-                    ≡ƒÜ¿ CUSTOMER IS WAITING OUTSIDE
+                     CUSTOMER IS WAITING OUTSIDE
                 </div>
             )}
             <div className="kds-card-header" style={{ paddingTop: order.customer_arrived ? '0.5rem' : '' }}>
@@ -3226,7 +3226,7 @@ const OrderCard = ({ order, updateOrderStatus, showLocation, setIsVerifyingPin, 
             <div className="kds-customer-info">
                 <p><strong>{order.customer_name}</strong></p>
                 <p>WA: {order.customer_phone}</p>
-                {showLocation && <p className="kds-loc">≡ƒôì {order.locations?.name}</p>}
+                {showLocation && <p className="kds-loc"> {order.locations?.name}</p>}
 
                 {isDelivery && order.delivery_address && (
                     <div style={{ 
@@ -3239,7 +3239,7 @@ const OrderCard = ({ order, updateOrderStatus, showLocation, setIsVerifyingPin, 
                         color: '#60a5fa',
                         lineHeight: '1.4'
                     }}>
-                        <strong>≡ƒÅá Delivery Address:</strong><br/>
+                        <strong> Delivery Address:</strong><br/>
                         {order.delivery_address}
                     </div>
                 )}
@@ -3247,7 +3247,7 @@ const OrderCard = ({ order, updateOrderStatus, showLocation, setIsVerifyingPin, 
                 {/* PRE-ORDER TIME */}
                 {order.estimated_collection_time && (
                     <p style={{ color: '#fbbf24', fontWeight: 'bold', marginTop: '0.25rem' }}>
-                        ΓÅ░ Collect time: {order.estimated_collection_time.substring(0, 5)}
+                         Collect time: {order.estimated_collection_time.substring(0, 5)}
                     </p>
                 )}
             </div>

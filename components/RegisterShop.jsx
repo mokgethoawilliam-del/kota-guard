@@ -195,7 +195,7 @@ export default function RegisterShop() {
                             className="kds-input"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            placeholder="••••••••"
+                            placeholder=""
                             style={{ 
                                 width: '100%', 
                                 padding: '14px 16px', 

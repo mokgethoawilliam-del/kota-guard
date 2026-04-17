@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { supabase } from '../src/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
@@ -98,7 +98,7 @@ export default function Login() {
                             className="kds-input"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            placeholder="••••••••"
+                            placeholder=""
                             style={{ width: '100%', padding: '12px 16px', background: 'rgba(0,0,0,0.2)' }}
                         />
                     </div>

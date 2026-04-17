@@ -11,7 +11,7 @@ const newKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const newSupabase = createClient(newUrl, newKey);
 
 async function migrate() {
-    console.log("🚀 Starting Data Migration...");
+    console.log(" Starting Data Migration...");
 
     try {
         // 1. Migrate VENDORS -> KG_VENDORS
@@ -76,9 +76,9 @@ async function migrate() {
             if (error) console.error("Error migrating gallery:", error.message);
         }
 
-        console.log("✅ Migration Finished Successfully!");
+        console.log(" Migration Finished Successfully!");
     } catch (err) {
-        console.error("❌ Critical Migration Failure:", err);
+        console.error(" Critical Migration Failure:", err);
     }
 }
 

@@ -11,7 +11,7 @@ const newKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const newSupabase = createClient(newUrl, newKey);
 
 async function finalTranslationMigration() {
-    console.log("🚀 Starting FINAL Data Translation...");
+    console.log(" Starting FINAL Data Translation...");
 
     // 1. EXTRACT ALL DATA
     const { data: oldMenu } = await oldSupabase.from('menu_items').select('*');
@@ -36,7 +36,7 @@ async function finalTranslationMigration() {
 
         const { error } = await newSupabase.from('kg_menu_items').upsert(translatedMenu);
         if (error) console.error("Error inserting menu items:", error.message);
-        else console.log("✅ Successfully migrated 120+ menu items.");
+        else console.log(" Successfully migrated 120+ menu items.");
     }
 
     // 3. TRANSLATE & INSERT LOCATIONS
@@ -53,7 +53,7 @@ async function finalTranslationMigration() {
 
         const { error } = await newSupabase.from('kg_locations').upsert(translatedLocs);
         if (error) console.error("Error inserting locations:", error.message);
-        else console.log("✅ Successfully migrated locations.");
+        else console.log(" Successfully migrated locations.");
     }
 
     // 4. TRANSLATE & INSERT INGREDIENTS
@@ -70,10 +70,10 @@ async function finalTranslationMigration() {
 
         const { error } = await newSupabase.from('kg_ingredients').upsert(translatedIngs);
         if (error) console.error("Error inserting ingredients:", error.message);
-        else console.log("✅ Successfully migrated inventory.");
+        else console.log(" Successfully migrated inventory.");
     }
 
-    console.log("🏁 Restoration Complete!");
+    console.log(" Restoration Complete!");
 }
 
 finalTranslationMigration();

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { supabase } from '../src/supabaseClient';
 
 export default function CustomerDashboard({ vendorId, onBack }) {

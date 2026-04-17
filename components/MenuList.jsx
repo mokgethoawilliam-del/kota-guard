@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize the Supabase client
@@ -19,7 +19,7 @@ export default function MenuList() {
         setLoading(true);
         // Fetch data from the menu_items table
         const { data, error } = await supabase
-          .from('kg_menu_items')
+          .from('menu_items')
           .select('*')
           .order('name'); 
 

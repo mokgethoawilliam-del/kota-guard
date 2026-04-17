@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { supabase } from '../src/supabaseClient';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -197,7 +197,7 @@ export default function AdminDashboard({ session }) {
                 .single();
 
             if (pErr || !profileData) {
-                console.warn("Profile table entry not found, using session metadata fallback...");
+                console.warn("Profile table entry not found, checking session metadata fallback...");
                 const metadata = session.user.user_metadata;
                 if (metadata?.vendor_id) {
                     const fallbackProfile = {
@@ -206,9 +206,10 @@ export default function AdminDashboard({ session }) {
                     };
                     setProfile(fallbackProfile);
                     setCurrentVendorId(metadata.vendor_id);
-                    return;
+                } else {
+                    console.error("Critical: No vendor_id found in profile OR metadata.", pErr);
                 }
-                console.error("Critical: No vendor_id found in profile OR metadata.", pErr);
+                setLoading(false); // Ensure loading completes even on failure
                 return;
             }
 
@@ -439,7 +440,7 @@ export default function AdminDashboard({ session }) {
 
             // Fetch Testimonials
             const { data: testData } = await supabase
-                .from('kg_testimonials')
+                .from('testimonials')
                 .select('*')
                 .eq('vendor_id', currentVendorId)
                 .order('created_at', { ascending: false });
@@ -643,7 +644,7 @@ export default function AdminDashboard({ session }) {
 
         try {
             const { data, error } = await supabase
-                .from('kg_testimonials')
+                .from('testimonials')
                 .insert({
                     vendor_id: currentVendorId,
                     quote,
@@ -664,7 +665,7 @@ export default function AdminDashboard({ session }) {
     const toggleTestimonial = async (id, currentStatus) => {
         try {
             const { error } = await supabase
-                .from('kg_testimonials')
+                .from('testimonials')
                 .update({ is_active: !currentStatus })
                 .eq('id', id);
             
@@ -679,7 +680,7 @@ export default function AdminDashboard({ session }) {
         if (!window.confirm("Are you sure you want to delete this testimonial?")) return;
         try {
             const { error } = await supabase
-                .from('kg_testimonials')
+                .from('testimonials')
                 .delete()
                 .eq('id', id);
             

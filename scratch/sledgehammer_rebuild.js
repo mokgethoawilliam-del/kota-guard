@@ -1,25 +1,22 @@
 const fs = require('fs');
 
 const blueprintFile = 'components/AdminDashboard_modern.jsx';
-const targetFile = 'components/AdminDashboard.jsx';
+const targetFile = 'components/Dashboard_Final.jsx';
 
-console.log('--- Sledgehammer RECONSTRUCTION Initiated ---');
+console.log('--- Sledgehammer RECONSTRUCTION v2 Initiated ---');
 
-// 1. Read Blueprint
+// 1. Read Blueprint and Force Remove BOM
 let content = fs.readFileSync(blueprintFile, 'utf8');
+content = content.replace(/^\uFEFF/, ''); 
 
-// 2. STRIP ALL NON-ASCII CHARACTERS (The Nuclear Option)
-// This removes ALL emojis and ghost characters, leaving only clean code.
+// 2. STRIP ALL NON-ASCII CHARACTERS (Nuclear Option)
 content = content.replace(/[^\x00-\x7F]/g, '');
 
 // 3. Global Database Re-wiring (No kg_)
-content = content.split("'kg_orders'").join("'orders'");
-content = content.split("'kg_support_chats'").join("'support_chats'");
-content = content.split("'kg_profiles'").join("'profiles'");
-content = content.split("'kg_vendors'").join("'vendors'");
+const tables = ['orders', 'support_chats', 'profiles', 'vendors', 'ingredients', 'menu_items', 'expenses', 'locations', 'testimonials'];
+tables.forEach(t => { content = content.split("'kg_" + t + "'").join("'" + t + "'"); });
 
 // 4. Inject SVG Header Icons logic
-// We add more SVG icons to the Icons object
 const iconInsertionPoint = 'CreditCard: () => (';
 const newIcons = `Bell: () => (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -48,77 +45,53 @@ content = content.replace(/<h2>.*NEW ORDERS.*<\/h2>/g, '<h2><Icons.Bell style={{
 content = content.replace(/<h2>.*PREPARING.*<\/h2>/g, '<h2><Icons.Chef style={{marginRight:"8px", verticalAlign:"middle", width:"24px", display:"inline-block"}} /> PREPARING ({prepOrders.length})</h2>');
 content = content.replace(/<h2>.*READY FOR COLLECTION.*<\/h2>/g, '<h2><Icons.Check style={{marginRight:"8px", verticalAlign:"middle", width:"24px", display:"inline-block"}} /> READY FOR COLLECTION ({readyOrders.length})</h2>');
 
-// 6. Inject Inventory Sync (Recipe JSON)
-const inventorySearch = "if ((newStatus === 'preparing' || newStatus === 'ready') && order.status === 'paid') {";
-const inventoryLogic = `if ((newStatus === 'preparing' || newStatus === 'ready') && order.status === 'paid') {
-                console.log(\`Inventory: Deducting for order \${orderId} moving to \${newStatus}\`);
-                if (order && order.order_items) {
-                    const inventoryDeductions = {};
-                    order.order_items.forEach(item => {
-                        const recipe = item.menu_items?.recipe_json || {};
-                        const qty = Number(item.quantity || 1);
-                        Object.keys(recipe).forEach(ingredientName => {
-                            const amountPerItem = Number(recipe[ingredientName]);
-                            inventoryDeductions[ingredientName] = (inventoryDeductions[ingredientName] || 0) + (amountPerItem * qty);
-                        });
-                    });
+// 6. SMART REPLACEMENT: loadProfileAndData function body
+const oldFunctionStart = 'const loadProfileAndData = async () => {';
+const oldFunctionEnd = 'loadProfileAndData().finally(() => setLoading(false));';
+const startIdx = content.indexOf(oldFunctionStart);
+const endIdx = content.indexOf(oldFunctionEnd, startIdx);
 
-                    for (const ingredientName of Object.keys(inventoryDeductions)) {
-                        const amountToDeduct = inventoryDeductions[ingredientName];
-                        supabase.from('ingredients')
-                            .select('id, current_stock')
-                            .eq('name', ingredientName)
-                            .eq('vendor_id', currentVendorId)
-                            .maybeSingle()
-                            .then(({ data: invData, error: fetchErr }) => {
-                                if (!fetchErr && invData && invData.current_stock !== null) {
-                                    const newStock = Math.max(0, Number(invData.current_stock) - amountToDeduct);
-                                    supabase.from('ingredients').update({ current_stock: newStock }).eq('id', invData.id).then();
-                                }
-                            });
-                    }
-                }`;
-content = content.replace(inventorySearch, inventoryLogic);
+if (startIdx !== -1 && endIdx !== -1) {
+    const newFunctionBody = `const loadProfileAndData = async () => {
+            if (!session?.user?.id) return;
+            const { data: profileData, error: pErr } = await supabase.from('profiles').select('vendor_id, full_name').eq('id', session.user.id).single();
+
+            if (pErr || !profileData) {
+                console.warn(\"Profile table entry not found, checking fallback...\");
+                const metadata = session.user.user_metadata;
+                if (metadata?.vendor_id) {
+                    setProfile({ vendor_id: metadata.vendor_id, full_name: metadata.full_name || 'Owner' });
+                    setCurrentVendorId(metadata.vendor_id);
+                }
+                setLoading(false);
+                return;
+            }
+            setProfile(profileData);
+            setCurrentVendorId(profileData.vendor_id);
+            setLoading(false);
+        };
+
+        `;
+    content = content.substring(0, startIdx) + newFunctionBody + content.substring(endIdx);
+}
 
 // 7. Inject Collection Code Security
 const completionSearch = "if (newStatus === 'completed') {";
 const completionLogic = `if (newStatus === 'completed') {
                 if (order && order.order_number) {
                     const expectedCode = order.order_number.split('/').pop(); 
-                    const userInput = window.prompt(\`SECURITY CHECK: Enter the Customer\\'s 3-digit Collection Code (e.g., \${expectedCode}) to finalize delivery:\`);
+                    const userInput = window.prompt(\`SECURITY CHECK: Enter the Customers 3-digit Collection Code (e.g., \${expectedCode}) to finalize delivery:\`);
                     if (userInput !== expectedCode) {
-                        alert("INVALID CODE: Order cannot be marked as delivered without the correct customer secret.");
+                        alert(\"INVALID CODE: Order cannot be marked as delivered without the correct customer secret.\");
                         return;
                     }
                 }`;
 content = content.replace(completionSearch, completionLogic);
 
-// 8. Fix infinite loading bug
-const loadingSearch = "if (pErr || !profileData) {";
-const loadingFix = `if (pErr || !profileData) {
-                console.warn("Profile table entry not found, checking session metadata fallback...");
-                const metadata = session.user.user_metadata;
-                if (metadata?.vendor_id) {
-                    const fallbackProfile = {
-                        vendor_id: metadata.vendor_id,
-                        full_name: metadata.full_name || 'Shop Owner'
-                    };
-                    setProfile(fallbackProfile);
-                    setCurrentVendorId(metadata.vendor_id);
-                } else {
-                    console.error("Critical: No vendor_id found in profile OR metadata.", pErr);
-                }
-                setLoading(false);
-                return;
-            }`;
-content = content.replace(loadingSearch, loadingFix);
-
-// 9. Add Cache Breaking Signature
+// 8. Final Cache Break Build ID
 const buildId = 'BUILD_v_' + Date.now();
-content = '/* ' + buildId + ' - SLEDGEHAMMER PURIFIED */\n' + content;
+content = '/* ' + buildId + ' - SLEDGEHAMMER PURIFIED v2 */\n' + content.replace('AdminDashboard', 'Dashboard_Final');
 
-// 10. Write File
 fs.writeFileSync(targetFile, content, 'utf8');
-
-console.log('--- Sledgehammer Reconstruction Successful ---');
+console.log('--- Sledgehammer Reconstruction v2 Successful ---');
 console.log('Build ID: ' + buildId);

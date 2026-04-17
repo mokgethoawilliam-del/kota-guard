@@ -1,4 +1,4 @@
-/* BUILD_v_1776407723412 - SLEDGEHAMMER PURIFIED */
+/* BUILD_v_1776410772884 - SLEDGEHAMMER PURIFIED v2 */
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../src/supabaseClient';
 import jsPDF from 'jspdf';
@@ -208,48 +208,21 @@ export default function Dashboard_Final({ session }) {
     useEffect(() => {
         const loadProfileAndData = async () => {
             if (!session?.user?.id) return;
-
-            // 1. Fetch Profile to get vendor_id
-            const { data: profileData, error: pErr } = await supabase
-                .from('profiles')
-                .select('vendor_id, full_name')
-                .eq('id', session.user.id)
-                .single();
+            const { data: profileData, error: pErr } = await supabase.from('profiles').select('vendor_id, full_name').eq('id', session.user.id).single();
 
             if (pErr || !profileData) {
-                console.warn("Profile table entry not found, checking session metadata fallback...");
+                console.warn("Profile table entry not found, checking fallback...");
                 const metadata = session.user.user_metadata;
                 if (metadata?.vendor_id) {
-                    const fallbackProfile = {
-                        vendor_id: metadata.vendor_id,
-                        full_name: metadata.full_name || 'Shop Owner'
-                    };
-                    setProfile(fallbackProfile);
+                    setProfile({ vendor_id: metadata.vendor_id, full_name: metadata.full_name || 'Owner' });
                     setCurrentVendorId(metadata.vendor_id);
-                } else {
-                    console.error("Critical: No vendor_id found in profile OR metadata.", pErr);
                 }
                 setLoading(false);
                 return;
             }
-                console.warn("Profile table entry not found, using session metadata fallback...");
-                const metadata = session.user.user_metadata;
-                if (metadata?.vendor_id) {
-                    const fallbackProfile = {
-                        vendor_id: metadata.vendor_id,
-                        full_name: metadata.full_name || 'Shop Owner'
-                    };
-                    setProfile(fallbackProfile);
-                    setCurrentVendorId(metadata.vendor_id);
-                    return;
-                }
-                console.error("Critical: No vendor_id found in profile OR metadata.", pErr);
-                return;
-            }
-
             setProfile(profileData);
             setCurrentVendorId(profileData.vendor_id);
-            setLoading(false); // Make sure dashboard can proceed
+            setLoading(false);
         };
 
         loadProfileAndData().finally(() => setLoading(false));
@@ -498,33 +471,6 @@ export default function Dashboard_Final({ session }) {
         try {
             // Deduct inventory if moving away from 'paid' to a preparation state
             if ((newStatus === 'preparing' || newStatus === 'ready') && order.status === 'paid') {
-                console.log(`Inventory: Deducting for order ${orderId} moving to ${newStatus}`);
-                if (order && order.order_items) {
-                    const inventoryDeductions = {};
-                    order.order_items.forEach(item => {
-                        const recipe = item.menu_items?.recipe_json || {};
-                        const qty = Number(item.quantity || 1);
-                        Object.keys(recipe).forEach(ingredientName => {
-                            const amountPerItem = Number(recipe[ingredientName]);
-                            inventoryDeductions[ingredientName] = (inventoryDeductions[ingredientName] || 0) + (amountPerItem * qty);
-                        });
-                    });
-
-                    for (const ingredientName of Object.keys(inventoryDeductions)) {
-                        const amountToDeduct = inventoryDeductions[ingredientName];
-                        supabase.from('ingredients')
-                            .select('id, current_stock')
-                            .eq('name', ingredientName)
-                            .eq('vendor_id', currentVendorId)
-                            .maybeSingle()
-                            .then(({ data: invData, error: fetchErr }) => {
-                                if (!fetchErr && invData && invData.current_stock !== null) {
-                                    const newStock = Math.max(0, Number(invData.current_stock) - amountToDeduct);
-                                    supabase.from('ingredients').update({ current_stock: newStock }).eq('id', invData.id).then();
-                                }
-                            });
-                    }
-                }
                 console.log(`Inventory: Deducting for order ${orderId} moving to ${newStatus}`);
                 if (order && order.order_items) {
                     const inventoryDeductions = {};

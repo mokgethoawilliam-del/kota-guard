@@ -95,7 +95,7 @@ export default function AdminDashboard({ session }) {
     // Phase 16: Customers & Testimonials
     const [testimonials, setTestimonials] = useState([]);
 
-    // ≡ƒÄ¿ Navigation Icons (Minimal SVGs)
+    // 🧭 Navigation Icons (Minimal SVGs)
     const Icons = {
         Dashboard: () => (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1266,11 +1266,11 @@ export default function AdminDashboard({ session }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         <h1 style={{ fontSize: '1.25rem', margin: 0, fontWeight: '700' }}>
                             {activeTab === 'overview' && '≡ƒôè Dashboard Overview'}
-                            {activeTab === 'kds' && '≡ƒöÑ Live Kitchen'}
+                            {activeTab === 'kds' && '🔥 Live Kitchen'}
                             {activeTab === 'support' && '≡ƒÆ¼ Customer Support'}
                             {activeTab === 'history' && '≡ƒùä∩╕Å Order History'}
                             {activeTab === 'finances' && '≡ƒÆ░ Financial Management'}
-                            {activeTab === 'inventory' && '≡ƒôª Stock Control'}
+                            {activeTab === 'inventory' && '📦 Stock Control'}
                             {activeTab === 'logistics' && '≡ƒÜÜ Logistics & Delivery'}
                             {activeTab === 'cms' && 'ΓÜÖ∩╕Å CMS Settings'}
                             {activeTab === 'help' && 'Γ¥ô Support Center'}
@@ -1293,7 +1293,7 @@ export default function AdminDashboard({ session }) {
                                     marginLeft: '1rem'
                                 }}
                             >
-                                ≡ƒîÉ View Shop
+                                🌐 View Shop
                             </a>
                         )}
                     </div>
@@ -1357,7 +1357,7 @@ export default function AdminDashboard({ session }) {
                                     fontSize: '1.2rem'
                                 }}
                             >
-                                ≡ƒæñ
+                                👤
                             </button>
                             
                             {isProfileMenuOpen && (
@@ -1471,7 +1471,7 @@ export default function AdminDashboard({ session }) {
                                 <div className="finances-card">
                                     <h3 style={{ marginBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.75rem' }}>Quick Actions</h3>
                                     <div style={{ display: 'grid', gap: '1rem' }}>
-                                        <button className="sidebar-item" onClick={() => setActiveTab('kds')} style={{ background: 'rgba(0, 230, 118, 0.1)', color: '#00e676', padding: '1rem', justifyContent: 'center' }}>≡ƒöÑ Go to Kitchen</button>
+                                        <button className="sidebar-item" onClick={() => setActiveTab('kds')} style={{ background: 'rgba(0, 230, 118, 0.1)', color: '#00e676', padding: '1rem', justifyContent: 'center' }}>🔥 Go to Kitchen</button>
                                         <button className="sidebar-item" onClick={() => setActiveTab('cms')} style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#60a5fa', padding: '1rem', justifyContent: 'center' }}>ΓÜÖ∩╕Å Manage Menu</button>
                                         <button className="sidebar-item" onClick={() => setActiveTab('finances')} style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', padding: '1rem', justifyContent: 'center' }}>≡ƒÆ░ View Financials</button>
                                     </div>
@@ -1568,7 +1568,7 @@ export default function AdminDashboard({ session }) {
                                         className="btn-primary" 
                                         style={{ width: '100%', padding: '1rem' }}
                                     >
-                                        {unlocking ? 'Unlocking...' : '≡ƒöô Open Vault'}
+                                        {unlocking ? 'Unlocking...' : '🔒 Open Vault'}
                                                                         </button>
                                 </form>
                             </div>
@@ -1582,7 +1582,7 @@ export default function AdminDashboard({ session }) {
                                         </p>
                                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
                                             <div className="vault-card" onClick={() => setVaultActiveSection('paystack')}>
-                                                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>≡ƒÆ│</div>
+                                                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>💳</div>
                                                 <h3 style={{ margin: 0, color: '#fff', fontSize: '1rem' }}>Paystack</h3>
                                                 <p style={{ margin: '0.5rem 0 0', color: '#94a3b8', fontSize: '0.8rem' }}>Payment processing keys</p>
                                             </div>
@@ -1592,7 +1592,7 @@ export default function AdminDashboard({ session }) {
                                                 <p style={{ margin: '0.5rem 0 0', color: '#94a3b8', fontSize: '0.8rem' }}>Alternative payments</p>
                                             </div>
                                             <div className="vault-card" onClick={() => setVaultActiveSection('domains')}>
-                                                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>≡ƒîÉ</div>
+                                                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🌐</div>
                                                 <h3 style={{ margin: 0, color: '#fff', fontSize: '1rem' }}>Custom Domains</h3>
                                                 <p style={{ margin: '0.5rem 0 0', color: '#94a3b8', fontSize: '0.8rem' }}>DNS & Branding URLs</p>
                                             </div>
@@ -1616,7 +1616,7 @@ export default function AdminDashboard({ session }) {
                                         {vaultActiveSection === 'paystack' && (
                                             <div style={{ maxWidth: '500px' }}>
                                                 <h3 style={{ color: '#fff', fontSize: '1.2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                    ≡ƒÆ│ Paystack Settings
+                                                    💳 Paystack Settings
                                                 </h3>
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                                                     <div>
@@ -1651,7 +1651,7 @@ export default function AdminDashboard({ session }) {
                                                             }).eq('id', currentVendorId);
                                                             setIsSavingVault(false);
                                                             if (error) alert("Save failed: " + error.message);
-                                                            else alert("Paystack keys updated! ≡ƒÆ│");
+                                                            else alert("Paystack keys updated! 💳");
                                                         }}
                                                     >
                                                         {isSavingVault ? 'Saving...' : '≡ƒÆ╛ Save Paystack Keys'}
@@ -1748,7 +1748,7 @@ export default function AdminDashboard({ session }) {
                                         {vaultActiveSection === 'domains' && (
                                             <div style={{ maxWidth: '600px' }}>
                                                 <h3 style={{ color: '#fff', fontSize: '1.2rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                    ≡ƒîÉ Domain Configuration
+                                                    🌐 Domain Configuration
                                                 </h3>
                                                 <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.85rem', color: '#94a3b8', lineHeight: '1.5' }}>
                                                     <strong>≡ƒôï Required DNS Records</strong>
@@ -1782,7 +1782,7 @@ export default function AdminDashboard({ session }) {
                                                             }).eq('id', currentVendorId);
                                                             setIsSavingVault(false);
                                                             if (error) alert("Save failed: " + error.message);
-                                                            else alert("Custom domain updated! ≡ƒîÉ");
+                                                            else alert("Custom domain updated! 🌐");
                                                         }}
                                                     >
                                                         {isSavingVault ? 'Saving...' : '≡ƒÆ╛ Verify & Link Domain'}
@@ -1879,7 +1879,7 @@ export default function AdminDashboard({ session }) {
                 <div style={{ padding: '2rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                         <div>
-                            <h2 style={{ color: '#fff', margin: 0 }}>≡ƒæÑ Customer Database</h2>
+                            <h2 style={{ color: '#fff', margin: 0 }}>👤 Customer Database</h2>
                             <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>A complete list of your customers derived from your order history.</p>
                         </div>
                         <button className="btn-secondary" onClick={() => exportPDF()}>Export as PDF</button>
@@ -2035,7 +2035,7 @@ export default function AdminDashboard({ session }) {
                             {locations.map(loc => (
                                 <div key={loc.id} style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '1.5rem' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-                                        <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#fff' }}>≡ƒôì {loc.name}</h3>
+                                        <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#fff' }}>📍 {loc.name}</h3>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                             <span style={{ fontSize: '0.8rem', color: loc.delivery_enabled ? '#00e676' : '#64748b' }}>
                                                 {loc.delivery_enabled ? 'Delivery ON' : 'Delivery OFF'}
@@ -2280,7 +2280,7 @@ export default function AdminDashboard({ session }) {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                         {/* Section 1 */}
                         <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '2rem' }}>
-                            <h3 style={{ fontSize: '1.5rem', color: '#00e676', marginBottom: '1rem' }}>≡ƒöÑ Live Kitchen</h3>
+                            <h3 style={{ fontSize: '1.5rem', color: '#00e676', marginBottom: '1rem' }}>🔥 Live Kitchen</h3>
                             <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
                                 Think of the <strong>Live Kitchen</strong> as the beating heart of your shop. When a customer orders online or via WhatsApp, a magic ticket pops up here under "New Orders." 
                             </p>
@@ -2301,7 +2301,7 @@ export default function AdminDashboard({ session }) {
 
                         {/* Section 3 */}
                         <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '2rem' }}>
-                            <h3 style={{ fontSize: '1.5rem', color: '#f59e0b', marginBottom: '1rem' }}>≡ƒÆ░ Finances & ≡ƒôª Inventory</h3>
+                            <h3 style={{ fontSize: '1.5rem', color: '#f59e0b', marginBottom: '1rem' }}>≡ƒÆ░ Finances & 📦 Inventory</h3>
                             <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
                                 <strong>Finances:</strong> This is your piggy bank. Every time a customer pays, money goes up! If you buy tomatoes, log it as an "Expense" so the piggy bank knows exactly how much you really made (Net Profit).
                                 <br/><br/>
@@ -2319,7 +2319,7 @@ export default function AdminDashboard({ session }) {
 
                         {/* Section 5 */}
                         <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '12px', padding: '2rem' }}>
-                            <h3 style={{ fontSize: '1.5rem', color: '#f87171', marginBottom: '1rem' }}>≡ƒæñ Profile Dropdown (Top Right)</h3>
+                            <h3 style={{ fontSize: '1.5rem', color: '#f87171', marginBottom: '1rem' }}>👤 Profile Dropdown (Top Right)</h3>
                             <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
                                 See that little person icon in the top right corner? That's your private key. 
                                 <br/><br/>
@@ -2400,7 +2400,7 @@ export default function AdminDashboard({ session }) {
                                             <td>{new Date(o.updated_at || o.created_at).toLocaleString()}</td>
                                             <td>
                                                 {o.customer_name} ({o.customer_phone})<br />
-                                                <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>≡ƒôì {o.locations?.name || 'Local'}</span>
+                                                <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>📍 {o.locations?.name || 'Local'}</span>
                                             </td>
                                             <td>
                                                 {o.order_items?.map(i => `${i.quantity}x ${i.menu_items?.name}`).join(', ')}
@@ -2648,9 +2648,9 @@ export default function AdminDashboard({ session }) {
                     }}>
                         {[
                             { id: 'menu', label: '≡ƒìö Live Menu Manager', icon: '≡ƒìö' },
-                            { id: 'branches', label: '≡ƒôì Branch Manager', icon: '≡ƒôì' },
+                            { id: 'branches', label: '📍 Branch Manager', icon: '📍' },
                             { id: 'events', label: '≡ƒùô∩╕Å Mobile Stalls & Events', icon: '≡ƒùô∩╕Å' },
-                            { id: 'branding', label: '≡ƒÄ¿ Brand & Website Identity', icon: '≡ƒÄ¿' }
+                            { id: 'branding', label: '🧭 Brand & Website Identity', icon: '🧭' }
                         ].map(sub => (
                             <button
                                 key={sub.id}
@@ -2838,7 +2838,7 @@ export default function AdminDashboard({ session }) {
                         {cmsActiveSubTab === 'branches' && (
                             <div className="finances-card">
                                 <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    ≡ƒôì Branch Manager (Permanent Locations)
+                                    📍 Branch Manager (Permanent Locations)
                                 </h2>
                                 <p style={{ color: '#94a3b8', marginBottom: '2rem' }}>Manage your physical shop locations. Customers will select these during checkout.</p>
 
@@ -3045,7 +3045,7 @@ export default function AdminDashboard({ session }) {
                         {cmsActiveSubTab === 'branding' && (
                             <div className="finances-card" style={{ border: '1px solid #00e676' }}>
                                 <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                    ≡ƒÄ¿ Brand & Website Identity
+                                    🧭 Brand & Website Identity
                                 </h2>
                                 {vendorConfig ? (
                                     <form onSubmit={async (e) => {
@@ -3243,7 +3243,7 @@ const OrderCard = ({ order, updateOrderStatus, showLocation, setIsVerifyingPin, 
             <div className="kds-customer-info">
                 <p><strong>{order.customer_name}</strong></p>
                 <p>WA: {order.customer_phone}</p>
-                {showLocation && <p className="kds-loc">≡ƒôì {order.locations?.name}</p>}
+                {showLocation && <p className="kds-loc">📍 {order.locations?.name}</p>}
 
                 {isDelivery && order.delivery_address && (
                     <div style={{ 

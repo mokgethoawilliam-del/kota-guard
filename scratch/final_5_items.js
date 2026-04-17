@@ -23,13 +23,13 @@ async function absoluteFinalRestoration5Items() {
     console.log(`Pulling ${menu.length} menu items, ${locs.length} locations, and ${ings.length} inventory items.`);
 
     // 2. Clear Target to avoid FK/Unique errors
-    await newSupabase.from('kg_menu_items').delete().eq('vendor_id', trueVendorId);
-    await newSupabase.from('kg_locations').delete().eq('vendor_id', trueVendorId);
-    await newSupabase.from('kg_ingredients').delete().eq('vendor_id', trueVendorId);
+    await newSupabase.from('menu_items').delete().eq('vendor_id', trueVendorId);
+    await newSupabase.from('locations').delete().eq('vendor_id', trueVendorId);
+    await newSupabase.from('ingredients').delete().eq('vendor_id', trueVendorId);
 
     // 3. Push to Target
     if (menu) {
-        await newSupabase.from('kg_menu_items').upsert(menu.map(m => {
+        await newSupabase.from('menu_items').upsert(menu.map(m => {
             const clean = {...m, vendor_id: trueVendorId};
             delete clean.is_active;
             return clean;
@@ -37,7 +37,7 @@ async function absoluteFinalRestoration5Items() {
     }
 
     if (locs) {
-        await newSupabase.from('kg_locations').upsert(locs.map(l => {
+        await newSupabase.from('locations').upsert(locs.map(l => {
             const clean = {...l, vendor_id: trueVendorId};
             delete clean.banner_text;
             return clean;
@@ -45,7 +45,7 @@ async function absoluteFinalRestoration5Items() {
     }
 
     if (ings) {
-        await newSupabase.from('kg_ingredients').upsert(ings.map(i => {
+        await newSupabase.from('ingredients').upsert(ings.map(i => {
             const clean = {...i, vendor_id: trueVendorId};
             return clean;
         }));

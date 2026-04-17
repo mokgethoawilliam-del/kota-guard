@@ -15,7 +15,7 @@ async function finalConnection() {
 
     // 1. CLEAR THE SLUG CONFLICT FIRST
     console.log("Clearing slug conflicts...");
-    await newSupabase.from('kg_vendors').update({ slug: 'old-conflict' }).eq('slug', 'fabris-eaters');
+    await newSupabase.from('vendors').update({ slug: 'old-conflict' }).eq('slug', 'fabris-eaters');
 
     // 2. GET REAL DATA FROM OLD
     const { data: vendors } = await oldSupabase.from('vendors').select('*').ilike('name', '%Fabri%');
@@ -26,7 +26,7 @@ async function finalConnection() {
 
     // 3. INSERT REAL VENDOR
     console.log("Inserting Real Vendor...");
-    const { error: vErr } = await newSupabase.from('kg_vendors').upsert({
+    const { error: vErr } = await newSupabase.from('vendors').upsert({
         id: realVendor.id,
         name: realVendor.name,
         slug: 'fabris-eaters',
@@ -47,7 +47,7 @@ async function finalConnection() {
             return clean;
         });
         console.log(`Inserting ${myMenu.length} menu items...`);
-        const { error: mErr } = await newSupabase.from('kg_menu_items').upsert(myMenu);
+        const { error: mErr } = await newSupabase.from('menu_items').upsert(myMenu);
         if (mErr) console.error("Menu error:", mErr.message);
         else console.log(" Menu Successfully Restored!");
     }

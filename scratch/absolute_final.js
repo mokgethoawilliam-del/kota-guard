@@ -17,7 +17,7 @@ async function absoluteFinalRestoration() {
 
     // 1. CLEAR NEW PROJECT SLUG CONFLICTS
     console.log("Step 1: Cleaning target...");
-    await newSupabase.from('kg_vendors').delete().eq('slug', 'fabris-eaters');
+    await newSupabase.from('vendors').delete().eq('slug', 'fabris-eaters');
     
     // 2. GET DATA FROM OLD
     console.log("Step 2: Fetching from source...");
@@ -27,7 +27,7 @@ async function absoluteFinalRestoration() {
 
     // 3. PUSH TO NEW
     console.log("Step 3: Pushing Vendor Identity...");
-    const { error: vErr } = await newSupabase.from('kg_vendors').upsert({
+    const { error: vErr } = await newSupabase.from('vendors').upsert({
         id: trueVendorId,
         name: "Fabri's Eaters",
         slug: 'fabris-eaters',
@@ -42,7 +42,7 @@ async function absoluteFinalRestoration() {
 
     if (menuData) {
         console.log(`Step 4: Pushing ${menuData.length} products...`);
-        const { error: mErr } = await newSupabase.from('kg_menu_items').upsert(menuData.map(m => {
+        const { error: mErr } = await newSupabase.from('menu_items').upsert(menuData.map(m => {
             const clean = {...m};
             delete clean.is_active;
             return clean;
@@ -52,7 +52,7 @@ async function absoluteFinalRestoration() {
 
     if (locData) {
         console.log(`Step 5: Pushing ${locData.length} locations...`);
-        const { error: lErr } = await newSupabase.from('kg_locations').upsert(locData.map(l => {
+        const { error: lErr } = await newSupabase.from('locations').upsert(locData.map(l => {
             const clean = {...l};
             delete clean.banner_text;
             return clean;

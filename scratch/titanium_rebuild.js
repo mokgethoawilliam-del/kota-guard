@@ -9,11 +9,11 @@ console.log('--- Titanium Clean-Room Rebuild Initiated ---');
 let content = fs.readFileSync(blueprintFile, 'utf8');
 content = content.replace(/^\uFEFF/, ''); 
 
-// 2. Global Database Re-wiring (Stripping kg_)
-content = content.split("'kg_orders'").join("'orders'");
-content = content.split("'kg_support_chats'").join("'support_chats'");
-content = content.split("'kg_profiles'").join("'profiles'");
-content = content.split("'kg_vendors'").join("'vendors'");
+// 2. Global Database Re-wiring (Stripping )
+content = content.split("'orders'").join("'orders'");
+content = content.split("'support_chats'").join("'support_chats'");
+content = content.split("'profiles'").join("'profiles'");
+content = content.split("'vendors'").join("'vendors'");
 
 // 3. Inject Inventory Sync (Recipe JSON)
 const inventorySearch = "if ((newStatus === 'preparing' || newStatus === 'ready') && order.status === 'paid') {";

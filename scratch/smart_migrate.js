@@ -14,12 +14,12 @@ async function smartMigrate() {
     console.log(" Starting SMART Data Migration...");
 
     const tableMapping = [
-        { old: 'vendors', new: 'kg_vendors' },
-        { old: 'menu_items', new: 'kg_menu_items' },
-        { old: 'locations', new: 'kg_locations' },
-        { old: 'ingredients', new: 'kg_ingredients' },
-        { old: 'testimonials', new: 'kg_testimonials' },
-        { old: 'site_gallery', new: 'kg_site_gallery' }
+        { old: 'vendors', new: 'vendors' },
+        { old: 'menu_items', new: 'menu_items' },
+        { old: 'locations', new: 'locations' },
+        { old: 'ingredients', new: 'ingredients' },
+        { old: 'testimonials', new: 'testimonials' },
+        { old: 'site_gallery', new: 'site_gallery' }
     ];
 
     for (const mapping of tableMapping) {

@@ -9,11 +9,11 @@ async function repair() {
     console.log("Starting Emergency Data Repair...");
 
     // 1. Get all vendors to see names and slugs
-    const { data: vendors } = await supabase.from('kg_vendors').select('id, name, slug');
+    const { data: vendors } = await supabase.from('vendors').select('id, name, slug');
     console.log("Current Vendors:", vendors);
 
     // 2. Find the one with most menu items
-    const { data: counts } = await supabase.from('kg_menu_items').select('vendor_id');
+    const { data: counts } = await supabase.from('menu_items').select('vendor_id');
     const tally = {};
     counts.forEach(c => tally[c.vendor_id] = (tally[c.vendor_id] || 0) + 1);
     
@@ -40,11 +40,11 @@ async function repair() {
     // 4. Perform the Merge
     // Remove slug from ghosts first
     for (const ghost of ghostVendors) {
-        await supabase.from('kg_vendors').update({ slug: `fixed-${ghost.id.slice(0,5)}` }).eq('id', ghost.id);
+        await supabase.from('vendors').update({ slug: `fixed-${ghost.id.slice(0,5)}` }).eq('id', ghost.id);
     }
 
     // Set slug to REAL vendor
-    const { error: updateErr } = await supabase.from('kg_vendors').update({ slug: 'fabris-eaters' }).eq('id', realVendorId);
+    const { error: updateErr } = await supabase.from('vendors').update({ slug: 'fabris-eaters' }).eq('id', realVendorId);
     if (updateErr) {
         console.error("Failed to update real vendor slug:", updateErr);
     } else {
@@ -53,7 +53,7 @@ async function repair() {
 
     // Optional: Delete ghosts
     for (const ghost of ghostVendors) {
-        await supabase.from('kg_vendors').delete().eq('id', ghost.id);
+        await supabase.from('vendors').delete().eq('id', ghost.id);
     }
 
     console.log("Repair Complete.");

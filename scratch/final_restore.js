@@ -34,7 +34,7 @@ async function finalTranslationMigration() {
             created_at: item.created_at
         }));
 
-        const { error } = await newSupabase.from('kg_menu_items').upsert(translatedMenu);
+        const { error } = await newSupabase.from('menu_items').upsert(translatedMenu);
         if (error) console.error("Error inserting menu items:", error.message);
         else console.log(" Successfully migrated 120+ menu items.");
     }
@@ -51,7 +51,7 @@ async function finalTranslationMigration() {
             created_at: loc.created_at
         }));
 
-        const { error } = await newSupabase.from('kg_locations').upsert(translatedLocs);
+        const { error } = await newSupabase.from('locations').upsert(translatedLocs);
         if (error) console.error("Error inserting locations:", error.message);
         else console.log(" Successfully migrated locations.");
     }
@@ -68,7 +68,7 @@ async function finalTranslationMigration() {
             created_at: ing.created_at
         }));
 
-        const { error } = await newSupabase.from('kg_ingredients').upsert(translatedIngs);
+        const { error } = await newSupabase.from('ingredients').upsert(translatedIngs);
         if (error) console.error("Error inserting ingredients:", error.message);
         else console.log(" Successfully migrated inventory.");
     }

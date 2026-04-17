@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './supabaseClient'
 import VendorLandingPage from '../components/VendorLandingPage'
-import AdminDashboard from '../components/Dashboard_Final'
+import AdminDashboard from '../components/AdminDashboard'
 import Login from '../components/Login'
-import RegisterShop from '../components/Registration_Final'
+import RegisterShop from '../components/RegisterShop'
 import PlatformHome from '../components/PlatformHome'
 import LegalTerms from '../components/LegalTerms'
 
@@ -39,12 +39,12 @@ function App() {
             <Routes>
                 {/* Auth Routes */}
                 <Route path="/login" element={session ? <Navigate to="/admin" replace /> : <Login />} />
-                <Route path="/register" element={session ? <Navigate to="/admin" replace /> : <Registration_Final />} />
+                <Route path="/register" element={session ? <Navigate to="/admin" replace /> : <RegisterShop />} />
 
                 {/* Admin Route - Protected By AuthGuard */}
                 <Route path="/admin" element={
                     <AuthGuard session={session}>
-                        <Dashboard_Final session={session} />
+                        <AdminDashboard session={session} />
                     </AuthGuard>
                 } />
 

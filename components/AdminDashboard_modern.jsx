@@ -226,7 +226,7 @@ export default function AdminDashboard({ session }) {
 
         // 1. Subscribe to Realtime Updates on the 'orders' table
         const channel = supabase
-            .channel('public:kg_orders')
+            .channel('public:orders')
             .on(
                 'postgres_changes',
                 { event: 'UPDATE', schema: 'public', table: 'orders' },
@@ -291,7 +291,7 @@ export default function AdminDashboard({ session }) {
 
         // 2. Subscribe to Support Chats
         const chatChannel = supabase
-            .channel('public:kg_support_chats')
+            .channel('public:support_chats')
             .on(
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'support_chats' },

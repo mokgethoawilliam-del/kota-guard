@@ -4,7 +4,7 @@ NOTIFY pgrst, 'reload schema';
 
 -- 2. RESTORE MISSING VENDOR 'fabris-eaters'
 -- This ensures the landing page can load for this specific vendor.
-INSERT INTO public.kg_vendors (
+INSERT INTO public.vendors (
     name, 
     slug, 
     branding
@@ -30,8 +30,8 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_policies 
-        WHERE tablename = 'kg_vendors' AND policyname = 'Public read kg_vendors'
+        WHERE tablename = 'vendors' AND policyname = 'Public read vendors'
     ) THEN
-        CREATE POLICY "Public read kg_vendors" ON public.kg_vendors FOR SELECT USING (true);
+        CREATE POLICY "Public read vendors" ON public.vendors FOR SELECT USING (true);
     END IF;
 END $$;

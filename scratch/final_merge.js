@@ -12,12 +12,12 @@ async function finalIdentityMerge() {
     const trueDataId = '1bef931b-e562-42cb-8838-a3240102ed6f';
 
     // 1. FETCH THE GOOD BRANDING
-    const { data: v1 } = await supabase.from('kg_vendors').select('branding').eq('id', goodBrandingId).single();
+    const { data: v1 } = await supabase.from('vendors').select('branding').eq('id', goodBrandingId).single();
     if (!v1) return;
 
     // 2. APPLY THE BRANDING TO THE DATA RECORD
     console.log("Merging Look & Feel into Data Record...");
-    await supabase.from('kg_vendors').update({
+    await supabase.from('vendors').update({
         name: "Fabri's Eaters",
         slug: 'fabris-eaters', // Re-wire the URL
         branding: {
@@ -30,12 +30,12 @@ async function finalIdentityMerge() {
 
     // 3. DELETE THE GHOST IDENTITY
     console.log("Cleaning up duplicate vendor record...");
-    await supabase.from('kg_vendors').delete().eq('id', goodBrandingId);
+    await supabase.from('vendors').delete().eq('id', goodBrandingId);
 
     // 4. FINAL ACTIVATION
     console.log("Activating Menu & Locations...");
-    await supabase.from('kg_menu_items').update({ vendor_id: trueDataId }).not('id', 'is', null);
-    await supabase.from('kg_locations').update({ is_active: true, vendor_id: trueDataId }).not('id', 'is', null);
+    await supabase.from('menu_items').update({ vendor_id: trueDataId }).not('id', 'is', null);
+    await supabase.from('locations').update({ is_active: true, vendor_id: trueDataId }).not('id', 'is', null);
 
     console.log(" THE SITE IS NOW 100% RESTORED!");
 }

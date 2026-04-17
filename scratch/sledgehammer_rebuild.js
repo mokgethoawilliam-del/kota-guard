@@ -12,9 +12,9 @@ content = content.replace(/^\uFEFF/, '');
 // 2. STRIP ALL NON-ASCII CHARACTERS (Nuclear Option)
 content = content.replace(/[^\x00-\x7F]/g, '');
 
-// 3. Global Database Re-wiring (No kg_)
+// 3. Global Database Re-wiring (No )
 const tables = ['orders', 'support_chats', 'profiles', 'vendors', 'ingredients', 'menu_items', 'expenses', 'locations', 'testimonials'];
-tables.forEach(t => { content = content.split("'kg_" + t + "'").join("'" + t + "'"); });
+tables.forEach(t => { content = content.split("'" + t + "'").join("'" + t + "'"); });
 
 // 4. Inject SVG Header Icons logic
 const iconInsertionPoint = 'CreditCard: () => (';

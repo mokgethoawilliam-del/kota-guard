@@ -28,7 +28,7 @@ async function forceLinkMigration() {
 
     // 2. INSERT VENDOR FIRST
     console.log("Step 1: Creating Parent Vendor...");
-    const { error: vErr } = await newSupabase.from('kg_vendors').upsert({
+    const { error: vErr } = await newSupabase.from('vendors').upsert({
         id: realVendor.id,
         name: realVendor.name,
         slug: 'fabris-eaters',
@@ -52,7 +52,7 @@ async function forceLinkMigration() {
             return clean;
         });
 
-        const { error: mErr } = await newSupabase.from('kg_menu_items').upsert(myMenu);
+        const { error: mErr } = await newSupabase.from('menu_items').upsert(myMenu);
         if (mErr) console.error("Menu link error:", mErr.message);
         else console.log(` ${myMenu.length} items linked successfully.`);
     }
@@ -65,7 +65,7 @@ async function forceLinkMigration() {
             delete clean.banner_text; // Mismatch column
             return clean;
         });
-        const { error: lErr } = await newSupabase.from('kg_locations').upsert(myLocs);
+        const { error: lErr } = await newSupabase.from('locations').upsert(myLocs);
         if (lErr) console.error("Location link error:", lErr.message);
         else console.log(" Locations linked successfully.");
     }

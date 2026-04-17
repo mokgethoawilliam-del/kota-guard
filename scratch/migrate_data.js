@@ -19,7 +19,7 @@ async function migrate() {
         const { data: vendors } = await oldSupabase.from('vendors').select('*');
         if (vendors) {
             for (const v of vendors) {
-                const { error } = await newSupabase.from('kg_vendors').upsert({
+                const { error } = await newSupabase.from('vendors').upsert({
                     id: v.id,
                     name: v.name,
                     slug: v.slug || 'fabris-eaters',
@@ -38,7 +38,7 @@ async function migrate() {
             const chunks = [];
             for (let i = 0; i < menu.length; i += 50) chunks.push(menu.slice(i, i + 50));
             for (const chunk of chunks) {
-                const { error } = await newSupabase.from('kg_menu_items').upsert(chunk);
+                const { error } = await newSupabase.from('menu_items').upsert(chunk);
                 if (error) console.error("Error migrating menu chunk:", error.message);
             }
             console.log(`Migrated ${menu.length} menu items.`);
@@ -48,7 +48,7 @@ async function migrate() {
         console.log("--- Migrating Locations ---");
         const { data: locs } = await oldSupabase.from('locations').select('*');
         if (locs) {
-            const { error } = await newSupabase.from('kg_locations').upsert(locs);
+            const { error } = await newSupabase.from('locations').upsert(locs);
             if (error) console.error("Error migrating locations:", error.message);
         }
 
@@ -56,7 +56,7 @@ async function migrate() {
         console.log("--- Migrating Ingredients ---");
         const { data: ings } = await oldSupabase.from('ingredients').select('*');
         if (ings) {
-            const { error } = await newSupabase.from('kg_ingredients').upsert(ings);
+            const { error } = await newSupabase.from('ingredients').upsert(ings);
             if (error) console.error("Error migrating ingredients:", error.message);
         }
 
@@ -64,7 +64,7 @@ async function migrate() {
         console.log("--- Migrating Testimonials ---");
         const { data: tests } = await oldSupabase.from('testimonials').select('*');
         if (tests) {
-            const { error } = await newSupabase.from('kg_testimonials').upsert(tests);
+            const { error } = await newSupabase.from('testimonials').upsert(tests);
             if (error) console.error("Error migrating testimonials:", error.message);
         }
 
@@ -72,7 +72,7 @@ async function migrate() {
         console.log("--- Migrating Gallery ---");
         const { data: gallery } = await oldSupabase.from('site_gallery').select('*');
         if (gallery) {
-            const { error } = await newSupabase.from('kg_site_gallery').upsert(gallery);
+            const { error } = await newSupabase.from('site_gallery').upsert(gallery);
             if (error) console.error("Error migrating gallery:", error.message);
         }
 

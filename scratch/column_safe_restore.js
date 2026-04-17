@@ -21,7 +21,7 @@ async function absoluteFinalColumnSafe() {
     
     // 2. Insert Vendor Identity (CLEANED)
     console.log("Pushing Vendor Identity...");
-    const { error: vErr } = await newSupabase.from('kg_vendors').upsert({
+    const { error: vErr } = await newSupabase.from('vendors').upsert({
         id: trueVendorId,
         name: "Fabri's Eaters",
         slug: 'fabris-eaters',
@@ -48,7 +48,7 @@ async function absoluteFinalColumnSafe() {
             recipe_json: m.recipe_json,
             created_at: m.created_at
         }));
-        const { error: mErr } = await newSupabase.from('kg_menu_items').upsert(cleanedMenu);
+        const { error: mErr } = await newSupabase.from('menu_items').upsert(cleanedMenu);
         if (mErr) console.error("Menu Insert Failed:", mErr.message);
         else console.log(" Menu Successfully Restored!");
     }

@@ -40,6 +40,7 @@ export default function AdminDashboard({ session }) {
     const [locations, setLocations] = useState([]);
     const [selectedLocation, setSelectedLocation] = useState('all');
     const [loading, setLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [isVaultUnlocked, setIsVaultUnlocked] = useState(false);
     const [vaultPassword, setVaultPassword] = useState('');
     const [vaultError, setVaultError] = useState('');
@@ -372,6 +373,7 @@ export default function AdminDashboard({ session }) {
 
     async function fetchInitialData() {
         if (!currentVendorId) return;
+        setIsRefreshing(true);
         try {
             // No need to set loading(true) here as it's already true from the start
             // and we want a smooth transition after profile load.
@@ -467,6 +469,7 @@ export default function AdminDashboard({ session }) {
             console.error('Error fetching dashboard data:', err.message);
         } finally {
             setLoading(false);
+            setIsRefreshing(false);
         }
     }
 
@@ -2530,45 +2533,62 @@ export default function AdminDashboard({ session }) {
                             <p style={{ color: '#94a3b8' }}>Manage raw ingredients. Stock automatically deducts when Kitchen Staff click "Start Preparing".</p>
                         </div>
                         <div style={{ display: 'flex', gap: '1rem' }}>
-                            <button className="btn-secondary" onClick={fetchInitialData}> Refresh</button>
-                            <button className="btn-primary" onClick={() => setIsAddingIngredient(!isAddingIngredient)}>
-                                {isAddingIngredient ? 'Cancel' : ' Add Ingredient'}
+                            <button className="btn-secondary" onClick={fetchInitialData} disabled={isRefreshing} style={isRefreshing ? { opacity: 0.7, cursor: 'not-allowed' } : {}}>
+                                {isRefreshing ? '↻ Refreshing...' : '↻ Refresh'}
+                            </button>
+                            <button className="btn-primary" onClick={() => setIsAddingIngredient(true)}>
+                                + Add Ingredient
                             </button>
                         </div>
                     </div>
 
                     {isAddingIngredient && (
-                        <div className="kds-card" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #334155', paddingBottom: '0.5rem' }}>
-                                <h3>{editingIngredient.id ? "Edit Ingredient" : "Add New Ingredient"}</h3>
-                                {editingIngredient.id && (
-                                    <button className="btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }} onClick={() => {
+                        <div style={{
+                            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                            backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                            backdropFilter: 'blur(8px)',
+                            zIndex: 1000,
+                            display: 'flex', justifyContent: 'center', alignItems: 'center',
+                            padding: '1rem'
+                        }}>
+                            <div className="kds-card" style={{ padding: '2rem', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid #334155', paddingBottom: '1rem' }}>
+                                    <h3 style={{ fontSize: '1.5rem' }}>{editingIngredient.id ? "Edit Ingredient" : "Add New Ingredient"}</h3>
+                                    <button className="btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem' }} onClick={() => {
                                         setEditingIngredient({ id: null, name: '', unit: '', current_stock: '', low_stock_threshold: '' });
                                         setIsAddingIngredient(false);
-                                    }}>Cancel Edit</button>
-                                )}
+                                    }}>✕ Close</button>
+                                </div>
+                                <form className="checkout-form" onSubmit={(e) => {
+                                    handleSaveIngredient(e);
+                                    // Normally handleSaveIngredient handles state, but we ensure modal closes
+                                    setTimeout(() => setIsAddingIngredient(false), 300);
+                                }} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                                    <div className="form-group">
+                                        <label>Ingredient Name</label>
+                                        <input type="text" required className="form-input" placeholder="e.g. Eggs" value={editingIngredient.name} onChange={(e) => setEditingIngredient({ ...editingIngredient, name: e.target.value })} />
+                                        <small style={{ color: '#94a3b8', marginTop: '0.25rem', display: 'block' }}>Must exactly match the name used in your recipes for accurate auto-deduction.</small>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Unit Metric</label>
+                                        <input type="text" required className="form-input" placeholder="e.g. slices, kg, pieces" value={editingIngredient.unit} onChange={(e) => setEditingIngredient({ ...editingIngredient, unit: e.target.value })} />
+                                        <small style={{ color: '#94a3b8', marginTop: '0.25rem', display: 'block' }}>The measurement unit used for this item so you know what '1' means.</small>
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                        <div className="form-group">
+                                            <label>Current Stock Level</label>
+                                            <input type="number" required className="form-input" placeholder="0" value={editingIngredient.current_stock} onChange={(e) => setEditingIngredient({ ...editingIngredient, current_stock: e.target.value })} />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Low Stock Alert At</label>
+                                            <input type="number" required className="form-input" placeholder="10" value={editingIngredient.low_stock_threshold} onChange={(e) => setEditingIngredient({ ...editingIngredient, low_stock_threshold: e.target.value })} />
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+                                        <button type="submit" className="btn-primary" style={{ padding: '0.75rem 2rem', fontSize: '1.1rem' }}>{editingIngredient.id ? "Save Changes" : "Save Ingredient"}</button>
+                                    </div>
+                                </form>
                             </div>
-                            <form className="checkout-form" onSubmit={handleSaveIngredient} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                                <div className="form-group">
-                                    <label>Ingredient Name</label>
-                                    <input type="text" required className="form-input" placeholder="e.g. Eggs" value={editingIngredient.name} onChange={(e) => setEditingIngredient({ ...editingIngredient, name: e.target.value })} />
-                                </div>
-                                <div className="form-group">
-                                    <label>Unit Metric</label>
-                                    <input type="text" required className="form-input" placeholder="e.g. units, kg, lit" value={editingIngredient.unit} onChange={(e) => setEditingIngredient({ ...editingIngredient, unit: e.target.value })} />
-                                </div>
-                                <div className="form-group">
-                                    <label>Current Stock Level</label>
-                                    <input type="number" required className="form-input" placeholder="0" value={editingIngredient.current_stock} onChange={(e) => setEditingIngredient({ ...editingIngredient, current_stock: e.target.value })} />
-                                </div>
-                                <div className="form-group">
-                                    <label>Low Stock Alert At</label>
-                                    <input type="number" required className="form-input" placeholder="10" value={editingIngredient.low_stock_threshold} onChange={(e) => setEditingIngredient({ ...editingIngredient, low_stock_threshold: e.target.value })} />
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                                    <button type="submit" className="btn-primary" style={{ height: '48px', width: '100%' }}>{editingIngredient.id ? "Save Changes" : "Save Ingredient"}</button>
-                                </div>
-                            </form>
                         </div>
                     )}
 

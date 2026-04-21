@@ -22,6 +22,7 @@ export default function CustomerMenu({ vendorId, branding }) {
 
     // Arrival State
     const [hasArrived, setHasArrived] = useState(false);
+    const [collectionPin, setCollectionPin] = useState(null);
 
     useEffect(() => {
         const script = document.createElement('script');
@@ -204,19 +205,24 @@ export default function CustomerMenu({ vendorId, branding }) {
                             const dailyNum = String((count || 0) + 1).padStart(3, '0');
                             const finalOrderNum = `${prefix}/${dateStr}/${dailyNum}`;
 
+                            // Generate a cryptographically random 4-digit collection PIN
+                            const pin = String(Math.floor(1000 + Math.random() * 9000));
+
                             const { error: updateErr } = await supabase
                                 .from('orders')
                                 .update({
                                     status: 'paid',
                                     order_number: finalOrderNum,
-                                    payment_reference: response.reference
+                                    payment_reference: response.reference,
+                                    collection_pin: pin
                                 })
                                 .eq('id', order.id);
 
                             if (updateErr) throw updateErr;
 
+                            setCollectionPin(pin);
                             setPaymentSuccess(finalOrderNum);
-                            setCart([]); // Empty the cart on success!
+                            setCart([]);
                         } catch (err) {
                             console.error("Error finalizing order", err);
                             setPaymentSuccess("APPROVED-WAITING-SYNC");
@@ -268,14 +274,16 @@ export default function CustomerMenu({ vendorId, branding }) {
                     <p className="success-message">Thank you, {customerName}! Your transaction was successful. Kel rata zwap.</p>
 
                     <div className="order-number-display" style={{ margin: '1.5rem 0', padding: '1.5rem', background: 'rgba(0, 200, 83, 0.1)', border: '1px solid #00C853', borderRadius: '12px', textAlign: 'center' }}>
-                        <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#888', textTransform: 'uppercase', letterSpacing: '1px' }}>Your Collection Code</p>
-                        <h2 style={{ margin: 0, fontSize: '3.5rem', color: '#00C853', fontWeight: '900', letterSpacing: '4px' }}>
-                            {paymentSuccess !== true ? paymentSuccess.split('/').pop() : "..."}
+                        <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#888', textTransform: 'uppercase', letterSpacing: '1px' }}>🔒 Your Secret Collection PIN</p>
+                        <h2 style={{ margin: 0, fontSize: '4rem', color: '#00C853', fontWeight: '900', letterSpacing: '8px' }}>
+                            {collectionPin || '...'}
                         </h2>
-                        <p style={{ marginTop: '0.5rem', fontSize: '0.8rem', opacity: 0.7 }}>Share this code with the staff to collect your order</p>
+                        <p style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: '#ef4444', fontWeight: '600' }}>⚠️ Show this PIN to the vendor when collecting. It expires once used.</p>
                     </div>
 
-                    <p style={{ fontSize: '0.9rem', color: '#94a3b8', marginBottom: '1.5rem' }}>Official Order ID: {paymentSuccess}</p>
+                    <div style={{ padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', marginBottom: '1.5rem', textAlign: 'left' }}>
+                        <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8' }}>Order Reference: <strong style={{ color: '#fff' }}>{paymentSuccess}</strong></p>
+                    </div>
 
                     {!hasArrived ? (
                         <button
@@ -291,7 +299,7 @@ export default function CustomerMenu({ vendorId, branding }) {
                         </div>
                     )}
 
-                    <button className="btn-secondary" onClick={() => { setPaymentSuccess(false); setCustomerName(''); setCustomerPhone(''); setModifiers(''); setCollectionTime(''); setHasArrived(false); }}>
+                    <button className="btn-secondary" onClick={() => { setPaymentSuccess(false); setCollectionPin(null); setCustomerName(''); setCustomerPhone(''); setModifiers(''); setCollectionTime(''); setHasArrived(false); }}>
                         Back to Menu
                     </button>
                 </div>

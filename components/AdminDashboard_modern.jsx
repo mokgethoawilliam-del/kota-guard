@@ -279,8 +279,26 @@ export default function AdminDashboard({ session }) {
             .on(
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'orders' },
-                (payload) => {
-                    const newOrder = payload.new;
+                async (payload) => {
+                    const newOrderRow = payload.new;
+                    
+                    // Fetch the full order tree so we have the order_items and recipe_json necessary for deductions
+                    const { data: fullOrder } = await supabase
+                        .from('orders')
+                        .select(`
+                            *,
+                            locations (name),
+                            order_items (
+                                quantity,
+                                modifiers_json,
+                                menu_items (name, recipe_json)
+                            )
+                        `)
+                        .eq('id', newOrderRow.id)
+                        .single();
+
+                    const newOrder = fullOrder || newOrderRow; // Fallback to shallow if fetch fails
+
                     if (newOrder.status === 'paid') playDing();
                     if (newOrder.status !== 'completed' && newOrder.status !== 'refunded') {
                         setOrders(current => [newOrder, ...current]);
@@ -375,7 +393,7 @@ export default function AdminDashboard({ session }) {
                     order_items (
                         quantity,
                         modifiers_json,
-                        menu_items (name)
+                        menu_items (name, recipe_json)
                     )
                 `)
                 .eq('vendor_id', currentVendorId)

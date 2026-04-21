@@ -1080,6 +1080,63 @@ export default function AdminDashboard({ session }) {
             </nav>
 
             <main className="main-content">
+            {/* GLOBAL: Security PIN Verification Modal - renders from any tab */}
+            {isVerifyingPin && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(15, 23, 42, 0.95)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    zIndex: 10000, backdropFilter: 'blur(10px)'
+                }}>
+                    <div className="cms-card" style={{ width: '420px', textAlign: 'center', border: '1px solid rgba(0, 230, 118, 0.3)', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
+                        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
+                        <h2 style={{ color: '#00e676', marginBottom: '0.5rem' }}>Verify Collection PIN</h2>
+                        <p style={{ color: '#94a3b8', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+                            Order <strong style={{ color: '#fff' }}>#{isVerifyingPin.order_number}</strong> for <strong style={{ color: '#fff' }}>{isVerifyingPin.customer_name}</strong>
+                        </p>
+                        <p style={{ color: '#64748b', marginBottom: '1.5rem', fontSize: '0.82rem' }}>
+                            The buyer was emailed a secret 4-digit PIN at checkout. Ask them to read it aloud.
+                        </p>
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <input
+                                type="text" maxLength="4" autoFocus
+                                value={verificationPin}
+                                onChange={(e) => setVerificationPin(e.target.value.replace(/\D/g, ''))}
+                                placeholder="0000"
+                                style={{
+                                    width: '100%', background: '#0f172a',
+                                    border: `2px solid ${pinError ? '#ef4444' : '#334155'}`,
+                                    borderRadius: '12px', padding: '1rem', color: '#fff',
+                                    fontSize: '2.5rem', textAlign: 'center',
+                                    letterSpacing: '1.2rem', fontWeight: 'bold', outline: 'none'
+                                }}
+                            />
+                            {pinError && <p style={{ color: '#ef4444', marginTop: '0.75rem', fontSize: '0.85rem', fontWeight: '600' }}>❌ {pinError}</p>}
+                        </div>
+                        <div style={{ display: 'flex', gap: '1rem' }}>
+                            <button className="btn-secondary" style={{ flex: 1 }} onClick={() => { setIsVerifyingPin(null); setPinError(''); setVerificationPin(''); }}>Cancel</button>
+                            <button
+                                className="btn-primary"
+                                style={{ flex: 2, background: '#00e676', color: '#000', fontWeight: 'bold' }}
+                                onClick={() => {
+                                    if (!verificationPin || verificationPin.length < 4) {
+                                        setPinError('Please enter the full 4-digit PIN.');
+                                        return;
+                                    }
+                                    if (verificationPin === isVerifyingPin.collection_pin) {
+                                        updateOrderStatus(isVerifyingPin.id, 'completed');
+                                        setIsVerifyingPin(null);
+                                        setPinError('');
+                                        setVerificationPin('');
+                                    } else {
+                                        setPinError('Wrong PIN. Ask the customer to check their order confirmation.');
+                                    }
+                                }}
+                            >✓ Verify & Complete</button>
+                        </div>
+                    </div>
+                </div>
+            )}
             {/* ARRIVAL ALERT TOAST */}
             {arrivalAlert && (
                 <div style={{
@@ -2086,74 +2143,7 @@ export default function AdminDashboard({ session }) {
 
             {activeTab === 'support' && (
                 <div className="vault-container" style={{ display: 'flex', height: 'calc(100vh - 150px)', overflow: 'hidden', padding: 0 }}>
-                    {/* Security PIN Verification Modal */}
-                    {isVerifyingPin && (
-                        <div style={{
-                            position: 'fixed',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            background: 'rgba(15, 23, 42, 0.95)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            zIndex: 10000,
-                            backdropFilter: 'blur(10px)'
-                        }}>
-                            <div className="cms-card" style={{ width: '400px', textAlign: 'center', border: '1px solid rgba(0, 230, 118, 0.3)', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
-                                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}></div>
-                                <h2 style={{ color: '#00e676', marginBottom: '0.5rem' }}>Verify Collection PIN</h2>
-                                <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>
-                                    Enter the 4-digit secret PIN from <strong>{isVerifyingPin.customer_name}'s</strong> order to verify hand-off.
-                                </p>
-                                
-                                <div style={{ marginBottom: '1.5rem' }}>
-                                    <input 
-                                        type="text" 
-                                        maxLength="4" 
-                                        autoFocus
-                                        value={verificationPin}
-                                        onChange={(e) => setVerificationPin(e.target.value.replace(/\D/g, ''))}
-                                        placeholder="0000"
-                                        style={{ 
-                                            width: '100%', 
-                                            background: '#0f172a', 
-                                            border: '2px solid #334155', 
-                                            borderRadius: '12px', 
-                                            padding: '1rem', 
-                                            color: '#fff', 
-                                            fontSize: '2rem', 
-                                            textAlign: 'center',
-                                            letterSpacing: '1rem',
-                                            fontWeight: 'bold'
-                                        }}
-                                    />
-                                    {pinError && <p style={{ color: '#ef4444', marginTop: '0.5rem', fontSize: '0.85rem' }}>{pinError}</p>}
-                                </div>
 
-                                <div style={{ display: 'flex', gap: '1rem' }}>
-                                    <button 
-                                        className="btn-secondary" 
-                                        style={{ flex: 1 }}
-                                        onClick={() => setIsVerifyingPin(null)}
-                                    >Cancel</button>
-                                    <button 
-                                        className="btn-primary" 
-                                        style={{ flex: 2, background: '#00e676', color: '#000' }}
-                                        onClick={() => {
-                                            if (verificationPin === isVerifyingPin.collection_pin) {
-                                                updateOrderStatus(isVerifyingPin.id, 'completed');
-                                                setIsVerifyingPin(null);
-                                            } else {
-                                                setPinError("Invalid PIN. Please ask the customer for the code on their receipt.");
-                                            }
-                                        }}
-                                    >Verify & Complete</button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
                     {/* Left Pane: Sessions */}
                     <div style={{ width: '350px', background: '#1e293b', borderRight: '1px solid #334155', display: 'flex', flexDirection: 'column' }}>
                         <div style={{ padding: '1rem', borderBottom: '1px solid #334155', background: '#0f172a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

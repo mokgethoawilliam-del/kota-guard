@@ -12,6 +12,11 @@ function VendorLandingPage() {
     const [loading, setLoading] = useState(true);
     const [allLocations, setAllLocations] = useState([]);
     const [featuredMenu, setFeaturedMenu] = useState([]);
+    const [testimonials, setTestimonials] = useState([]);
+
+    const [reviewForm, setReviewForm] = useState({ author_name: '', quote: '' });
+    const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+    const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
     useEffect(() => {
         const fetchVendorData = async () => {
@@ -59,8 +64,16 @@ function VendorLandingPage() {
                     .order('price');
                 setFeaturedMenu(menu || []);
 
+                // 5. Fetch Testimonials
+                const { data: tests } = await supabase
+                    .from('testimonials')
+                    .select('*')
+                    .eq('vendor_id', vendorData.id)
+                    .eq('is_active', true)
+                    .order('created_at', { ascending: false });
+                setTestimonials(tests || []);
             } catch (err) {
-                console.error("Error loading vendor:", err);
+                console.error("General error loading vendor page:", err);
             } finally {
                 setLoading(false);
             }
@@ -68,6 +81,27 @@ function VendorLandingPage() {
 
         fetchVendorData();
     }, [vendorSlug]);
+
+    const submitReview = async (e) => {
+        e.preventDefault();
+        if (!reviewForm.author_name || !reviewForm.quote) return;
+        setIsSubmittingReview(true);
+        try {
+            const { error } = await supabase.from('testimonials').insert({
+                vendor_id: vendor.id,
+                author_name: reviewForm.author_name,
+                quote: reviewForm.quote,
+                is_active: false // Require admin approval
+            });
+            if (error) throw error;
+            setReviewSubmitted(true);
+            setReviewForm({ author_name: '', quote: '' });
+        } catch (err) {
+            alert('Error submitting review: ' + err.message);
+        } finally {
+            setIsSubmittingReview(false);
+        }
+    };
 
     if (loading) return <div style={{ background: '#0f172a', color: '#fff', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading {vendorSlug || 'VulaHub'}...</div>;
     if (!vendor) return <div style={{ background: '#0f172a', color: '#fff', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Vendor "{vendorSlug}" not found.</div>;
@@ -244,6 +278,96 @@ function VendorLandingPage() {
                                 ))}
                                 {allLocations.length === 0 && (
                                     <p style={{ gridColumn: '1/-1', textAlign: 'center', color: '#64748b', fontSize: '1.2rem' }}>We are currently preparing our next locations. Stay tuned!</p>
+                                )}
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* CUSTOMER REVIEWS SECTION */}
+                    <section style={{ padding: '6rem 2rem', background: '#020617', borderTop: '1px solid #1e293b' }}>
+                        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+                            <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
+                                <h2 style={{ fontSize: '2.5rem', color: '#f8fafc', marginBottom: '1rem', fontWeight: '800' }}>What Our Customers Say</h2>
+                                <div style={{ width: '80px', height: '4px', background: 'var(--color-primary, #00e676)', margin: '0 auto', borderRadius: '4px' }}></div>
+                            </div>
+
+                            {testimonials.length > 0 ? (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '2rem', marginBottom: '4rem' }}>
+                                    {testimonials.map(test => (
+                                        <div key={test.id} style={{ 
+                                            background: '#0f172a', 
+                                            padding: '2rem', 
+                                            borderRadius: '16px', 
+                                            border: '1px solid #334155',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            position: 'relative'
+                                        }}>
+                                            <span style={{ fontSize: '3rem', color: 'var(--color-primary, #00e676)', opacity: 0.2, position: 'absolute', top: '10px', left: '20px' }}>"</span>
+                                            <p style={{ color: '#cbd5e1', fontSize: '1.1rem', lineHeight: '1.8', fontStyle: 'italic', marginBottom: '1.5rem', zIndex: 1 }}>"{test.quote}"</p>
+                                            <div style={{ marginTop: 'auto', borderTop: '1px solid #334155', paddingTop: '1rem' }}>
+                                                <strong style={{ color: '#f8fafc', display: 'block', fontSize: '1.1rem' }}>{test.author_name}</strong>
+                                                {test.author_role && <span style={{ color: '#64748b', fontSize: '0.9rem' }}>{test.author_role}</span>}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p style={{ textAlign: 'center', color: '#64748b', fontSize: '1.2rem', marginBottom: '4rem' }}>No reviews yet. Be the first to share your experience!</p>
+                            )}
+
+                            {/* Leave a Review Form */}
+                            <div style={{ background: '#0f172a', padding: '3rem', borderRadius: '16px', border: '1px solid #334155', maxWidth: '600px', margin: '0 auto' }}>
+                                <h3 style={{ color: '#f8fafc', fontSize: '1.5rem', marginBottom: '1.5rem', textAlign: 'center' }}>Leave a Review</h3>
+                                
+                                {reviewSubmitted ? (
+                                    <div style={{ textAlign: 'center', color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '2rem', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                                        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎉</div>
+                                        <h4 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: '#34d399' }}>Thank You!</h4>
+                                        <p>Your review has been submitted and is currently pending moderation.</p>
+                                    </div>
+                                ) : (
+                                    <form onSubmit={submitReview} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                        <div>
+                                            <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.5rem', fontSize: '0.9rem' }}>Your Name</label>
+                                            <input 
+                                                type="text" 
+                                                required
+                                                value={reviewForm.author_name}
+                                                onChange={e => setReviewForm({ ...reviewForm, author_name: e.target.value })}
+                                                style={{ width: '100%', padding: '1rem', borderRadius: '8px', background: '#1e293b', border: '1px solid #334155', color: '#f8fafc', fontSize: '1rem' }}
+                                                placeholder="e.g. Thabo M."
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.5rem', fontSize: '0.9rem' }}>Your Experience</label>
+                                            <textarea 
+                                                required
+                                                value={reviewForm.quote}
+                                                onChange={e => setReviewForm({ ...reviewForm, quote: e.target.value })}
+                                                style={{ width: '100%', padding: '1rem', borderRadius: '8px', background: '#1e293b', border: '1px solid #334155', color: '#f8fafc', fontSize: '1rem', minHeight: '120px', resize: 'vertical' }}
+                                                placeholder="Tell us what you loved..."
+                                            />
+                                        </div>
+                                        <button 
+                                            type="submit" 
+                                            disabled={isSubmittingReview}
+                                            style={{ 
+                                                background: 'var(--color-primary, #00e676)', 
+                                                color: '#000', 
+                                                padding: '1rem', 
+                                                borderRadius: '8px', 
+                                                fontWeight: 'bold', 
+                                                fontSize: '1rem',
+                                                border: 'none',
+                                                cursor: isSubmittingReview ? 'not-allowed' : 'pointer',
+                                                transition: 'opacity 0.2s',
+                                                opacity: isSubmittingReview ? 0.7 : 1
+                                            }}
+                                        >
+                                            {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
+                                        </button>
+                                    </form>
                                 )}
                             </div>
                         </div>

@@ -1,4 +1,4 @@
--- VulaHub Phase 16 + 18: Customers & Testimonials
+-- VulaHub Phase 16 + 18: Customers & Testimonials (Fix)
 -- Creates the testimonials table and sets up all required policies
 
 DO $$ 
@@ -24,10 +24,12 @@ BEGIN
     CREATE POLICY "Public read access on testimonials" ON public.testimonials
         FOR SELECT USING (is_active = true);
 
-    -- Authenticated Vendor Access: Manage their own reviews
+    -- Authenticated Vendor Access: Manage their own reviews via the profiles table
     DROP POLICY IF EXISTS "Vendors can manage their own testimonials" ON public.testimonials;
     CREATE POLICY "Vendors can manage their own testimonials" ON public.testimonials
-        FOR ALL TO authenticated USING (vendor_id = (SELECT id FROM vendors WHERE owner_id = auth.uid()));
+        FOR ALL TO authenticated USING (
+            vendor_id IN (SELECT vendor_id FROM profiles WHERE id = auth.uid())
+        );
 
     -- Public Insert Access: For the Landing Pages to submit new reviews
     DROP POLICY IF EXISTS "Public can insert testimonials" ON public.testimonials;

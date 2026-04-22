@@ -1,185 +1,164 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import * as crypto from "https://deno.land/std@0.168.0/crypto/mod.ts";
 
 const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 serve(async (req) => {
-    // Handle CORS preflight requests
-    if (req.method === 'OPTIONS') {
-        return new Response('ok', { headers: corsHeaders })
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    const bodyText = await req.text();
+    const payload = JSON.parse(bodyText);
+    const metadata = payload.data?.metadata || {};
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // BRANCH A: Vendor Subscription Payment
+    // Triggered when a vendor pays their R 399 monthly fee via the billing modal
+    // ─────────────────────────────────────────────────────────────────────────
+    if (metadata.payment_type === "vendor_subscription" && payload.event === "charge.success") {
+      const vendorId = metadata.vendor_id;
+      const platformSecret = Deno.env.get("PAYSTACK_SECRET_KEY") ?? "";
+
+      if (!vendorId || !platformSecret) {
+        return new Response("Missing vendor_id or platform secret", { status: 400, headers: corsHeaders });
+      }
+
+      // Verify Paystack signature using platform secret key
+      const encoder = new TextEncoder();
+      const key = await crypto.subtle.importKey(
+        "raw",
+        encoder.encode(platformSecret),
+        { name: "HMAC", hash: "SHA-512" },
+        false,
+        ["sign"]
+      );
+      const sigBuf = await crypto.subtle.sign("HMAC", key, encoder.encode(bodyText));
+      const hashHex = Array.from(new Uint8Array(sigBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
+
+      const incomingSig = req.headers.get("x-paystack-signature");
+      if (hashHex !== incomingSig) {
+        console.error("Invalid platform signature");
+        return new Response("Invalid signature", { status: 401, headers: corsHeaders });
+      }
+
+      // Activate the vendor subscription for 30 days
+      const nextBilling = new Date();
+      nextBilling.setDate(nextBilling.getDate() + 30);
+
+      const { error: updateError } = await supabase
+        .from("vendors")
+        .update({
+          subscription_status: "active",
+          last_billing_date: new Date().toISOString(),
+          next_billing_date: nextBilling.toISOString(),
+        })
+        .eq("id", vendorId);
+
+      if (updateError) {
+        console.error("Error activating vendor subscription:", updateError);
+        return new Response("Failed to activate subscription", { status: 500, headers: corsHeaders });
+      }
+
+      console.log(`✅ Vendor ${vendorId} subscription activated. Next billing: ${nextBilling.toISOString()}`);
+      return new Response(JSON.stringify({ message: "Subscription activated" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    try {
-        const bodyText = await req.text()
-        const payload = JSON.parse(bodyText)
+    // ─────────────────────────────────────────────────────────────────────────
+    // BRANCH B: Customer Order Payment
+    // Triggered when a customer pays for their kota order
+    // ─────────────────────────────────────────────────────────────────────────
+    const orderId = metadata.order_id;
 
-        // Initialize Supabase client
-        const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
-        // Use service_role key to bypass RLS policies for webhooks
-        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-        const supabase = createClient(supabaseUrl, supabaseKey)
-
-        const metadata = payload.data?.metadata || {}
-        const orderId = metadata.order_id
-        const cart = metadata.cart || [] // Array of { id: menu_item_id, quantity: number }
-
-        if (!orderId) {
-            console.error("Order ID missing in metadata.")
-            return new Response('Order ID missing', { status: 400, headers: corsHeaders })
-        }
-
-        // 1b. Multi-Tenant Key Lookup
-        // We must find the vendor's secret key from the database using the orderId
-        const { data: orderData, error: orderLookupError } = await supabase
-            .from('kg_orders')
-            .select('vendor_id')
-            .eq('id', orderId)
-            .single()
-
-        if (orderLookupError || !orderData) {
-            console.error("Could not find order to verify webhook.", orderLookupError)
-            return new Response('Order not found', { status: 404, headers: corsHeaders })
-        }
-
-        const { data: vendorData, error: vendorLookupError } = await supabase
-            .from('kg_vendors')
-            .select('paystack_secret_key')
-            .eq('id', orderData.vendor_id)
-            .single()
-
-        const vendorSecret = vendorData?.paystack_secret_key;
-
-        if (!vendorSecret) {
-            console.error(`Verification Failed: No secret key found for vendor ${orderData.vendor_id}`);
-            return new Response('Vendor secret not configured', { status: 400, headers: corsHeaders })
-        }
-
-        // 1c. Verify Paystack Signature with Vendor's Key
-        const encoder = new TextEncoder()
-        const key = await crypto.subtle.importKey(
-            "raw",
-            encoder.encode(vendorSecret),
-            { name: "HMAC", hash: "SHA-512" },
-            false,
-            ["sign"]
-        )
-
-        const signatureBuffer = await crypto.subtle.sign(
-            "HMAC",
-            key,
-            encoder.encode(bodyText)
-        )
-
-        // Convert ArrayBuffer to Hex String
-        const hashArray = Array.from(new Uint8Array(signatureBuffer))
-        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-
-        const signature = req.headers.get('x-paystack-signature')
-        if (hashHex !== signature) {
-            console.error("Invalid signature. Expected:", signature, "Got:", hashHex)
-            return new Response('Invalid signature', { status: 401, headers: corsHeaders })
-        }
-
-        // 2. Process the event if it's a successful charge
-        if (payload.event === 'charge.success') {
-
-
-
-            // 3. Generate a 4-digit order number (1000 - 9999)
-            const orderNumber = Math.floor(1000 + Math.random() * 9000).toString()
-
-            // 4. Update the order status to 'paid'
-            const { error: updateError } = await supabase
-                .from('kg_orders')
-                .update({
-                    status: 'paid',
-                    order_number: orderNumber
-                })
-                .eq('id', orderId)
-                .eq('status', 'pending') // Only update if currently pending
-
-            if (updateError) {
-                console.error("Error updating order:", updateError)
-                throw updateError
-            }
-
-            console.log(`Order ${orderId} updated to paid. Order number: ${orderNumber}`)
-
-            // 5. Inventory Deduction Logic
-            if (cart.length > 0) {
-                const itemIds = cart.map((item: any) => item.id)
-
-                // Fetch recipes for the ordered items
-                const { data: menuItems, error: menuError } = await supabase
-                    .from('kg_menu_items')
-                    .select('id, recipe_json')
-                    .in('id', itemIds)
-
-                if (menuError) {
-                    console.error("Error fetching menu items:", menuError)
-                    throw menuError
-                }
-
-                const inventoryDeductions: Record<string, number> = {}
-
-                // Calculate total amount of each ingredient needed
-                for (const cartItem of cart) {
-                    const menuItem = menuItems?.find(m => m.id === cartItem.id)
-                    if (menuItem && menuItem.recipe_json) {
-                        const recipe = menuItem.recipe_json as Record<string, number>
-                        const quantity = cartItem.quantity || 1
-
-                        for (const [ingredient, amountPerItem] of Object.entries(recipe)) {
-                            const totalAmountUsed = amountPerItem * quantity
-                            inventoryDeductions[ingredient] = (inventoryDeductions[ingredient] || 0) + totalAmountUsed
-                        }
-                    }
-                }
-
-                // Apply deductions one by one
-                // In a production app with high concurrency, consider using a Supabase RPC
-                // function to decrement the value atomically: `quantity = quantity - x`
-                for (const [ingredient, amountToDeduct] of Object.entries(inventoryDeductions)) {
-                    const { data: currentInv, error: fetchInvError } = await supabase
-                        .from('kg_ingredients')
-                        .select('current_stock')
-                        .eq('name', ingredient)
-                        .single()
-
-                    if (fetchInvError || !currentInv) {
-                        console.error(`Error fetching inventory for ${ingredient}:`, fetchInvError)
-                        continue // Skip to next ingredient on error
-                    }
-
-                    const newQuantity = currentInv.current_stock - amountToDeduct
-
-                    const { error: updateInvError } = await supabase
-                        .from('kg_ingredients')
-                        .update({ current_stock: newQuantity })
-                        .eq('name', ingredient)
-
-                    if (updateInvError) {
-                        console.error(`Error updating inventory for ${ingredient}:`, updateInvError)
-                    } else {
-                        console.log(`Deducted ${amountToDeduct} from ${ingredient}. New quantity: ${newQuantity}`)
-                    }
-                }
-            }
-        }
-
-        return new Response(JSON.stringify({ message: 'Webhook processed' }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200,
-        })
-    } catch (error) {
-        console.error('Webhook error:', error)
-        return new Response(JSON.stringify({ error: error.message }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 400,
-        })
+    if (!orderId) {
+      // Not an order payment and not a subscription — ignore
+      console.log("Unrecognised webhook type — ignoring");
+      return new Response(JSON.stringify({ message: "Ignored" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
     }
-})
+
+    // Look up the vendor for this order to verify using their own Paystack key
+    const { data: orderData, error: orderLookupError } = await supabase
+      .from("orders")
+      .select("vendor_id")
+      .eq("id", orderId)
+      .single();
+
+    if (orderLookupError || !orderData) {
+      console.error("Could not find order:", orderLookupError);
+      return new Response("Order not found", { status: 404, headers: corsHeaders });
+    }
+
+    // Fetch the vendor's own secret key (used to verify customer payment webhooks)
+    const { data: vendorData } = await supabase
+      .from("vendors")
+      .select("payment_config")
+      .eq("id", orderData.vendor_id)
+      .single();
+
+    const vendorSecret = vendorData?.payment_config?.paystack_secret_key;
+
+    if (vendorSecret) {
+      // Verify signature with vendor's own key
+      const encoder = new TextEncoder();
+      const key = await crypto.subtle.importKey(
+        "raw",
+        encoder.encode(vendorSecret),
+        { name: "HMAC", hash: "SHA-512" },
+        false,
+        ["sign"]
+      );
+      const sigBuf = await crypto.subtle.sign("HMAC", key, encoder.encode(bodyText));
+      const hashHex = Array.from(new Uint8Array(sigBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
+      const incomingSig = req.headers.get("x-paystack-signature");
+      if (hashHex !== incomingSig) {
+        console.error("Invalid vendor signature");
+        return new Response("Invalid signature", { status: 401, headers: corsHeaders });
+      }
+    }
+
+    if (payload.event === "charge.success") {
+      const { error: updateError } = await supabase
+        .from("orders")
+        .update({
+          status: "paid",
+          payment_reference: payload.data?.reference,
+        })
+        .eq("id", orderId)
+        .eq("status", "pending");
+
+      if (updateError) {
+        console.error("Error updating order:", updateError);
+        throw updateError;
+      }
+
+      console.log(`✅ Order ${orderId} marked as paid.`);
+    }
+
+    return new Response(JSON.stringify({ message: "Webhook processed" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+    });
+
+  } catch (error) {
+    console.error("Webhook error:", error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 400,
+    });
+  }
+});

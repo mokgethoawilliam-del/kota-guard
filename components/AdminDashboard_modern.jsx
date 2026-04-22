@@ -93,6 +93,7 @@ export default function AdminDashboard({ session }) {
 
     // Phase 15: Monetization
     const [showBillingModal, setShowBillingModal] = useState(false);
+    const [isInitiatingBilling, setIsInitiatingBilling] = useState(false);
 
     // Phase 16: Customers & Testimonials
     const [testimonials, setTestimonials] = useState([]);
@@ -1034,8 +1035,77 @@ export default function AdminDashboard({ session }) {
         </div>
     );
 
+    // ── Monetization: Trial & Subscription Helpers ──────────────────────────
+    const getTrialInfo = () => {
+        if (!vendorConfig) return { isExpired: false, daysLeft: 7 };
+        const status = vendorConfig.subscription_status;
+        if (status === 'active') return { isExpired: false, daysLeft: null };
+        if (status === 'cancelled') return { isExpired: true, daysLeft: 0 };
+        const createdAt = new Date(vendorConfig.created_at);
+        const trialEnd = new Date(createdAt.getTime() + 7 * 24 * 60 * 60 * 1000);
+        const now = new Date();
+        const daysLeft = Math.ceil((trialEnd - now) / (1000 * 60 * 60 * 24));
+        return { isExpired: now > trialEnd, daysLeft: Math.max(0, daysLeft) };
+    };
+
+    const handleSubscribe = async () => {
+        setIsInitiatingBilling(true);
+        try {
+            const { data, error } = await supabase.functions.invoke('init-vendor-subscription');
+            if (error) throw error;
+            if (data?.authorization_url) {
+                window.location.href = data.authorization_url;
+            } else {
+                throw new Error('No payment URL returned. Please try again.');
+            }
+        } catch (err) {
+            alert('Could not initiate payment: ' + err.message);
+        } finally {
+            setIsInitiatingBilling(false);
+        }
+    };
+    // ────────────────────────────────────────────────────────────────────────
+
     return (
         <div className="admin-shell">
+            {/* ── MONETIZATION GATE */}
+            {(() => {
+                const { isExpired } = getTrialInfo();
+                const status = vendorConfig?.subscription_status;
+                const isRestricted = vendorConfig && (isExpired && status !== 'active') || status === 'past_due' || status === 'cancelled';
+                if (!isRestricted) return null;
+                const isPastDue = status === 'past_due';
+                const isCancelled = status === 'cancelled';
+                return (
+                    <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(2,6,23,0.97)', backdropFilter: 'blur(12px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem', textAlign: 'center' }}>
+                        <div style={{ maxWidth: '480px', width: '100%' }}>
+                            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🔒</div>
+                            <h1 style={{ color: '#fff', fontSize: '2rem', fontWeight: '900', marginBottom: '0.75rem' }}>
+                                {isCancelled ? 'Subscription Cancelled' : isPastDue ? 'Payment Overdue' : 'Trial Expired'}
+                            </h1>
+                            <p style={{ color: '#94a3b8', fontSize: '1.05rem', lineHeight: '1.7', marginBottom: '2rem' }}>
+                                {isCancelled ? 'Your Kota Guard subscription has been cancelled. Restore access to continue managing your business.'
+                                : isPastDue ? 'Your last payment failed. Please update your payment to restore full access.'
+                                : 'Your 7-day free trial has ended. Subscribe to keep your shop running at full power.'}
+                            </p>
+                            <div style={{ background: 'rgba(0,230,118,0.05)', border: '1px solid rgba(0,230,118,0.3)', borderRadius: '16px', padding: '1.5rem', marginBottom: '2rem' }}>
+                                <div style={{ fontSize: '3rem', fontWeight: '900', color: '#00e676' }}>R 399</div>
+                                <div style={{ color: '#64748b', fontSize: '0.9rem' }}>per month · Cancel anytime</div>
+                                <ul style={{ listStyle: 'none', padding: 0, margin: '1rem 0 0', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    {['Unlimited Orders & KDS', 'Multi-branch Management', 'AI Manager & Analytics', 'WhatsApp Notifications', 'Customer Reviews System'].map(f => (
+                                        <li key={f} style={{ color: '#cbd5e1', fontSize: '0.9rem' }}>✓ {f}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                            <button onClick={handleSubscribe} disabled={isInitiatingBilling} style={{ width: '100%', padding: '1.1rem', background: isInitiatingBilling ? '#334155' : 'linear-gradient(135deg, #00e676, #00c853)', color: '#0f172a', border: 'none', borderRadius: '12px', fontSize: '1.1rem', fontWeight: '900', cursor: isInitiatingBilling ? 'not-allowed' : 'pointer', marginBottom: '1rem' }}>
+                                {isInitiatingBilling ? 'Redirecting to Paystack...' : '🚀 Activate Subscription — R 399/month'}
+                            </button>
+                            <p style={{ color: '#475569', fontSize: '0.8rem' }}>Secured by Paystack. You will be redirected to complete payment.</p>
+                        </div>
+                    </div>
+                );
+            })()}
+
             {/*  Sidebar Navigation */}
             <nav className="kds-sidebar">
                 <div className="sidebar-branding">
@@ -1383,37 +1453,42 @@ export default function AdminDashboard({ session }) {
                         </div>
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '2rem' }}>
-                            <div style={{ background: 'rgba(51, 65, 85, 0.3)', padding: '2rem', borderRadius: '20px', border: '1px dashed #334155' }}>
+                            <div style={{ background: 'rgba(51, 65, 85, 0.3)', padding: '2rem', borderRadius: '20px', border: `1px solid ${vendorConfig?.subscription_status === 'active' ? 'rgba(0,230,118,0.3)' : '#334155'}` }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                                     <h3 style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem', textTransform: 'uppercase' }}>Current Plan</h3>
-                                    <span style={{ background: '#00e676', color: '#0f172a', padding: '0.25rem 0.75rem', borderRadius: '99px', fontSize: '0.7rem', fontWeight: 'bold' }}>ACTIVE</span>
+                                    <span style={{ background: vendorConfig?.subscription_status === 'active' ? '#00e676' : vendorConfig?.subscription_status === 'trial' ? '#fbbf24' : '#ef4444', color: '#0f172a', padding: '0.25rem 0.75rem', borderRadius: '99px', fontSize: '0.7rem', fontWeight: 'bold', textTransform: 'uppercase' }}>{vendorConfig?.subscription_status || 'trial'}</span>
                                 </div>
                                 <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#fff', marginBottom: '0.5rem' }}>R 399 <span style={{ fontSize: '1rem', color: '#64748b' }}>/ month</span></div>
-                                <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: '1.5' }}>
-                                    Includes full multi-tenant access, unlimited inventory items, real-time KDS, and WhatsApp logistics notifications.
-                                </p>
-                                <button style={{ width: '100%', marginTop: '2rem', padding: '1rem', background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}>
-                                    Manage Subscription
+                                <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: '1.5' }}>Unlimited orders, real-time KDS, AI Manager, multi-branch management, and WhatsApp notifications.</p>
+                                {vendorConfig?.next_billing_date && vendorConfig?.subscription_status === 'active' && (
+                                    <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '1rem' }}>Next billing: <strong style={{ color: '#94a3b8' }}>{new Date(vendorConfig.next_billing_date).toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' })}</strong></p>
+                                )}
+                                {vendorConfig?.subscription_status !== 'active' && (
+                                    <div style={{ marginTop: '1.5rem', padding: '0.75rem', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: '8px', fontSize: '0.8rem', color: '#fcd34d' }}>
+                                        {(() => { const { daysLeft } = getTrialInfo(); return daysLeft > 0 ? `⏳ ${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining in your free trial.` : '⚠️ Trial expired. Subscribe to restore access.'; })()}
+                                    </div>
+                                )}
+                                <button onClick={handleSubscribe} disabled={isInitiatingBilling} style={{ width: '100%', marginTop: '1.5rem', padding: '1rem', background: isInitiatingBilling ? '#334155' : 'linear-gradient(135deg, #00e676, #00c853)', border: 'none', borderRadius: '12px', color: '#0f172a', fontWeight: '900', cursor: isInitiatingBilling ? 'not-allowed' : 'pointer', fontSize: '0.95rem' }}>
+                                    {isInitiatingBilling ? 'Redirecting...' : vendorConfig?.subscription_status === 'active' ? '🔄 Renew / Manage Plan' : '🚀 Subscribe — R 399/month'}
                                 </button>
                             </div>
-
                             <div>
                                 <h3 style={{ margin: '0 0 1.5rem', fontSize: '1rem', color: '#fff' }}>Payment History</h3>
                                 <div style={{ display: 'grid', gap: '1rem' }}>
-                                    {[
-                                        { date: 'April 2024', amount: 'R 399', status: 'Pending' }
-                                    ].map((inv, idx) => (
-                                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'rgba(30, 41, 59, 0.5)', borderRadius: '12px' }}>
+                                    {vendorConfig?.last_billing_date ? (
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'rgba(30, 41, 59, 0.5)', borderRadius: '12px' }}>
                                             <div>
-                                                <div style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>{inv.date}</div>
-                                                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Invoice #{Math.floor(Math.random() * 9000) + 1000}</div>
+                                                <div style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>{new Date(vendorConfig.last_billing_date).toLocaleDateString('en-ZA', { year: 'numeric', month: 'long' })}</div>
+                                                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Monthly Subscription</div>
                                             </div>
                                             <div style={{ textAlign: 'right' }}>
-                                                <div style={{ fontSize: '0.85rem' }}>{inv.amount}</div>
-                                                <div style={{ fontSize: '0.7rem', color: inv.status === 'Paid' ? '#00e676' : '#f59e0b' }}>{inv.status}</div>
+                                                <div style={{ fontSize: '0.85rem' }}>R 399</div>
+                                                <div style={{ fontSize: '0.7rem', color: '#00e676' }}>Paid</div>
                                             </div>
                                         </div>
-                                    ))}
+                                    ) : (
+                                        <p style={{ color: '#475569', fontSize: '0.85rem', padding: '1rem' }}>No payment history yet.</p>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -1421,6 +1496,22 @@ export default function AdminDashboard({ session }) {
                 </div>
             )}
 
+                {/* Trial Banner */}
+                {(() => {
+                    const { isExpired, daysLeft } = getTrialInfo();
+                    if (isExpired || vendorConfig?.subscription_status === 'active' || !vendorConfig) return null;
+                    const urgent = daysLeft <= 2;
+                    return (
+                        <div style={{ background: urgent ? 'rgba(239,68,68,0.15)' : 'rgba(251,191,36,0.1)', borderBottom: `1px solid ${urgent ? '#ef4444' : '#fbbf24'}`, padding: '0.6rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+                            <span style={{ color: urgent ? '#fca5a5' : '#fcd34d' }}>
+                                {urgent ? '⚠️' : '⏳'} <strong>{daysLeft} day{daysLeft !== 1 ? 's' : ''} left on your free trial.</strong> Subscribe to avoid interruption.
+                            </span>
+                            <button onClick={handleSubscribe} disabled={isInitiatingBilling} style={{ background: '#00e676', color: '#000', border: 'none', padding: '0.35rem 1rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer' }}>
+                                {isInitiatingBilling ? '...' : 'Subscribe Now'}
+                            </button>
+                        </div>
+                    );
+                })()}
                 <header className="content-header">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         <h1 style={{ fontSize: '1.25rem', margin: 0, fontWeight: '700' }}>

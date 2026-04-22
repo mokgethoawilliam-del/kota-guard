@@ -1784,28 +1784,49 @@ export default function AdminDashboard({ session }) {
                                         {/* Paystack View */}
                                         {vaultActiveSection === 'paystack' && (
                                             <div style={{ maxWidth: '500px' }}>
-                                                <h3 style={{ color: '#fff', fontSize: '1.2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                     Paystack Settings
+                                                <h3 style={{ color: '#fff', fontSize: '1.2rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                    💳 Your Paystack Keys
                                                 </h3>
+                                                <div style={{ background: 'rgba(0,230,118,0.06)', border: '1px solid rgba(0,230,118,0.2)', borderRadius: '10px', padding: '1rem', marginBottom: '1.5rem', fontSize: '0.85rem', color: '#94a3b8', lineHeight: '1.7' }}>
+                                                    <strong style={{ color: '#00e676' }}>These are YOUR own Paystack keys.</strong> When customers place orders on your menu page, payments go directly into your Paystack account. Get your keys from <a href="https://dashboard.paystack.com/#/settings/developer" target="_blank" rel="noopener noreferrer" style={{ color: '#00e676' }}>dashboard.paystack.com</a>.
+                                                </div>
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                                                     <div>
-                                                        <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.5rem' }}>Public Key</label>
+                                                        <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
+                                                            <span>Public Key (Live)</span>
+                                                            {vendorConfig?.payment_config?.paystack_public_key && <span style={{ color: '#10b981', fontSize: '0.75rem' }}>✓ Saved</span>}
+                                                        </label>
                                                         <input 
                                                             type="text" 
                                                             className="kds-input" 
-                                                            value={vendorConfig?.paystack_public_key || ''}
-                                                            onChange={(e) => setVendorConfig({...vendorConfig, paystack_public_key: e.target.value})}
-                                                            placeholder="pk_..."
+                                                            value={vendorConfig?.payment_config?.paystack_public_key || ''}
+                                                            onChange={(e) => setVendorConfig({
+                                                                ...vendorConfig,
+                                                                payment_config: {
+                                                                    ...(vendorConfig?.payment_config || {}),
+                                                                    paystack_public_key: e.target.value
+                                                                }
+                                                            })}
+                                                            placeholder="pk_live_..."
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.5rem' }}>Secret Key</label>
+                                                        <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
+                                                            <span>Secret Key (Live)</span>
+                                                            {vendorConfig?.payment_config?.paystack_secret_key && <span style={{ color: '#10b981', fontSize: '0.75rem' }}>✓ Saved</span>}
+                                                        </label>
                                                         <input 
                                                             type="password" 
                                                             className="kds-input" 
-                                                            value={vendorConfig?.paystack_secret_key || ''}
-                                                            onChange={(e) => setVendorConfig({...vendorConfig, paystack_secret_key: e.target.value})}
-                                                            placeholder="sk_..."
+                                                            value={vendorConfig?.payment_config?.paystack_secret_key || ''}
+                                                            onChange={(e) => setVendorConfig({
+                                                                ...vendorConfig,
+                                                                payment_config: {
+                                                                    ...(vendorConfig?.payment_config || {}),
+                                                                    paystack_secret_key: e.target.value
+                                                                }
+                                                            })}
+                                                            placeholder="sk_live_..."
                                                         />
                                                     </div>
                                                     <button 
@@ -1815,15 +1836,18 @@ export default function AdminDashboard({ session }) {
                                                         onClick={async () => {
                                                             setIsSavingVault(true);
                                                             const { error } = await supabase.from('vendors').update({
-                                                                paystack_public_key: vendorConfig.paystack_public_key,
-                                                                paystack_secret_key: vendorConfig.paystack_secret_key
+                                                                payment_config: {
+                                                                    ...(vendorConfig?.payment_config || {}),
+                                                                    paystack_public_key: vendorConfig?.payment_config?.paystack_public_key,
+                                                                    paystack_secret_key: vendorConfig?.payment_config?.paystack_secret_key,
+                                                                }
                                                             }).eq('id', currentVendorId);
                                                             setIsSavingVault(false);
                                                             if (error) alert("Save failed: " + error.message);
-                                                            else alert("Paystack keys updated! ");
+                                                            else alert("✅ Paystack keys saved! Your customers' payments will now go directly into your Paystack account.");
                                                         }}
                                                     >
-                                                        {isSavingVault ? 'Saving...' : ' Save Paystack Keys'}
+                                                        {isSavingVault ? 'Saving...' : '💾 Save Paystack Keys'}
                                                     </button>
                                                 </div>
                                             </div>
@@ -2053,9 +2077,7 @@ export default function AdminDashboard({ session }) {
                 </div>
             )}
 
-            {activeTab === 'kds' && (
-                <>
-                    {kdsSearchQuery.trim() ? (
+            {kdsSearchQuery.trim() ? (
                         <div style={{ padding: '0 2rem 2rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '1rem' }}>
                                 <h2 style={{ margin: 0, color: '#60a5fa' }}> Global Search Results for "{kdsSearchQuery}"</h2>
@@ -2097,7 +2119,7 @@ export default function AdminDashboard({ session }) {
                                 );
                             })()}
                         </div>
-                    ) : (
+                    ) : activeTab === 'kds' ? (
                         <div className="kds-columns">
                             {/* Column 1: New / Paid */}
                             <div className="kds-col kds-col-new">
@@ -2126,9 +2148,7 @@ export default function AdminDashboard({ session }) {
                                 </div>
                             </div>
                         </div>
-                    )}
-                </>
-            )}
+                    ) : null}
 
             {activeTab === 'customers' && (
                 <div style={{ padding: '2rem' }}>

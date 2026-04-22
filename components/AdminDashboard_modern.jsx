@@ -2209,16 +2209,27 @@ export default function AdminDashboard({ session }) {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                         <div>
                             <h2 style={{ color: '#fff', margin: 0 }}> Testimonial Manager</h2>
-                            <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Add and manage customer reviews that appear on your shop's menu page.</p>
+                            <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Moderate customer reviews submitted from your landing page. Toggle visibility or add manually.</p>
                         </div>
                         <button className="btn-primary" onClick={addTestimonial}>+ Add Testimonial</button>
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
                         {testimonials.map(t => (
-                            <div key={t.id} style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', opacity: t.is_active ? 1 : 0.5 }}>
-                                <div style={{ fontSize: '1.2rem', color: '#facc15' }}>{"".repeat(5)}</div>
-                                <p style={{ color: '#f8fafc', fontStyle: 'italic', margin: 0 }}>"{t.quote}"</p>
+                            <div key={t.id} style={{ background: '#1e293b', border: `1px solid ${t.is_active ? '#334155' : 'rgba(251,191,36,0.4)'}`, borderRadius: '12px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div style={{ display: 'flex', gap: '0.15rem' }}>
+                                        {[1, 2, 3, 4, 5].map(star => (
+                                            <span key={star} style={{ color: star <= (t.rating || 5) ? '#fbbf24' : '#475569', fontSize: '1.1rem' }}>★</span>
+                                        ))}
+                                    </div>
+                                    {!t.is_active && <span style={{ fontSize: '0.7rem', background: 'rgba(251,191,36,0.15)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.4)', borderRadius: '6px', padding: '0.2rem 0.6rem' }}>Pending</span>}
+                                </div>
+                                {t.quote ? (
+                                    <p style={{ color: '#f8fafc', fontStyle: 'italic', margin: 0 }}>"{t.quote}"</p>
+                                ) : (
+                                    <p style={{ color: '#475569', fontStyle: 'italic', margin: 0, fontSize: '0.85rem' }}>— star rating only —</p>
+                                )}
                                 <div>
                                     <div style={{ color: '#fff', fontWeight: 'bold' }}>{t.author_name}</div>
                                     <div style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{t.author_role}</div>

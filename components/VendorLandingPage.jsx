@@ -14,7 +14,7 @@ function VendorLandingPage() {
     const [featuredMenu, setFeaturedMenu] = useState([]);
     const [testimonials, setTestimonials] = useState([]);
 
-    const [reviewForm, setReviewForm] = useState({ author_name: '', quote: '' });
+    const [reviewForm, setReviewForm] = useState({ author_name: '', quote: '', rating: 5 });
     const [isSubmittingReview, setIsSubmittingReview] = useState(false);
     const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
@@ -84,18 +84,19 @@ function VendorLandingPage() {
 
     const submitReview = async (e) => {
         e.preventDefault();
-        if (!reviewForm.author_name || !reviewForm.quote) return;
+        if (!reviewForm.author_name) return;
         setIsSubmittingReview(true);
         try {
             const { error } = await supabase.from('testimonials').insert({
                 vendor_id: vendor.id,
                 author_name: reviewForm.author_name,
-                quote: reviewForm.quote,
+                quote: reviewForm.quote || null,
+                rating: reviewForm.rating,
                 is_active: false // Require admin approval
             });
             if (error) throw error;
             setReviewSubmitted(true);
-            setReviewForm({ author_name: '', quote: '' });
+            setReviewForm({ author_name: '', quote: '', rating: 5 });
         } catch (err) {
             alert('Error submitting review: ' + err.message);
         } finally {
@@ -304,7 +305,12 @@ function VendorLandingPage() {
                                             position: 'relative'
                                         }}>
                                             <span style={{ fontSize: '3rem', color: 'var(--color-primary, #00e676)', opacity: 0.2, position: 'absolute', top: '10px', left: '20px' }}>"</span>
-                                            <p style={{ color: '#cbd5e1', fontSize: '1.1rem', lineHeight: '1.8', fontStyle: 'italic', marginBottom: '1.5rem', zIndex: 1 }}>"{test.quote}"</p>
+                                            <div style={{ display: 'flex', gap: '0.2rem', marginBottom: '1rem', zIndex: 1 }}>
+                                                {[1, 2, 3, 4, 5].map(star => (
+                                                    <span key={star} style={{ color: star <= (test.rating || 5) ? '#fbbf24' : '#334155', fontSize: '1.2rem' }}>★</span>
+                                                ))}
+                                            </div>
+                                            {test.quote && <p style={{ color: '#cbd5e1', fontSize: '1.1rem', lineHeight: '1.8', fontStyle: 'italic', marginBottom: '1.5rem', zIndex: 1 }}>"{test.quote}"</p>}
                                             <div style={{ marginTop: 'auto', borderTop: '1px solid #334155', paddingTop: '1rem' }}>
                                                 <strong style={{ color: '#f8fafc', display: 'block', fontSize: '1.1rem' }}>{test.author_name}</strong>
                                                 {test.author_role && <span style={{ color: '#64748b', fontSize: '0.9rem' }}>{test.author_role}</span>}
@@ -340,9 +346,31 @@ function VendorLandingPage() {
                                             />
                                         </div>
                                         <div>
-                                            <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.5rem', fontSize: '0.9rem' }}>Your Experience</label>
+                                            <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.5rem', fontSize: '0.9rem' }}>Rating</label>
+                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                {[1, 2, 3, 4, 5].map(star => (
+                                                    <button 
+                                                        key={star} 
+                                                        type="button"
+                                                        onClick={() => setReviewForm({ ...reviewForm, rating: star })}
+                                                        style={{ 
+                                                            background: 'none', 
+                                                            border: 'none', 
+                                                            fontSize: '2rem', 
+                                                            cursor: 'pointer',
+                                                            color: star <= reviewForm.rating ? '#fbbf24' : '#334155',
+                                                            transition: 'color 0.2s',
+                                                            padding: 0
+                                                        }}
+                                                    >
+                                                        ★
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.5rem', fontSize: '0.9rem' }}>Your Experience (Optional)</label>
                                             <textarea 
-                                                required
                                                 value={reviewForm.quote}
                                                 onChange={e => setReviewForm({ ...reviewForm, quote: e.target.value })}
                                                 style={{ width: '100%', padding: '1rem', borderRadius: '8px', background: '#1e293b', border: '1px solid #334155', color: '#f8fafc', fontSize: '1rem', minHeight: '120px', resize: 'vertical' }}

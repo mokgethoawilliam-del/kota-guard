@@ -56,7 +56,7 @@ export default function AdminDashboard({ session }) {
     // Phase 11: CMS Sub-navigation
     const [cmsActiveSubTab, setCmsActiveSubTab] = useState('menu'); // 'menu' | 'branches' | 'events' | 'branding'
     const [isSavingBranch, setIsSavingBranch] = useState(false);
-    const [newBranch, setNewBranch] = useState({ name: '', address: '', google_maps_url: '', is_active: true });
+    const [newBranch, setNewBranch] = useState({ id: null, name: '', address: '', google_maps_url: '', office_hours: '', is_active: true });
     const [heroImageFile, setHeroImageFile] = useState(null);
     const [logoFile, setLogoFile] = useState(null);
     const [uploadingHero, setUploadingHero] = useState(false);
@@ -95,6 +95,15 @@ export default function AdminDashboard({ session }) {
 
     // Phase 16: Customers & Testimonials
     const [testimonials, setTestimonials] = useState([]);
+
+    // Phase 17: AI Manager
+    const [aiMessages, setAiMessages] = useState([{
+        role: 'assistant',
+        content: 'Hello! I am your AI Manager. I have real-time access to your orders, inventory, and revenue. Ask me anything about your business!'
+    }]);
+    const [aiInput, setAiInput] = useState('');
+    const [aiLoading, setAiLoading] = useState(false);
+    const aiChatEndRef = React.useRef(null);
 
     //  Navigation Icons (Minimal SVGs)
     const Icons = {
@@ -177,6 +186,12 @@ export default function AdminDashboard({ session }) {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
                 <line x1="1" y1="10" x2="23" y2="10"></line>
+            </svg>
+        ),
+        Brain: () => (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.46 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.14Z"></path>
+                <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.46 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.14Z"></path>
             </svg>
         )
     };
@@ -1068,6 +1083,9 @@ export default function AdminDashboard({ session }) {
                     <button className={`sidebar-item ${activeTab === 'cms' ? 'active' : ''}`} onClick={() => setActiveTab('cms')}>
                         <Icons.Settings /> CMS Settings
                     </button>
+                    <button className={`sidebar-item ${activeTab === 'ai' ? 'active' : ''}`} onClick={() => setActiveTab('ai')} style={{ background: activeTab === 'ai' ? 'linear-gradient(135deg, rgba(139,92,246,0.3), rgba(59,130,246,0.2))' : '', borderColor: activeTab === 'ai' ? 'rgba(139,92,246,0.5)' : '' }}>
+                        <Icons.Brain /> AI Manager
+                    </button>
                     <button className={`sidebar-item ${activeTab === 'help' ? 'active' : ''}`} onClick={() => setActiveTab('help')}>
                         <Icons.Help /> Help Center
                     </button>
@@ -1662,6 +1680,16 @@ export default function AdminDashboard({ session }) {
                                                 <h3 style={{ margin: 0, color: '#fff', fontSize: '1rem' }}>WhatsApp Bot</h3>
                                                 <p style={{ margin: '0.5rem 0 0', color: '#94a3b8', fontSize: '0.8rem' }}>Automated notifications</p>
                                             </div>
+                                            <div className="vault-card" onClick={() => setVaultActiveSection('resend')} style={{ borderColor: 'rgba(99,102,241,0.4)' }}>
+                                                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>📧</div>
+                                                <h3 style={{ margin: 0, color: '#fff', fontSize: '1rem' }}>Resend Email</h3>
+                                                <p style={{ margin: '0.5rem 0 0', color: '#94a3b8', fontSize: '0.8rem' }}>PIN delivery via email</p>
+                                            </div>
+                                            <div className="vault-card" onClick={() => setVaultActiveSection('ai_keys')} style={{ borderColor: 'rgba(139,92,246,0.5)', background: 'rgba(139,92,246,0.05)' }}>
+                                                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🤖</div>
+                                                <h3 style={{ margin: 0, color: '#a78bfa', fontSize: '1rem' }}>AI Manager Keys</h3>
+                                                <p style={{ margin: '0.5rem 0 0', color: '#94a3b8', fontSize: '0.8rem' }}>Grok + Gemini API keys</p>
+                                            </div>
                                         </div>
                                     </>
                                 ) : (
@@ -1848,6 +1876,92 @@ export default function AdminDashboard({ session }) {
                                                     >
                                                         {isSavingVault ? 'Saving...' : ' Verify & Link Domain'}
                                                     </button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Resend View */}
+                                        {vaultActiveSection === 'resend' && (
+                                            <div style={{ maxWidth: '500px' }}>
+                                                <h3 style={{ color: '#fff', fontSize: '1.2rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>📧 Resend Email Settings</h3>
+                                                <p style={{ color: '#94a3b8', fontSize: '0.82rem', marginBottom: '1.5rem' }}>When a customer pays, their secret collection PIN is automatically emailed to them. Get your free key at <a href="https://resend.com" target="_blank" style={{ color: '#60a5fa' }}>resend.com</a> — 3,000 emails/month free.</p>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                                    <div>
+                                                        <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.5rem' }}>Resend API Key</label>
+                                                        <input
+                                                            type="password"
+                                                            className="kds-input"
+                                                            value={vendorConfig?.payment_config?.resend_api_key || ''}
+                                                            onChange={(e) => setVendorConfig({...vendorConfig, payment_config: {...vendorConfig.payment_config, resend_api_key: e.target.value}})}
+                                                            placeholder="re_..."
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.5rem' }}>From Email Address</label>
+                                                        <input
+                                                            type="email"
+                                                            className="kds-input"
+                                                            value={vendorConfig?.payment_config?.resend_from_email || ''}
+                                                            onChange={(e) => setVendorConfig({...vendorConfig, payment_config: {...vendorConfig.payment_config, resend_from_email: e.target.value}})}
+                                                            placeholder="orders@yourdomain.co.za"
+                                                        />
+                                                    </div>
+                                                    <button
+                                                        disabled={isSavingVault}
+                                                        className="btn-primary"
+                                                        style={{ background: '#6366f1', color: '#fff' }}
+                                                        onClick={async () => {
+                                                            setIsSavingVault(true);
+                                                            const { error } = await supabase.from('vendors').update({ payment_config: vendorConfig.payment_config }).eq('id', currentVendorId);
+                                                            setIsSavingVault(false);
+                                                            if (error) alert('Save failed: ' + error.message);
+                                                            else alert('Resend settings saved! Customers will now receive their PIN via email.');
+                                                        }}
+                                                    >{isSavingVault ? 'Saving...' : '📧 Save Resend Settings'}</button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* AI Keys View */}
+                                        {vaultActiveSection === 'ai_keys' && (
+                                            <div style={{ maxWidth: '540px' }}>
+                                                <h3 style={{ color: '#a78bfa', fontSize: '1.2rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>🤖 AI Manager API Keys</h3>
+                                                <p style={{ color: '#94a3b8', fontSize: '0.82rem', marginBottom: '1.5rem', lineHeight: '1.6' }}>The AI Manager uses your own API key — the platform charges nothing extra. Add one or both keys. The system automatically uses whichever is available, with <strong style={{ color: '#fff' }}>Grok as the primary</strong> and <strong style={{ color: '#fff' }}>Gemini as the fallback</strong>.</p>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                                    <div style={{ padding: '1.25rem', border: '1px solid rgba(139,92,246,0.3)', borderRadius: '10px', background: 'rgba(139,92,246,0.05)' }}>
+                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: '#c4b5fd', marginBottom: '0.75rem', fontWeight: '600' }}>Grok API Key <span style={{ fontSize: '0.7rem', background: 'rgba(139,92,246,0.3)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>Primary</span></label>
+                                                        <input
+                                                            type="password"
+                                                            className="kds-input"
+                                                            value={vendorConfig?.payment_config?.grok_api_key || ''}
+                                                            onChange={(e) => setVendorConfig({...vendorConfig, payment_config: {...vendorConfig.payment_config, grok_api_key: e.target.value}})}
+                                                            placeholder="xai-..."
+                                                        />
+                                                        <small style={{ color: '#64748b', marginTop: '0.4rem', display: 'block' }}>Get your free key at <a href="https://console.x.ai" target="_blank" style={{ color: '#7c3aed' }}>console.x.ai</a></small>
+                                                    </div>
+                                                    <div style={{ padding: '1.25rem', border: '1px solid rgba(59,130,246,0.3)', borderRadius: '10px', background: 'rgba(59,130,246,0.05)' }}>
+                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: '#93c5fd', marginBottom: '0.75rem', fontWeight: '600' }}>Gemini API Key <span style={{ fontSize: '0.7rem', background: 'rgba(59,130,246,0.2)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>Fallback</span></label>
+                                                        <input
+                                                            type="password"
+                                                            className="kds-input"
+                                                            value={vendorConfig?.payment_config?.gemini_api_key || ''}
+                                                            onChange={(e) => setVendorConfig({...vendorConfig, payment_config: {...vendorConfig.payment_config, gemini_api_key: e.target.value}})}
+                                                            placeholder="AIza..."
+                                                        />
+                                                        <small style={{ color: '#64748b', marginTop: '0.4rem', display: 'block' }}>Get your free key at <a href="https://aistudio.google.com/apikey" target="_blank" style={{ color: '#3b82f6' }}>aistudio.google.com</a></small>
+                                                    </div>
+                                                    <button
+                                                        disabled={isSavingVault}
+                                                        className="btn-primary"
+                                                        style={{ background: 'linear-gradient(135deg, #7c3aed, #3b82f6)', color: '#fff' }}
+                                                        onClick={async () => {
+                                                            setIsSavingVault(true);
+                                                            const { error } = await supabase.from('vendors').update({ payment_config: vendorConfig.payment_config }).eq('id', currentVendorId);
+                                                            setIsSavingVault(false);
+                                                            if (error) alert('Save failed: ' + error.message);
+                                                            else alert('AI Manager keys saved! Go to the AI Manager tab to start chatting.');
+                                                        }}
+                                                    >{isSavingVault ? 'Saving...' : '🤖 Save AI Keys'}</button>
                                                 </div>
                                             </div>
                                         )}
@@ -2859,26 +2973,43 @@ export default function AdminDashboard({ session }) {
                                         e.preventDefault();
                                         setIsSavingBranch(true);
                                         try {
-                                            const { error } = await supabase.from('locations').insert({
-                                                name: newBranch.name,
-                                                vendor_id: currentVendorId,
-                                                address: newBranch.address,
-                                                google_maps_url: newBranch.google_maps_url,
-                                                is_mobile: false,
-                                                is_active: true
-                                            });
-                                            if (error) throw error;
-                                            setNewBranch({ name: '', address: '', google_maps_url: '', is_active: true });
+                                            if (newBranch.id) {
+                                                const { error } = await supabase.from('locations').update({
+                                                    name: newBranch.name,
+                                                    address: newBranch.address,
+                                                    google_maps_url: newBranch.google_maps_url,
+                                                    office_hours: newBranch.office_hours,
+                                                }).eq('id', newBranch.id);
+                                                if (error) throw error;
+                                                alert("Branch updated successfully!");
+                                            } else {
+                                                const { error } = await supabase.from('locations').insert({
+                                                    name: newBranch.name,
+                                                    vendor_id: currentVendorId,
+                                                    address: newBranch.address,
+                                                    google_maps_url: newBranch.google_maps_url,
+                                                    office_hours: newBranch.office_hours,
+                                                    is_mobile: false,
+                                                    is_active: true
+                                                });
+                                                if (error) throw error;
+                                                alert("Branch added successfully!");
+                                            }
+                                            setNewBranch({ id: null, name: '', address: '', google_maps_url: '', office_hours: '', is_active: true });
                                             fetchInitialData(); // Refresh list
-                                            alert("Branch added successfully!");
                                         } catch (err) {
                                             alert("Error saving branch: " + err.message);
                                         } finally {
                                             setIsSavingBranch(false);
                                         }
-                                    }} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
-                                        <div style={{ flex: 1 }}>
-                                            <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Branch Name (e.g. Flora Park Shop)</label>
+                                    }} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', alignItems: 'flex-start' }}>
+                                        <div style={{ gridColumn: '1 / -1' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                                <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem' }}>Branch Name (e.g. Flora Park Shop)</label>
+                                                {newBranch.id && (
+                                                    <span style={{ color: '#fbbf24', fontSize: '0.8rem', fontWeight: 'bold' }}>Editing Branch</span>
+                                                )}
+                                            </div>
                                             <input 
                                                 required 
                                                 type="text" 
@@ -2889,9 +3020,49 @@ export default function AdminDashboard({ session }) {
                                                 style={{ width: '100%' }}
                                             />
                                         </div>
-                                        <button type="submit" className="btn-primary" disabled={isSavingBranch} style={{ padding: '0.75rem 2rem' }}>
-                                            {isSavingBranch ? 'Saving...' : ' Add Branch'}
-                                        </button>
+                                        <div>
+                                            <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Physical Address (Live Location)</label>
+                                            <input 
+                                                type="text" 
+                                                className="kds-input" 
+                                                value={newBranch.address} 
+                                                onChange={e => setNewBranch({ ...newBranch, address: e.target.value })} 
+                                                placeholder="e.g. 123 Madiba St, Polokwane"
+                                                style={{ width: '100%' }}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Google Maps URL</label>
+                                            <input 
+                                                type="url" 
+                                                className="kds-input" 
+                                                value={newBranch.google_maps_url} 
+                                                onChange={e => setNewBranch({ ...newBranch, google_maps_url: e.target.value })} 
+                                                placeholder="https://maps.google.com/..."
+                                                style={{ width: '100%' }}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Office Hours</label>
+                                            <input 
+                                                type="text" 
+                                                className="kds-input" 
+                                                value={newBranch.office_hours} 
+                                                onChange={e => setNewBranch({ ...newBranch, office_hours: e.target.value })} 
+                                                placeholder="e.g. Mon-Fri: 9AM - 6PM"
+                                                style={{ width: '100%' }}
+                                            />
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'flex-end', height: '100%', paddingTop: '1.4rem', gap: '0.5rem' }}>
+                                            <button type="submit" className="btn-primary" disabled={isSavingBranch} style={{ padding: '0.75rem 2rem', flex: 1 }}>
+                                                {isSavingBranch ? 'Saving...' : (newBranch.id ? ' Update Branch' : ' Add Branch')}
+                                            </button>
+                                            {newBranch.id && (
+                                                <button type="button" className="btn-secondary" onClick={() => setNewBranch({ id: null, name: '', address: '', google_maps_url: '', office_hours: '', is_active: true })} style={{ padding: '0.75rem 1rem' }}>
+                                                    Cancel
+                                                </button>
+                                            )}
+                                        </div>
                                     </form>
                                 </div>
 
@@ -2929,10 +3100,35 @@ export default function AdminDashboard({ session }) {
                                                                 padding: '0.5rem 1rem', 
                                                                 borderRadius: '8px', 
                                                                 cursor: 'pointer', 
-                                                                fontSize: '0.8rem' 
+                                                                fontSize: '0.8rem',
+                                                                marginRight: '0.5rem'
                                                             }}
                                                         >
                                                             {branch.is_active ? 'Deactivate' : 'Activate'}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                setNewBranch({
+                                                                    id: branch.id,
+                                                                    name: branch.name || '',
+                                                                    address: branch.address || '',
+                                                                    google_maps_url: branch.google_maps_url || '',
+                                                                    office_hours: branch.office_hours || '',
+                                                                    is_active: branch.is_active
+                                                                });
+                                                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                            }}
+                                                            style={{ 
+                                                                background: 'rgba(59, 130, 246, 0.1)', 
+                                                                color: '#60a5fa', 
+                                                                border: '1px solid currentColor',
+                                                                padding: '0.5rem 1rem', 
+                                                                borderRadius: '8px', 
+                                                                cursor: 'pointer', 
+                                                                fontSize: '0.8rem' 
+                                                            }}
+                                                        >
+                                                            Edit
                                                         </button>
                                                     </td>
                                                 </tr>

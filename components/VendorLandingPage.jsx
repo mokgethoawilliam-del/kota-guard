@@ -190,6 +190,11 @@ function VendorLandingPage() {
                                             <p style={{ color: '#94a3b8', lineHeight: '1.6' }}>
                                                  {loc.address || 'Address coming soon...'}
                                             </p>
+                                            {loc.office_hours && (
+                                                <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginTop: '0.5rem' }}>
+                                                     {loc.office_hours}
+                                                </p>
+                                            )}
                                             {loc.is_mobile && loc.stall_date && (
                                                 <p style={{ color: '#fbbf24', fontWeight: 'bold', fontSize: '0.9rem', marginTop: '0.5rem' }}>
                                                      Event Date: {loc.stall_date}

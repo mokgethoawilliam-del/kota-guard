@@ -56,7 +56,8 @@ export default function AdminDashboard({ session }) {
     // Phase 11: CMS Sub-navigation
     const [cmsActiveSubTab, setCmsActiveSubTab] = useState('menu'); // 'menu' | 'branches' | 'events' | 'branding'
     const [isSavingBranch, setIsSavingBranch] = useState(false);
-    const [newBranch, setNewBranch] = useState({ id: null, name: '', address: '', google_maps_url: '', office_hours: '', is_active: true });
+    const [newBranch, setNewBranch] = useState({ name: '', address: '', google_maps_url: '', office_hours: '', is_active: true });
+    const [editingBranch, setEditingBranch] = useState(null);
     const [heroImageFile, setHeroImageFile] = useState(null);
     const [logoFile, setLogoFile] = useState(null);
     const [uploadingHero, setUploadingHero] = useState(false);
@@ -1176,6 +1177,85 @@ export default function AdminDashboard({ session }) {
                     <p style={{ margin: '0.5rem 0 0', fontSize: '1.2rem', fontWeight: 'bold' }}>
                         Customer for {arrivalAlert.order_number} is waiting outside!
                     </p>
+                </div>
+            )}
+            
+            {/* EDIT BRANCH MODAL */}
+            {editingBranch && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.85)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 10000,
+                    padding: '1rem'
+                }}>
+                    <div style={{
+                        background: '#0f172a',
+                        border: '1px solid #334155',
+                        borderRadius: '16px',
+                        padding: '2rem',
+                        maxWidth: '600px',
+                        width: '100%',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                    }}>
+                        <h2 style={{ color: '#f8fafc', fontSize: '1.5rem', marginBottom: '1.5rem' }}>Edit Branch</h2>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+                            <div>
+                                <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Branch Name</label>
+                                <input type="text" className="kds-input" value={editingBranch.name} onChange={e => setEditingBranch({...editingBranch, name: e.target.value})} style={{ width: '100%' }} />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Physical Address</label>
+                                <input type="text" className="kds-input" value={editingBranch.address} onChange={e => setEditingBranch({...editingBranch, address: e.target.value})} style={{ width: '100%' }} />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Google Maps URL</label>
+                                <input type="url" className="kds-input" value={editingBranch.google_maps_url} onChange={e => setEditingBranch({...editingBranch, google_maps_url: e.target.value})} style={{ width: '100%' }} />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Office Hours</label>
+                                <input type="text" className="kds-input" value={editingBranch.office_hours} onChange={e => setEditingBranch({...editingBranch, office_hours: e.target.value})} style={{ width: '100%' }} />
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
+                            <button 
+                                className="btn-primary" 
+                                disabled={isSavingBranch}
+                                onClick={async () => {
+                                    setIsSavingBranch(true);
+                                    try {
+                                        const { error } = await supabase.from('locations').update({
+                                            name: editingBranch.name,
+                                            address: editingBranch.address,
+                                            google_maps_url: editingBranch.google_maps_url,
+                                            office_hours: editingBranch.office_hours,
+                                        }).eq('id', editingBranch.id);
+                                        if (error) throw error;
+                                        alert("Branch updated successfully!");
+                                        setEditingBranch(null);
+                                        fetchInitialData();
+                                    } catch (err) {
+                                        alert("Error updating branch: " + err.message);
+                                    } finally {
+                                        setIsSavingBranch(false);
+                                    }
+                                }} 
+                                style={{ flex: 1, padding: '0.75rem' }}
+                            >
+                                {isSavingBranch ? 'Saving...' : 'Save Changes'}
+                            </button>
+                            <button 
+                                className="btn-secondary" 
+                                onClick={() => setEditingBranch(null)} 
+                                style={{ flex: 1, padding: '0.75rem' }}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
             
@@ -2973,29 +3053,18 @@ export default function AdminDashboard({ session }) {
                                         e.preventDefault();
                                         setIsSavingBranch(true);
                                         try {
-                                            if (newBranch.id) {
-                                                const { error } = await supabase.from('locations').update({
-                                                    name: newBranch.name,
-                                                    address: newBranch.address,
-                                                    google_maps_url: newBranch.google_maps_url,
-                                                    office_hours: newBranch.office_hours,
-                                                }).eq('id', newBranch.id);
-                                                if (error) throw error;
-                                                alert("Branch updated successfully!");
-                                            } else {
-                                                const { error } = await supabase.from('locations').insert({
-                                                    name: newBranch.name,
-                                                    vendor_id: currentVendorId,
-                                                    address: newBranch.address,
-                                                    google_maps_url: newBranch.google_maps_url,
-                                                    office_hours: newBranch.office_hours,
-                                                    is_mobile: false,
-                                                    is_active: true
-                                                });
-                                                if (error) throw error;
-                                                alert("Branch added successfully!");
-                                            }
-                                            setNewBranch({ id: null, name: '', address: '', google_maps_url: '', office_hours: '', is_active: true });
+                                            const { error } = await supabase.from('locations').insert({
+                                                name: newBranch.name,
+                                                vendor_id: currentVendorId,
+                                                address: newBranch.address,
+                                                google_maps_url: newBranch.google_maps_url,
+                                                office_hours: newBranch.office_hours,
+                                                is_mobile: false,
+                                                is_active: true
+                                            });
+                                            if (error) throw error;
+                                            alert("Branch added successfully!");
+                                            setNewBranch({ name: '', address: '', google_maps_url: '', office_hours: '', is_active: true });
                                             fetchInitialData(); // Refresh list
                                         } catch (err) {
                                             alert("Error saving branch: " + err.message);
@@ -3004,12 +3073,7 @@ export default function AdminDashboard({ session }) {
                                         }
                                     }} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', alignItems: 'flex-start' }}>
                                         <div style={{ gridColumn: '1 / -1' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                                <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem' }}>Branch Name (e.g. Flora Park Shop)</label>
-                                                {newBranch.id && (
-                                                    <span style={{ color: '#fbbf24', fontSize: '0.8rem', fontWeight: 'bold' }}>Editing Branch</span>
-                                                )}
-                                            </div>
+                                            <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Branch Name (e.g. Flora Park Shop)</label>
                                             <input 
                                                 required 
                                                 type="text" 
@@ -3055,13 +3119,8 @@ export default function AdminDashboard({ session }) {
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'flex-end', height: '100%', paddingTop: '1.4rem', gap: '0.5rem' }}>
                                             <button type="submit" className="btn-primary" disabled={isSavingBranch} style={{ padding: '0.75rem 2rem', flex: 1 }}>
-                                                {isSavingBranch ? 'Saving...' : (newBranch.id ? ' Update Branch' : ' Add Branch')}
+                                                {isSavingBranch ? 'Saving...' : ' Add Branch'}
                                             </button>
-                                            {newBranch.id && (
-                                                <button type="button" className="btn-secondary" onClick={() => setNewBranch({ id: null, name: '', address: '', google_maps_url: '', office_hours: '', is_active: true })} style={{ padding: '0.75rem 1rem' }}>
-                                                    Cancel
-                                                </button>
-                                            )}
                                         </div>
                                     </form>
                                 </div>
@@ -3108,7 +3167,7 @@ export default function AdminDashboard({ session }) {
                                                         </button>
                                                         <button
                                                             onClick={() => {
-                                                                setNewBranch({
+                                                                setEditingBranch({
                                                                     id: branch.id,
                                                                     name: branch.name || '',
                                                                     address: branch.address || '',
@@ -3116,7 +3175,6 @@ export default function AdminDashboard({ session }) {
                                                                     office_hours: branch.office_hours || '',
                                                                     is_active: branch.is_active
                                                                 });
-                                                                window.scrollTo({ top: 0, behavior: 'smooth' });
                                                             }}
                                                             style={{ 
                                                                 background: 'rgba(59, 130, 246, 0.1)', 

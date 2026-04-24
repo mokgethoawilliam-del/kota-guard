@@ -177,7 +177,9 @@ export default function CustomerDashboard({ vendorId, onBack }) {
                                         className="btn-primary"
                                         style={{ background: '#3b82f6', padding: '0.5rem 1rem' }}
                                         onClick={async () => {
-                                            const { error } = await supabase.from('orders').update({ customer_arrived: true }).eq('id', order.id);
+                                            const { error } = await supabase.rpc('mark_customer_arrived', {
+                                                p_order_number: order.order_number
+                                            });
                                             if (!error) {
                                                 setOrders(current => current.map(o => o.id === order.id ? { ...o, customer_arrived: true } : o));
                                                 alert("Kitchen Notified!");

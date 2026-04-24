@@ -1,6 +1,6 @@
 
 [functions.verify-paystack]
-enabled = true
+enabled = false
 verify_jwt = true
 import_map = "./functions/verify-paystack/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.

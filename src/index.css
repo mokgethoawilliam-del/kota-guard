@@ -115,6 +115,214 @@ h6 {
 }
 
 /* =========================================================================
+   App Feedback
+   ========================================================================= */
+
+.app-feedback-stack {
+  position: fixed;
+  top: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: min(92vw, 520px);
+  z-index: 20000;
+  pointer-events: none;
+}
+
+.app-feedback {
+  pointer-events: auto;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 32px;
+  align-items: start;
+  gap: 0.85rem;
+  padding: 1rem 1rem 1rem 0.95rem;
+  border-radius: 14px;
+  background: rgba(9, 14, 26, 0.94);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
+  animation: appFeedbackIn 0.24s ease-out;
+}
+
+.app-feedback-success {
+  border-color: rgba(16, 185, 129, 0.34);
+}
+
+.app-feedback-error {
+  border-color: rgba(239, 68, 68, 0.34);
+}
+
+.app-feedback-warning {
+  border-color: rgba(245, 158, 11, 0.34);
+}
+
+.app-feedback-info {
+  border-color: rgba(96, 165, 250, 0.34);
+}
+
+.app-feedback-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1rem;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.app-feedback-success .app-feedback-icon {
+  background: rgba(16, 185, 129, 0.18);
+  color: #6ee7b7;
+}
+
+.app-feedback-error .app-feedback-icon {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+}
+
+.app-feedback-warning .app-feedback-icon {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fcd34d;
+}
+
+.app-feedback-info .app-feedback-icon {
+  background: rgba(96, 165, 250, 0.18);
+  color: #93c5fd;
+}
+
+.app-feedback-copy {
+  min-width: 0;
+}
+
+.app-feedback-title {
+  font-family: var(--font-family-heading);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 0.15rem;
+}
+
+.app-feedback-message {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #cbd5e1;
+  word-break: break-word;
+}
+
+.app-feedback-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.app-feedback-close:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+@keyframes appFeedbackIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.app-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 21000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.app-confirm-card {
+  width: min(92vw, 460px);
+  background: rgba(9, 14, 26, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+  padding: 1.5rem;
+}
+
+.app-confirm-danger {
+  border-color: rgba(239, 68, 68, 0.28);
+}
+
+.app-confirm-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(239, 68, 68, 0.16);
+  color: #fca5a5;
+  font-weight: 800;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.app-confirm-title {
+  font-family: var(--font-family-heading);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 0.5rem;
+}
+
+.app-confirm-message {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #cbd5e1;
+  margin-bottom: 1.5rem;
+}
+
+.app-confirm-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.app-confirm-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 0.8rem 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  min-width: 108px;
+}
+
+.app-confirm-cancel {
+  background: rgba(255, 255, 255, 0.06);
+  color: #e2e8f0;
+}
+
+.app-confirm-confirm-danger {
+  background: #ef4444;
+  color: #fff;
+}
+
+/* =========================================================================
    Brand Landing Page Styling
    ========================================================================= */
 .landing-page-scroll {
@@ -1151,6 +1359,54 @@ select.form-input option {
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.vault-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.vault-breadcrumb-root {
+  color: #64748b;
+}
+
+.vault-breadcrumb-separator {
+  color: #475569;
+}
+
+.vault-breadcrumb-current {
+  color: #00e676;
+  font-weight: 700;
+}
+
+.vault-status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.35rem;
+}
+
+.vault-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(0, 230, 118, 0.12);
+  border: 1px solid rgba(0, 230, 118, 0.28);
+  color: #86efac;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.vault-status-pill.critical {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.28);
+  color: #fca5a5;
+}
+
 .vault-timer-container {
   position: absolute;
   top: 0;
@@ -1226,6 +1482,8 @@ select.form-input option {
   flex-direction: column;
   align-items: center;
   text-align: center;
+  min-height: 180px;
+  justify-content: center;
 }
 
 .vault-card:hover {
@@ -1234,6 +1492,51 @@ select.form-input option {
   transform: translateY(-5px);
   box-shadow: 0 10px 30px rgba(0, 230, 118, 0.1);
 }
+
+.vault-card-grid .vault-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.vault-card-grid .vault-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 3px;
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.vault-card-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3rem;
+  height: 3rem;
+  padding: 0 0.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.75);
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 0.8rem;
+}
+
+.vault-card-kicker {
+  color: #64748b;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.35rem;
+}
+
+.vault-card-paystack::before { background: rgba(0, 230, 118, 0.45); }
+.vault-card-netcash::before { background: rgba(59, 130, 246, 0.45); }
+.vault-card-domains::before { background: rgba(245, 158, 11, 0.45); }
+.vault-card-whatsapp::before { background: rgba(34, 197, 94, 0.45); }
+.vault-card-resend::before { background: rgba(99, 102, 241, 0.45); }
+.vault-card-ai::before { background: rgba(139, 92, 246, 0.5); }
 
 .dns-card {
   background: rgba(59, 130, 246, 0.05);

@@ -25,6 +25,24 @@ export default function CustomerMenu({ vendorId, branding }) {
     const [collectionPin, setCollectionPin] = useState(null);
 
     useEffect(() => {
+        if (!vendorId) return;
+        const draftKey = `vulahub_draft_cart_${vendorId}`;
+        try {
+            const rawDraft = localStorage.getItem(draftKey);
+            if (!rawDraft) return;
+            const parsedDraft = JSON.parse(rawDraft);
+            if (Array.isArray(parsedDraft) && parsedDraft.length > 0) {
+                setCart(parsedDraft.filter(item => item?.id && item?.name && typeof item?.price !== 'undefined' && item?.qty));
+                setIsCheckoutOpen(true);
+            }
+        } catch (err) {
+            console.error('Could not hydrate draft cart:', err);
+        } finally {
+            localStorage.removeItem(draftKey);
+        }
+    }, [vendorId]);
+
+    useEffect(() => {
         const script = document.createElement('script');
         script.src = 'https://js.paystack.co/v1/inline.js';
         script.async = true;
@@ -38,9 +56,9 @@ export default function CustomerMenu({ vendorId, branding }) {
         try {
             setLoading(true);
 
-            // Fetch Vendor Details (Plan, Keys, etc.)
+            // Fetch only public vendor fields. Private keys stay behind authenticated RLS.
             const { data: vData } = await supabase
-                .from('vendors')
+                .from('public_vendors')
                 .select('*')
                 .eq('id', vendorId)
                 .single();
@@ -87,9 +105,11 @@ export default function CustomerMenu({ vendorId, branding }) {
     };
 
     const cartTotal = cart.reduce((total, item) => total + (item.price * item.qty), 0);
+    const buyerPaymentsAvailable = Boolean(vendorDoc?.payment_config?.paystack_public_key);
 
     const openCheckout = () => {
         if (cart.length === 0) return alert("Your cart is empty");
+        if (!buyerPaymentsAvailable) return alert("Payment service is currently unavailable.");
         setIsCheckoutOpen(true);
     };
 
@@ -153,10 +173,12 @@ export default function CustomerMenu({ vendorId, branding }) {
 
             // 3. Initialize Paystack
             // Use Vendor's custom key if provided, otherwise use platform default
-            const platformKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'YOUR_TEST_PUBLIC_KEY';
             const vendorKey = vendorDoc?.payment_config?.paystack_public_key;
-            
-            const paystackKey = vendorKey || platformKey;
+            const paystackKey = vendorKey || null;
+
+            if (!paystackKey) {
+                throw new Error('Payment service is currently unavailable.');
+            }
 
             // Split Logic: 5% fee for platform if on free tier and using platform keys
             const subaccount = vendorDoc?.paystack_subaccount_code;
@@ -184,44 +206,18 @@ export default function CustomerMenu({ vendorId, branding }) {
                 callback: function (response) {
                     (async () => {
                         try {
-                            const locName = locations.find(l => l.id === selectedLocation)?.name || 'ot';
-                            const prefix = locName.substring(0, 2).toLowerCase();
+                            const { data, error } = await supabase.functions.invoke('finalize-order-payment', {
+                                body: {
+                                    order_id: order.id,
+                                    reference: response.reference
+                                }
+                            });
 
-                            const now = new Date();
-                            const mm = String(now.getMonth() + 1).padStart(2, '0');
-                            const dd = String(now.getDate()).padStart(2, '0');
-                            const dateStr = `${mm}${dd}`;
+                            if (error) throw error;
+                            if (!data?.order_number) throw new Error('Payment verified, but no order number was returned.');
 
-                            const startOfDay = new Date();
-                            startOfDay.setHours(0, 0, 0, 0);
-
-                            const { count } = await supabase
-                                .from('orders')
-                                .select('*', { count: 'exact', head: true })
-                                .eq('location_id', selectedLocation)
-                                .neq('status', 'pending')
-                                .gte('created_at', startOfDay.toISOString());
-
-                            const dailyNum = String((count || 0) + 1).padStart(3, '0');
-                            const finalOrderNum = `${prefix}/${dateStr}/${dailyNum}`;
-
-                            // Generate a cryptographically random 4-digit collection PIN
-                            const pin = String(Math.floor(1000 + Math.random() * 9000));
-
-                            const { error: updateErr } = await supabase
-                                .from('orders')
-                                .update({
-                                    status: 'paid',
-                                    order_number: finalOrderNum,
-                                    payment_reference: response.reference,
-                                    collection_pin: pin
-                                })
-                                .eq('id', order.id);
-
-                            if (updateErr) throw updateErr;
-
-                            setCollectionPin(pin);
-                            setPaymentSuccess(finalOrderNum);
+                            setCollectionPin(data.collection_pin);
+                            setPaymentSuccess(data.order_number);
                             setCart([]);
                         } catch (err) {
                             console.error("Error finalizing order", err);
@@ -249,10 +245,9 @@ export default function CustomerMenu({ vendorId, branding }) {
 
     const handleArrival = async () => {
         try {
-            const { error } = await supabase
-                .from('orders')
-                .update({ customer_arrived: true })
-                .eq('order_number', paymentSuccess);
+            const { error } = await supabase.rpc('mark_customer_arrived', {
+                p_order_number: paymentSuccess
+            });
 
             if (error) throw error;
             setHasArrived(true);
@@ -319,6 +314,20 @@ export default function CustomerMenu({ vendorId, branding }) {
     return (
         <div className="app-container">
             <h2 className="page-title">{branding?.name || 'Menu'}</h2>
+            {!buyerPaymentsAvailable && (
+                <div style={{
+                    marginBottom: '1.5rem',
+                    padding: '0.9rem 1rem',
+                    borderRadius: '10px',
+                    background: 'rgba(239,68,68,0.12)',
+                    border: '1px solid rgba(239,68,68,0.28)',
+                    color: '#fecaca',
+                    fontWeight: '600',
+                    textAlign: 'center'
+                }}>
+                    Out of service
+                </div>
+            )}
             <div className="menu-grid">
                 {menuItems.map(item => {
                     const incart = cart.find(i => i.id === item.id);
@@ -356,10 +365,19 @@ export default function CustomerMenu({ vendorId, branding }) {
                 <div style={{ position: 'fixed', bottom: '2rem', left: '0', right: '0', display: 'flex', justifyContent: 'center', zIndex: 10 }}>
                     <button
                         className="btn-primary"
-                        style={{ maxWidth: '400px', boxShadow: '0 10px 30px rgba(0, 230, 118, 0.5)' }}
+                        style={{
+                            maxWidth: '400px',
+                            boxShadow: buyerPaymentsAvailable ? '0 10px 30px rgba(0, 230, 118, 0.5)' : 'none',
+                            background: buyerPaymentsAvailable ? undefined : '#334155',
+                            color: buyerPaymentsAvailable ? undefined : '#cbd5e1',
+                            cursor: buyerPaymentsAvailable ? 'pointer' : 'not-allowed'
+                        }}
                         onClick={openCheckout}
+                        disabled={!buyerPaymentsAvailable}
                     >
-                         Checkout {cart.reduce((sum, i) => sum + i.qty, 0)} Items (R {cartTotal})
+                         {buyerPaymentsAvailable
+                            ? `Checkout ${cart.reduce((sum, i) => sum + i.qty, 0)} Items (R ${cartTotal})`
+                            : 'Out of service'}
                     </button>
                 </div>
             )}
@@ -454,8 +472,8 @@ export default function CustomerMenu({ vendorId, branding }) {
                                 <button type="button" className="btn-secondary" onClick={cancelCheckout} disabled={processingId !== null}>
                                     Back to Menu
                                 </button>
-                                <button type="submit" className="btn-primary" disabled={processingId !== null}>
-                                    {processingId !== null ? 'Processing...' : `Pay R ${cartTotal}`}
+                                <button type="submit" className="btn-primary" disabled={processingId !== null || !buyerPaymentsAvailable}>
+                                    {processingId !== null ? 'Processing...' : buyerPaymentsAvailable ? `Pay R ${cartTotal}` : 'Out of service'}
                                 </button>
                             </div>
                         </form>

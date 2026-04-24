@@ -16,7 +16,7 @@ If you want to keep customers entirely inside WhatsApp:
 3. **Location:** Bot asks for location, user taps "Seshego".
 4. **Checkout Link Generation:** The bot hits your API backend (Supabase Edge Function), which generates a unique **Paystack Payment Link** for exactly R120 and ties it to a `pending` order in Supabase.
 5. **Payment Delivery:** Bot replies: "Great! Pay securely here: `[Paystack URL]`."
-6. **Webhook Fulfillment:** The user pays on Paystack. The exact same webhook we built in Phase 1 (`verify-paystack`) triggers, marks the order as `paid`, and pushes it to the KDS dashboard (Dashboard goes "Ding!").
+6. **Webhook Fulfillment:** The user pays on Paystack. `paystack-webhook` handles verified webhook events, while `finalize-order-payment` handles verified client confirmation for the web checkout flow.
 7. **Bot Confirmation:** A second webhook triggers the WhatsApp bot to send the final message: "Payment received! Your order number is #1234. We are preparing it now."
 
 ## 3. Recommended Tools

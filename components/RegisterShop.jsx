@@ -27,7 +27,7 @@ export default function RegisterShop() {
         try {
             // 1. Check if slug is taken
             const { data: existingVendor } = await supabase
-                .from('vendors')
+                .from('public_vendors')
                 .select('id')
                 .eq('slug', slug)
                 .single();

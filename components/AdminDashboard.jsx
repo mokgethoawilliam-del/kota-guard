@@ -620,7 +620,7 @@ export default function AdminDashboard({ session }) {
     };
 
     const deleteTestimonial = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this testimonial?")) return;
+        if (!await confirmAction("Are you sure you want to delete this testimonial?")) return;
         try {
             const { error } = await supabase
                 .from('testimonials')
@@ -733,7 +733,7 @@ export default function AdminDashboard({ session }) {
     };
 
     const handleDeleteIngredient = async (id, name) => {
-        if (!window.confirm(`Are you sure you want to delete ${name}? This might break recipe deductions.`)) return;
+        if (!await confirmAction(`Are you sure you want to delete ${name}? This might break recipe deductions.`)) return;
 
         try {
             const { error } = await supabase.from('ingredients').delete().eq('id', id);
@@ -781,7 +781,7 @@ export default function AdminDashboard({ session }) {
     };
 
     const handleDeleteStallEvent = async (id, name) => {
-        if (!window.confirm(`Are you sure you want to delete the event '${name}'?`)) return;
+        if (!await confirmAction(`Are you sure you want to delete the event '${name}'?`)) return;
         try {
             const { error } = await supabase.from('locations').delete().eq('id', id);
             if (error) throw error;
@@ -905,7 +905,7 @@ export default function AdminDashboard({ session }) {
     };
 
     const handleDeleteMenuItem = async (id, name) => {
-        if (!window.confirm(`Are you sure you want to delete ${name}? Customers will no longer be able to order it.`)) return;
+        if (!await confirmAction(`Are you sure you want to delete ${name}? Customers will no longer be able to order it.`)) return;
         try {
             const { error } = await supabase.from('menu_items').delete().eq('id', id);
             if (error) throw error;
@@ -937,6 +937,19 @@ export default function AdminDashboard({ session }) {
     const readyOrders = filteredOrders.filter(o => o.status === 'ready');
 
 
+
+    const confirmAction = async (message, confirmLabel = 'Delete') => {
+        if (window.__vulahubConfirm) {
+            return window.__vulahubConfirm({
+                title: 'Confirm Action',
+                message,
+                confirmLabel,
+                cancelLabel: 'Cancel',
+                tone: 'danger'
+            });
+        }
+        return window.confirm(message);
+    };
 
     if (loading || !vendorConfig) return (
         <div style={{ background: '#0f172a', color: '#fff', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1.5rem', textAlign: 'center', padding: '2rem' }}>

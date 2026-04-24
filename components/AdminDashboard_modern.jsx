@@ -86,6 +86,22 @@ export default function AdminDashboard({ session }) {
     // Phase 13: Vault Categorization
     const [vaultActiveSection, setVaultActiveSection] = useState(null); // null | 'paystack' | 'netcash' | 'domains' | 'whatsapp'
     const [isSavingVault, setIsSavingVault] = useState(false);
+    const vaultSectionLabels = {
+        paystack: 'Paystack',
+        netcash: 'Netcash',
+        domains: 'Custom Domains',
+        whatsapp: 'WhatsApp Bot',
+        resend: 'Resend Email',
+        ai_keys: 'AI Manager Keys'
+    };
+    const vaultSectionMeta = {
+        paystack: { label: 'Paystack', description: 'Payment processing keys', badge: '$', accent: 'rgba(0,230,118,0.38)' },
+        netcash: { label: 'Netcash', description: 'Alternative payments', badge: 'N', accent: 'rgba(59,130,246,0.35)' },
+        domains: { label: 'Custom Domains', description: 'DNS and branding URLs', badge: 'DNS', accent: 'rgba(245,158,11,0.32)' },
+        whatsapp: { label: 'WhatsApp Bot', description: 'Automated notifications', badge: 'WA', accent: 'rgba(34,197,94,0.34)' },
+        resend: { label: 'Resend Email', description: 'PIN delivery via email', badge: '@', accent: 'rgba(99,102,241,0.34)' },
+        ai_keys: { label: 'AI Manager Keys', description: 'Grok and Gemini API keys', badge: 'AI', accent: 'rgba(139,92,246,0.38)' }
+    };
 
     // Global Search State
     const [kdsSearchQuery, setKdsSearchQuery] = useState('');
@@ -97,6 +113,7 @@ export default function AdminDashboard({ session }) {
 
     // Phase 16: Customers & Testimonials
     const [testimonials, setTestimonials] = useState([]);
+    const [showGateModal, setShowGateModal] = useState(false);
 
     // Phase 17: AI Manager
     const [aiMessages, setAiMessages] = useState([{
@@ -698,7 +715,7 @@ export default function AdminDashboard({ session }) {
     };
 
     const deleteTestimonial = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this testimonial?")) return;
+        if (!await confirmAction("Are you sure you want to delete this testimonial?")) return;
         try {
             const { error } = await supabase
                 .from('testimonials')
@@ -811,7 +828,7 @@ export default function AdminDashboard({ session }) {
     };
 
     const handleDeleteIngredient = async (id, name) => {
-        if (!window.confirm(`Are you sure you want to delete ${name}? This might break recipe deductions.`)) return;
+        if (!await confirmAction(`Are you sure you want to delete ${name}? This might break recipe deductions.`)) return;
 
         try {
             const { error } = await supabase.from('ingredients').delete().eq('id', id);
@@ -859,7 +876,7 @@ export default function AdminDashboard({ session }) {
     };
 
     const handleDeleteStallEvent = async (id, name) => {
-        if (!window.confirm(`Are you sure you want to delete the event '${name}'?`)) return;
+        if (!await confirmAction(`Are you sure you want to delete the event '${name}'?`)) return;
         try {
             const { error } = await supabase.from('locations').delete().eq('id', id);
             if (error) throw error;
@@ -983,7 +1000,7 @@ export default function AdminDashboard({ session }) {
     };
 
     const handleDeleteMenuItem = async (id, name) => {
-        if (!window.confirm(`Are you sure you want to delete ${name}? Customers will no longer be able to order it.`)) return;
+        if (!await confirmAction(`Are you sure you want to delete ${name}? Customers will no longer be able to order it.`)) return;
         try {
             const { error } = await supabase.from('menu_items').delete().eq('id', id);
             if (error) throw error;
@@ -1064,47 +1081,150 @@ export default function AdminDashboard({ session }) {
             setIsInitiatingBilling(false);
         }
     };
+    const handleTabClick = (tabId) => {
+        const { isExpired } = getTrialInfo();
+        const status = vendorConfig?.subscription_status;
+        const isRestricted = (isExpired && status !== 'active') || status === 'past_due' || status === 'cancelled';
+        
+        const premiumTabs = ['kds', 'inventory', 'logistics', 'cms', 'ai'];
+        
+        if (isRestricted && premiumTabs.includes(tabId)) {
+            setShowGateModal(true);
+            return;
+        }
+        
+        setActiveTab(tabId);
+    };
+
     // ────────────────────────────────────────────────────────────────────────
+
+    const paymentConfig = vendorConfig?.payment_config || {};
+    const paystackPublicKey = (paymentConfig.paystack_public_key || '').trim();
+    const paystackSecretKey = (paymentConfig.paystack_secret_key || '').trim();
+    const hasPaystackPublicKey = paystackPublicKey.length > 0;
+    const hasPaystackSecretKey = paystackSecretKey.length > 0;
+    const isPaystackFullyConfigured = hasPaystackPublicKey && hasPaystackSecretKey;
+    const isPaystackPartiallyConfigured = hasPaystackPublicKey !== hasPaystackSecretKey;
+    const isPaystackKeyFormatValid =
+        (!hasPaystackPublicKey || /^pk_(test|live)_/i.test(paystackPublicKey)) &&
+        (!hasPaystackSecretKey || /^sk_(test|live)_/i.test(paystackSecretKey));
+
+    const handlePaystackConfigChange = (field, value) => {
+        setVendorConfig((current) => ({
+            ...current,
+            payment_config: {
+                ...(current?.payment_config || {}),
+                [field]: value
+            }
+        }));
+    };
+
+    const savePaystackKeys = async () => {
+        if (!vendorConfig) return;
+
+        if (isPaystackPartiallyConfigured) {
+            alert('Please save both the Paystack public key and secret key together, or clear both fields to disable checkout.');
+            return;
+        }
+
+        if (!isPaystackKeyFormatValid) {
+            alert('Paystack key format looks invalid. Public keys should start with pk_live_ / pk_test_ and secret keys should start with sk_live_ / sk_test_.');
+            return;
+        }
+
+        setIsSavingVault(true);
+        const nextPaymentConfig = {
+            ...(vendorConfig?.payment_config || {}),
+            paystack_public_key: paystackPublicKey,
+            paystack_secret_key: paystackSecretKey,
+            use_platform_keys: false,
+        };
+
+        const { error } = await supabase
+            .from('vendors')
+            .update({ payment_config: nextPaymentConfig })
+            .eq('id', currentVendorId);
+
+        setIsSavingVault(false);
+
+        if (error) {
+            alert("Save failed: " + error.message);
+            return;
+        }
+
+        setVendorConfig({
+            ...vendorConfig,
+            payment_config: nextPaymentConfig
+        });
+
+        if (isPaystackFullyConfigured) {
+            alert("Paystack keys saved. Customer checkout now pays directly into this vendor's Paystack account.");
+        } else {
+            alert("Paystack keys cleared. Customer checkout is disabled until both keys are added again.");
+        }
+    };
+
+    const confirmAction = async (message, confirmLabel = 'Delete') => {
+        if (window.__vulahubConfirm) {
+            return window.__vulahubConfirm({
+                title: 'Confirm Action',
+                message,
+                confirmLabel,
+                cancelLabel: 'Cancel',
+                tone: 'danger'
+            });
+        }
+        return window.confirm(message);
+    };
 
     return (
         <div className="admin-shell">
             {/* ── MONETIZATION GATE */}
+                        {/* ── MONETIZATION: SOFT GATE BANNER */}
             {(() => {
-                const { isExpired } = getTrialInfo();
+                const { isExpired, daysLeft } = getTrialInfo();
                 const status = vendorConfig?.subscription_status;
-                const isRestricted = vendorConfig && (isExpired && status !== 'active') || status === 'past_due' || status === 'cancelled';
-                if (!isRestricted) return null;
                 const isPastDue = status === 'past_due';
                 const isCancelled = status === 'cancelled';
-                return (
-                    <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(2,6,23,0.97)', backdropFilter: 'blur(12px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem', textAlign: 'center' }}>
-                        <div style={{ maxWidth: '480px', width: '100%' }}>
-                            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🔒</div>
-                            <h1 style={{ color: '#fff', fontSize: '2rem', fontWeight: '900', marginBottom: '0.75rem' }}>
-                                {isCancelled ? 'Subscription Cancelled' : isPastDue ? 'Payment Overdue' : 'Trial Expired'}
-                            </h1>
-                            <p style={{ color: '#94a3b8', fontSize: '1.05rem', lineHeight: '1.7', marginBottom: '2rem' }}>
-                                {isCancelled ? 'Your Kota Guard subscription has been cancelled. Restore access to continue managing your business.'
-                                : isPastDue ? 'Your last payment failed. Please update your payment to restore full access.'
-                                : 'Your 7-day free trial has ended. Subscribe to keep your shop running at full power.'}
-                            </p>
-                            <div style={{ background: 'rgba(0,230,118,0.05)', border: '1px solid rgba(0,230,118,0.3)', borderRadius: '16px', padding: '1.5rem', marginBottom: '2rem' }}>
-                                <div style={{ fontSize: '3rem', fontWeight: '900', color: '#00e676' }}>R 399</div>
-                                <div style={{ color: '#64748b', fontSize: '0.9rem' }}>per month · Cancel anytime</div>
-                                <ul style={{ listStyle: 'none', padding: 0, margin: '1rem 0 0', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                    {['Unlimited Orders & KDS', 'Multi-branch Management', 'AI Manager & Analytics', 'WhatsApp Notifications', 'Customer Reviews System'].map(f => (
-                                        <li key={f} style={{ color: '#cbd5e1', fontSize: '0.9rem' }}>✓ {f}</li>
-                                    ))}
-                                </ul>
-                            </div>
-                            <button onClick={handleSubscribe} disabled={isInitiatingBilling} style={{ width: '100%', padding: '1.1rem', background: isInitiatingBilling ? '#334155' : 'linear-gradient(135deg, #00e676, #00c853)', color: '#0f172a', border: 'none', borderRadius: '12px', fontSize: '1.1rem', fontWeight: '900', cursor: isInitiatingBilling ? 'not-allowed' : 'pointer', marginBottom: '1rem' }}>
-                                {isInitiatingBilling ? 'Redirecting to Paystack...' : '🚀 Activate Subscription — R 399/month'}
-                            </button>
-                            <p style={{ color: '#475569', fontSize: '0.8rem' }}>Secured by Paystack. You will be redirected to complete payment.</p>
+                const isRestricted = (isExpired && status !== 'active') || isPastDue || isCancelled;
+                
+                if (!isRestricted && (status === 'trial' || !status)) {
+                    return (
+                        <div style={{ background: 'linear-gradient(90deg, #00e676, #00c853)', color: '#0f172a', padding: '0.6rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', fontWeight: 'bold', fontSize: '0.85rem' }}>
+                            <span>🎁 You are on a {daysLeft}-day free trial.</span>
+                            <button onClick={handleSubscribe} style={{ background: '#0f172a', color: '#fff', border: 'none', padding: '0.4rem 1rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Subscribe Now</button>
                         </div>
-                    </div>
-                );
+                    );
+                }
+
+                if (isRestricted) {
+                    return (
+                        <div style={{ background: 'linear-gradient(90deg, #ef4444, #dc2626)', color: '#fff', padding: '0.6rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', fontWeight: 'bold', fontSize: '0.85rem', position: 'sticky', top: 0, zIndex: 1000 }}>
+                            <span>⚠️ {isCancelled ? 'Subscription Cancelled' : isPastDue ? 'Payment Overdue' : 'Trial Expired'} — Some features are restricted.</span>
+                            <button onClick={handleSubscribe} style={{ background: '#fff', color: '#ef4444', border: 'none', padding: '0.4rem 1rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Restore Access</button>
+                        </div>
+                    );
+                }
+
+                return null;
             })()}
+
+            {/* ── FEATURE GATE MODAL */}
+            {showGateModal && (
+                <div style={{ position: 'fixed', inset: 0, zIndex: 10001, background: 'rgba(2,6,23,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+                    <div className="cms-card" style={{ maxWidth: '420px', width: '100%', textAlign: 'center', border: '1px solid rgba(0,230,118,0.3)', position: 'relative' }}>
+                        <button onClick={() => setShowGateModal(false)} style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: '#64748b', fontSize: '1.5rem', cursor: 'pointer' }}>×</button>
+                        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🚀</div>
+                        <h2 style={{ color: '#fff', marginBottom: '0.75rem' }}>Premium Feature</h2>
+                        <p style={{ color: '#94a3b8', fontSize: '0.95rem', marginBottom: '2rem' }}>
+                            Features like KDS, Inventory, and CMS Settings are available on our <b>R 399/month</b> plan. Subscribe to unlock full power.
+                        </p>
+                        <button onClick={() => { setShowGateModal(false); handleSubscribe(); }} style={{ width: '100%', padding: '1rem', background: 'linear-gradient(135deg, #00e676, #00c853)', color: '#0f172a', border: 'none', borderRadius: '12px', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer' }}>
+                            Unlock Now
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/*  Sidebar Navigation */}
             <nav className="kds-sidebar">
@@ -1121,43 +1241,43 @@ export default function AdminDashboard({ session }) {
                 </div>
 
                 <div className="sidebar-nav">
-                    <button className={`sidebar-item ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>
+                    <button className={`sidebar-item ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => handleTabClick('overview')}>
                         <Icons.Dashboard /> Overview
                     </button>
-                    <button className={`sidebar-item ${activeTab === 'kds' ? 'active' : ''}`} onClick={() => setActiveTab('kds')}>
+                    <button className={`sidebar-item ${activeTab === 'ai' ? 'active' : ''}`} onClick={() => handleTabClick('ai')} style={{ background: activeTab === 'ai' ? 'linear-gradient(135deg, rgba(139,92,246,0.3), rgba(59,130,246,0.2))' : '', borderColor: activeTab === 'ai' ? 'rgba(139,92,246,0.5)' : '' }}>
+                        <Icons.Brain /> AI Manager
+                    </button>
+                    <button className={`sidebar-item ${activeTab === 'kds' ? 'active' : ''}`} onClick={() => handleTabClick('kds')}>
                         <Icons.Kitchen /> Live Kitchen
                     </button>
-                    <button className={`sidebar-item ${activeTab === 'support' ? 'active' : ''}`} onClick={() => setActiveTab('support')}>
+                    <button className={`sidebar-item ${activeTab === 'support' ? 'active' : ''}`} onClick={() => handleTabClick('support')}>
                         <Icons.Chat /> Live Chat
                     </button>
-                    <button className={`sidebar-item ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>
+                    <button className={`sidebar-item ${activeTab === 'history' ? 'active' : ''}`} onClick={() => handleTabClick('history')}>
                         <Icons.History /> History Vault
                     </button>
-                    <button className={`sidebar-item ${activeTab === 'finances' ? 'active' : ''}`} onClick={() => setActiveTab('finances')}>
+                    <button className={`sidebar-item ${activeTab === 'finances' ? 'active' : ''}`} onClick={() => handleTabClick('finances')}>
                         <Icons.Finance /> Finances
                     </button>
-                    <button className={`sidebar-item ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>
+                    <button className={`sidebar-item ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => handleTabClick('inventory')}>
                         <Icons.Inventory />
                         <span>Inventory</span>
                     </button>
-                    <button className={`sidebar-item ${activeTab === 'customers' ? 'active' : ''}`} onClick={() => setActiveTab('customers')}>
+                    <button className={`sidebar-item ${activeTab === 'customers' ? 'active' : ''}`} onClick={() => handleTabClick('customers')}>
                         <Icons.Users />
                         <span>Customers</span>
                     </button>
-                    <button className={`sidebar-item ${activeTab === 'testimonials' ? 'active' : ''}`} onClick={() => setActiveTab('testimonials')}>
+                    <button className={`sidebar-item ${activeTab === 'testimonials' ? 'active' : ''}`} onClick={() => handleTabClick('testimonials')}>
                         <Icons.Testimonials />
                         <span>Testimonials</span>
                     </button>
-                    <button className={`sidebar-item ${activeTab === 'logistics' ? 'active' : ''}`} onClick={() => setActiveTab('logistics')}>
+                    <button className={`sidebar-item ${activeTab === 'logistics' ? 'active' : ''}`} onClick={() => handleTabClick('logistics')}>
                         <Icons.Logistics /> Logistics
                     </button>
-                    <button className={`sidebar-item ${activeTab === 'cms' ? 'active' : ''}`} onClick={() => setActiveTab('cms')}>
+                    <button className={`sidebar-item ${activeTab === 'cms' ? 'active' : ''}`} onClick={() => handleTabClick('cms')}>
                         <Icons.Settings /> CMS Settings
                     </button>
-                    <button className={`sidebar-item ${activeTab === 'ai' ? 'active' : ''}`} onClick={() => setActiveTab('ai')} style={{ background: activeTab === 'ai' ? 'linear-gradient(135deg, rgba(139,92,246,0.3), rgba(59,130,246,0.2))' : '', borderColor: activeTab === 'ai' ? 'rgba(139,92,246,0.5)' : '' }}>
-                        <Icons.Brain /> AI Manager
-                    </button>
-                    <button className={`sidebar-item ${activeTab === 'help' ? 'active' : ''}`} onClick={() => setActiveTab('help')}>
+                    <button className={`sidebar-item ${activeTab === 'help' ? 'active' : ''}`} onClick={() => handleTabClick('help')}>
                         <Icons.Help /> Help Center
                     </button>
                 </div>
@@ -1631,7 +1751,7 @@ export default function AdminDashboard({ session }) {
                                     <div style={{ padding: '0.5rem' }}>
                                         <button 
                                             onClick={() => {
-                                                setActiveTab('integrations');
+                                                handleTabClick('integrations');
                                                 setIsProfileMenuOpen(false);
                                             }}
                                             style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
@@ -1721,9 +1841,9 @@ export default function AdminDashboard({ session }) {
                                 <div className="finances-card">
                                     <h3 style={{ marginBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.75rem' }}>Quick Actions</h3>
                                     <div style={{ display: 'grid', gap: '1rem' }}>
-                                        <button className="sidebar-item" onClick={() => setActiveTab('kds')} style={{ background: 'rgba(0, 230, 118, 0.1)', color: '#00e676', padding: '1rem', justifyContent: 'center' }}> Go to Kitchen</button>
-                                        <button className="sidebar-item" onClick={() => setActiveTab('cms')} style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#60a5fa', padding: '1rem', justifyContent: 'center' }}> Manage Menu</button>
-                                        <button className="sidebar-item" onClick={() => setActiveTab('finances')} style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', padding: '1rem', justifyContent: 'center' }}> View Financials</button>
+                                        <button className="sidebar-item" onClick={() => handleTabClick('kds')} style={{ background: 'rgba(0, 230, 118, 0.1)', color: '#00e676', padding: '1rem', justifyContent: 'center' }}> Go to Kitchen</button>
+                                        <button className="sidebar-item" onClick={() => handleTabClick('cms')} style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#60a5fa', padding: '1rem', justifyContent: 'center' }}> Manage Menu</button>
+                                        <button className="sidebar-item" onClick={() => handleTabClick('finances')} style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', padding: '1rem', justifyContent: 'center' }}> View Financials</button>
                                     </div>
                                 </div>
                             </div>
@@ -1748,12 +1868,25 @@ export default function AdminDashboard({ session }) {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                 <span style={{ fontSize: '1.5rem' }}></span>
                                 <div>
-                                    <h2 style={{ margin: 0, color: '#fff', fontSize: '1.2rem' }}>High-Security Vault</h2>
+                                    <div className="vault-breadcrumb">
+                                        <span className="vault-breadcrumb-root">Security Vault</span>
+                                        {vaultActiveSection && (
+                                            <>
+                                                <span className="vault-breadcrumb-separator">/</span>
+                                                <span className="vault-breadcrumb-current">{vaultSectionLabels[vaultActiveSection] || vaultActiveSection}</span>
+                                            </>
+                                        )}
+                                    </div>
+                                    <h2 style={{ margin: '0.2rem 0 0', color: '#fff', fontSize: '1.2rem' }}>
+                                        {vaultActiveSection ? (vaultSectionLabels[vaultActiveSection] || vaultActiveSection) : 'High-Security Vault'}
+                                    </h2>
                                     {isVaultUnlocked && (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <small style={{ color: vaultTimer < 5 ? '#ef4444' : '#94a3b8' }}>Auto-locking in {vaultTimer}s</small>
-                                            {vaultActiveSection && (
-                                                <small style={{ color: '#00e676', fontWeight: 'bold' }}> Viewing {vaultActiveSection.toUpperCase()}</small>
+                                        <div className="vault-status-row">
+                                            <small className={`vault-status-pill ${vaultTimer < 5 ? 'critical' : ''}`}>Auto-locking in {vaultTimer}s</small>
+                                            {vaultActiveSection ? (
+                                                <small style={{ color: '#94a3b8' }}>Editing secure settings for this section</small>
+                                            ) : (
+                                                <small style={{ color: '#94a3b8' }}>Choose a category to manage sensitive integrations</small>
                                             )}
                                         </div>
                                     )}
@@ -1762,11 +1895,17 @@ export default function AdminDashboard({ session }) {
                             <button 
                                 onClick={() => {
                                     setIsVaultUnlocked(false);
+                                    setVaultPassword('');
+                                    setVaultError('');
                                     setVaultActiveSection(null);
-                                    setActiveTab('kds');
+                                    handleTabClick('kds');
                                 }}
-                                style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '1.5rem', cursor: 'pointer' }}
-                            ></button>
+                                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid #334155', color: '#cbd5e1', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer', padding: '0.6rem 0.85rem', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '0.45rem' }}
+                                aria-label="Back to dashboard"
+                            >
+                                <span aria-hidden="true">←</span>
+                                <span>Back</span>
+                            </button>
                         </div>
 
                         {!isVaultUnlocked ? (
@@ -1819,8 +1958,21 @@ export default function AdminDashboard({ session }) {
                                         style={{ width: '100%', padding: '1rem' }}
                                     >
                                         {unlocking ? 'Unlocking...' : ' Open Vault'}
-                                                                        </button>
+                                    </button>
                                 </form>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setVaultPassword('');
+                                        setVaultError('');
+                                        setVaultActiveSection(null);
+                                        handleTabClick('kds');
+                                    }}
+                                    style={{ marginTop: '1rem', background: 'transparent', border: '1px solid #334155', color: '#94a3b8', padding: '0.8rem 1rem', borderRadius: '10px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
+                                >
+                                    <span aria-hidden="true">←</span>
+                                    <span>Back to Dashboard</span>
+                                </button>
                             </div>
                         ) : (
                             <div style={{ padding: '2rem', maxHeight: '75vh', overflowY: 'auto' }}>
@@ -1830,24 +1982,28 @@ export default function AdminDashboard({ session }) {
                                         <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '2rem' }}>
                                             Select a category to view or update your secure integration settings.
                                         </p>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
-                                            <div className="vault-card" onClick={() => setVaultActiveSection('paystack')}>
-                                                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}></div>
+                                        <div className="vault-card-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+                                            <div className="vault-card vault-card-paystack" onClick={() => setVaultActiveSection('paystack')}>
+                                                <div className="vault-card-badge">$</div>
+                                                <div className="vault-card-kicker">Secure settings</div>
                                                 <h3 style={{ margin: 0, color: '#fff', fontSize: '1rem' }}>Paystack</h3>
                                                 <p style={{ margin: '0.5rem 0 0', color: '#94a3b8', fontSize: '0.8rem' }}>Payment processing keys</p>
                                             </div>
-                                            <div className="vault-card" onClick={() => setVaultActiveSection('netcash')}>
-                                                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}></div>
+                                            <div className="vault-card vault-card-netcash" onClick={() => setVaultActiveSection('netcash')}>
+                                                <div className="vault-card-badge">N</div>
+                                                <div className="vault-card-kicker">Secure settings</div>
                                                 <h3 style={{ margin: 0, color: '#fff', fontSize: '1rem' }}>Netcash</h3>
                                                 <p style={{ margin: '0.5rem 0 0', color: '#94a3b8', fontSize: '0.8rem' }}>Alternative payments</p>
                                             </div>
-                                            <div className="vault-card" onClick={() => setVaultActiveSection('domains')}>
-                                                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}></div>
+                                            <div className="vault-card vault-card-domains" onClick={() => setVaultActiveSection('domains')}>
+                                                <div className="vault-card-badge">DNS</div>
+                                                <div className="vault-card-kicker">Secure settings</div>
                                                 <h3 style={{ margin: 0, color: '#fff', fontSize: '1rem' }}>Custom Domains</h3>
                                                 <p style={{ margin: '0.5rem 0 0', color: '#94a3b8', fontSize: '0.8rem' }}>DNS & Branding URLs</p>
                                             </div>
-                                            <div className="vault-card" onClick={() => setVaultActiveSection('whatsapp')}>
-                                                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}></div>
+                                            <div className="vault-card vault-card-whatsapp" onClick={() => setVaultActiveSection('whatsapp')}>
+                                                <div className="vault-card-badge">WA</div>
+                                                <div className="vault-card-kicker">Secure settings</div>
                                                 <h3 style={{ margin: 0, color: '#fff', fontSize: '1rem' }}>WhatsApp Bot</h3>
                                                 <p style={{ margin: '0.5rem 0 0', color: '#94a3b8', fontSize: '0.8rem' }}>Automated notifications</p>
                                             </div>
@@ -1881,64 +2037,80 @@ export default function AdminDashboard({ session }) {
                                                 <div style={{ background: 'rgba(0,230,118,0.06)', border: '1px solid rgba(0,230,118,0.2)', borderRadius: '10px', padding: '1rem', marginBottom: '1.5rem', fontSize: '0.85rem', color: '#94a3b8', lineHeight: '1.7' }}>
                                                     <strong style={{ color: '#00e676' }}>These are YOUR own Paystack keys.</strong> When customers place orders on your menu page, payments go directly into your Paystack account. Get your keys from <a href="https://dashboard.paystack.com/#/settings/developer" target="_blank" rel="noopener noreferrer" style={{ color: '#00e676' }}>dashboard.paystack.com</a>.
                                                 </div>
+                                                <div style={{
+                                                    background: isPaystackFullyConfigured ? 'rgba(16,185,129,0.08)' : isPaystackPartiallyConfigured ? 'rgba(245,158,11,0.10)' : 'rgba(51,65,85,0.35)',
+                                                    border: `1px solid ${isPaystackFullyConfigured ? 'rgba(16,185,129,0.35)' : isPaystackPartiallyConfigured ? 'rgba(245,158,11,0.35)' : '#334155'}`,
+                                                    borderRadius: '10px',
+                                                    padding: '1rem',
+                                                    marginBottom: '1.5rem'
+                                                }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '0.4rem' }}>
+                                                        <strong style={{ color: isPaystackFullyConfigured ? '#10b981' : isPaystackPartiallyConfigured ? '#f59e0b' : '#cbd5e1' }}>
+                                                            {isPaystackFullyConfigured ? 'Checkout Enabled' : isPaystackPartiallyConfigured ? 'Setup Incomplete' : 'Checkout Disabled'}
+                                                        </strong>
+                                                        <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                                                            {hasPaystackPublicKey ? 'Public key saved' : 'Public key missing'} · {hasPaystackSecretKey ? 'Secret key saved' : 'Secret key missing'}
+                                                        </span>
+                                                    </div>
+                                                    <div style={{ fontSize: '0.82rem', color: '#94a3b8', lineHeight: '1.6' }}>
+                                                        {isPaystackFullyConfigured
+                                                            ? "Buyers can pay this vendor directly through Paystack."
+                                                            : isPaystackPartiallyConfigured
+                                                                ? "Both keys must be saved together. We block half-configured payment setups so checkout cannot drift into an unsafe state."
+                                                                : "Checkout stays off until both vendor Paystack keys are added."}
+                                                    </div>
+                                                    {!isPaystackKeyFormatValid && (
+                                                        <div style={{ fontSize: '0.8rem', color: '#fca5a5', marginTop: '0.75rem' }}>
+                                                            Key format looks wrong. Public keys should start with <code>pk_live_</code> or <code>pk_test_</code>, and secret keys should start with <code>sk_live_</code> or <code>sk_test_</code>.
+                                                        </div>
+                                                    )}
+                                                </div>
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                                                     <div>
                                                         <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
                                                             <span>Public Key (Live)</span>
-                                                            {vendorConfig?.payment_config?.paystack_public_key && <span style={{ color: '#10b981', fontSize: '0.75rem' }}>✓ Saved</span>}
+                                                            {hasPaystackPublicKey && <span style={{ color: '#10b981', fontSize: '0.75rem' }}>✓ Saved</span>}
                                                         </label>
                                                         <input 
                                                             type="text" 
                                                             className="kds-input" 
-                                                            value={vendorConfig?.payment_config?.paystack_public_key || ''}
-                                                            onChange={(e) => setVendorConfig({
-                                                                ...vendorConfig,
-                                                                payment_config: {
-                                                                    ...(vendorConfig?.payment_config || {}),
-                                                                    paystack_public_key: e.target.value
-                                                                }
-                                                            })}
+                                                            value={paymentConfig?.paystack_public_key || ''}
+                                                            onChange={(e) => handlePaystackConfigChange('paystack_public_key', e.target.value)}
                                                             placeholder="pk_live_..."
                                                         />
                                                     </div>
                                                     <div>
                                                         <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
                                                             <span>Secret Key (Live)</span>
-                                                            {vendorConfig?.payment_config?.paystack_secret_key && <span style={{ color: '#10b981', fontSize: '0.75rem' }}>✓ Saved</span>}
+                                                            {hasPaystackSecretKey && <span style={{ color: '#10b981', fontSize: '0.75rem' }}>✓ Saved</span>}
                                                         </label>
                                                         <input 
                                                             type="password" 
                                                             className="kds-input" 
-                                                            value={vendorConfig?.payment_config?.paystack_secret_key || ''}
-                                                            onChange={(e) => setVendorConfig({
-                                                                ...vendorConfig,
-                                                                payment_config: {
-                                                                    ...(vendorConfig?.payment_config || {}),
-                                                                    paystack_secret_key: e.target.value
-                                                                }
-                                                            })}
+                                                            value={paymentConfig?.paystack_secret_key || ''}
+                                                            onChange={(e) => handlePaystackConfigChange('paystack_secret_key', e.target.value)}
                                                             placeholder="sk_live_..."
                                                         />
                                                     </div>
                                                     <button 
-                                                        disabled={isSavingVault}
+                                                        disabled={isSavingVault || isPaystackPartiallyConfigured || !isPaystackKeyFormatValid}
                                                         className="btn-primary" 
-                                                        style={{ marginTop: '1rem', background: '#00e676', color: '#000' }}
-                                                        onClick={async () => {
-                                                            setIsSavingVault(true);
-                                                            const { error } = await supabase.from('vendors').update({
-                                                                payment_config: {
-                                                                    ...(vendorConfig?.payment_config || {}),
-                                                                    paystack_public_key: vendorConfig?.payment_config?.paystack_public_key,
-                                                                    paystack_secret_key: vendorConfig?.payment_config?.paystack_secret_key,
-                                                                }
-                                                            }).eq('id', currentVendorId);
-                                                            setIsSavingVault(false);
-                                                            if (error) alert("Save failed: " + error.message);
-                                                            else alert("✅ Paystack keys saved! Your customers' payments will now go directly into your Paystack account.");
+                                                        style={{ marginTop: '1rem', background: (isPaystackPartiallyConfigured || !isPaystackKeyFormatValid) ? '#334155' : '#00e676', color: (isPaystackPartiallyConfigured || !isPaystackKeyFormatValid) ? '#94a3b8' : '#000' }}
+                                                        onClick={savePaystackKeys}
+                                                    >
+                                                        {isSavingVault ? 'Saving...' : isPaystackFullyConfigured ? '💾 Save Paystack Keys' : '🔒 Save & Enable Checkout'}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        disabled={isSavingVault || (!hasPaystackPublicKey && !hasPaystackSecretKey)}
+                                                        className="btn-secondary"
+                                                        style={{ background: 'transparent', border: '1px solid #334155', color: '#94a3b8', padding: '0.85rem 1rem', borderRadius: '10px', cursor: (isSavingVault || (!hasPaystackPublicKey && !hasPaystackSecretKey)) ? 'not-allowed' : 'pointer' }}
+                                                        onClick={() => {
+                                                            handlePaystackConfigChange('paystack_public_key', '');
+                                                            handlePaystackConfigChange('paystack_secret_key', '');
                                                         }}
                                                     >
-                                                        {isSavingVault ? 'Saving...' : '💾 Save Paystack Keys'}
+                                                        Clear Keys & Disable Checkout
                                                     </button>
                                                 </div>
                                             </div>

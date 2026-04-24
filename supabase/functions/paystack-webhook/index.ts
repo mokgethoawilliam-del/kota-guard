@@ -106,29 +106,33 @@ serve(async (req) => {
     // Fetch the vendor's own secret key (used to verify customer payment webhooks)
     const { data: vendorData } = await supabase
       .from("vendors")
-      .select("payment_config")
+      .select("payment_config, paystack_secret_key")
       .eq("id", orderData.vendor_id)
       .single();
 
-    const vendorSecret = vendorData?.payment_config?.paystack_secret_key;
+    const vendorSecret = vendorData?.payment_config?.paystack_secret_key || vendorData?.paystack_secret_key;
+    const verificationSecret = vendorSecret || "";
 
-    if (vendorSecret) {
-      // Verify signature with vendor's own key
-      const encoder = new TextEncoder();
-      const key = await crypto.subtle.importKey(
-        "raw",
-        encoder.encode(vendorSecret),
-        { name: "HMAC", hash: "SHA-512" },
-        false,
-        ["sign"]
-      );
-      const sigBuf = await crypto.subtle.sign("HMAC", key, encoder.encode(bodyText));
-      const hashHex = Array.from(new Uint8Array(sigBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
-      const incomingSig = req.headers.get("x-paystack-signature");
-      if (hashHex !== incomingSig) {
-        console.error("Invalid vendor signature");
-        return new Response("Invalid signature", { status: 401, headers: corsHeaders });
-      }
+    if (!verificationSecret) {
+      console.error("Missing vendor Paystack verification secret");
+      return new Response("Vendor payment verification not configured", { status: 500, headers: corsHeaders });
+    }
+
+    // Verify signature with the vendor key when present; otherwise use platform key.
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(verificationSecret),
+      { name: "HMAC", hash: "SHA-512" },
+      false,
+      ["sign"]
+    );
+    const sigBuf = await crypto.subtle.sign("HMAC", key, encoder.encode(bodyText));
+    const hashHex = Array.from(new Uint8Array(sigBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
+    const incomingSig = req.headers.get("x-paystack-signature");
+    if (hashHex !== incomingSig) {
+      console.error("Invalid payment signature");
+      return new Response("Invalid signature", { status: 401, headers: corsHeaders });
     }
 
     if (payload.event === "charge.success") {

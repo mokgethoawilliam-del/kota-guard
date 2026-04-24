@@ -124,6 +124,10 @@ export default function AdminDashboard({ session }) {
     const [aiLoading, setAiLoading] = useState(false);
     const aiChatEndRef = React.useRef(null);
 
+    useEffect(() => {
+        aiChatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [aiMessages, aiLoading]);
+
     //  Navigation Icons (Minimal SVGs)
     const Icons = {
         Dashboard: () => (
@@ -509,6 +513,48 @@ export default function AdminDashboard({ session }) {
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
+    };
+
+    const handleAiSend = async (e) => {
+        if (e) e.preventDefault();
+        if (!aiInput.trim() || !currentVendorId || aiLoading) return;
+
+        const userMessage = { role: 'user', content: aiInput.trim() };
+        const nextMessages = [...aiMessages, userMessage];
+        setAiMessages(nextMessages);
+        setAiInput('');
+        setAiLoading(true);
+
+        try {
+            const { data, error } = await supabase.functions.invoke('admin-ai-manager', {
+                body: {
+                    vendorId: currentVendorId,
+                    message: userMessage.content,
+                    messages: nextMessages.slice(-8)
+                }
+            });
+
+            if (error) throw error;
+
+            setAiMessages(current => [
+                ...current,
+                {
+                    role: 'assistant',
+                    content: data?.reply || 'I could not generate a useful answer just now.'
+                }
+            ]);
+        } catch (err) {
+            console.error('AI manager error:', err);
+            setAiMessages(current => [
+                ...current,
+                {
+                    role: 'assistant',
+                    content: 'I hit a problem while checking your business data. Please confirm your AI keys are saved in the vault and that the admin-ai-manager function is deployed.'
+                }
+            ]);
+        } finally {
+            setAiLoading(false);
+        }
     };
 
     const updateOrderStatus = async (orderId, newStatus) => {
@@ -2748,6 +2794,116 @@ export default function AdminDashboard({ session }) {
                                 Select a session from the left to start chatting.
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'ai' && (
+                <div className="finances-card" style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 320px) minmax(0, 1fr)', gap: '1.5rem', alignItems: 'stretch' }}>
+                    <div style={{ background: '#0f172a', border: '1px solid rgba(139,92,246,0.24)', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        <div>
+                            <div style={{ color: '#a78bfa', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.4rem' }}>AI Manager</div>
+                            <h2 style={{ margin: 0, fontSize: '1.4rem' }}>Business Copilot</h2>
+                            <p style={{ color: '#94a3b8', fontSize: '0.92rem', lineHeight: '1.6', marginTop: '0.75rem' }}>
+                                Ask about orders, revenue, stock pressure, slow branches, menu performance, or what needs attention next.
+                            </p>
+                        </div>
+
+                        <div style={{ display: 'grid', gap: '0.75rem' }}>
+                            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '0.9rem 1rem' }}>
+                                <div style={{ color: '#64748b', fontSize: '0.78rem', marginBottom: '0.25rem' }}>Active Orders</div>
+                                <div style={{ fontSize: '1.4rem', fontWeight: '800' }}>{orders.length}</div>
+                            </div>
+                            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '0.9rem 1rem' }}>
+                                <div style={{ color: '#64748b', fontSize: '0.78rem', marginBottom: '0.25rem' }}>Ready for Collection</div>
+                                <div style={{ fontSize: '1.4rem', fontWeight: '800' }}>{orders.filter(o => o.status === 'ready').length}</div>
+                            </div>
+                            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '0.9rem 1rem' }}>
+                                <div style={{ color: '#64748b', fontSize: '0.78rem', marginBottom: '0.25rem' }}>Low Stock Signals</div>
+                                <div style={{ fontSize: '1.4rem', fontWeight: '800' }}>
+                                    {ingredients.filter(ing => Number(ing.stock_quantity ?? 0) <= Number(ing.low_stock_threshold ?? 5)).length}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                            {[
+                                'What should I focus on right now?',
+                                'Which orders are stuck?',
+                                'What is my stock risk today?',
+                                'Summarize today’s business performance.'
+                            ].map(prompt => (
+                                <button
+                                    key={prompt}
+                                    type="button"
+                                    className="btn-secondary"
+                                    onClick={() => setAiInput(prompt)}
+                                    style={{ justifyContent: 'flex-start', textAlign: 'left', background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.18)', color: '#ddd6fe' }}
+                                >
+                                    {prompt}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div style={{ background: '#0f172a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', display: 'flex', flexDirection: 'column', minHeight: '70vh', overflow: 'hidden' }}>
+                        <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+                            <div>
+                                <div style={{ fontWeight: '700', fontSize: '1rem' }}>Operations Chat</div>
+                                <div style={{ color: '#64748b', fontSize: '0.84rem' }}>Grounded in your own orders, stock, menu, and expense data</div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setAiMessages([{
+                                    role: 'assistant',
+                                    content: 'Hello! I am your AI Manager. I have real-time access to your orders, inventory, and revenue. Ask me anything about your business!'
+                                }])}
+                                style={{ background: 'transparent', border: '1px solid #334155', color: '#94a3b8', borderRadius: '10px', padding: '0.55rem 0.85rem', cursor: 'pointer' }}
+                            >
+                                Reset chat
+                            </button>
+                        </div>
+
+                        <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {aiMessages.map((message, idx) => (
+                                <div
+                                    key={`${message.role}-${idx}`}
+                                    style={{
+                                        alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start',
+                                        maxWidth: '82%',
+                                        background: message.role === 'user' ? 'rgba(139,92,246,0.22)' : 'rgba(255,255,255,0.04)',
+                                        color: '#f8fafc',
+                                        border: `1px solid ${message.role === 'user' ? 'rgba(139,92,246,0.28)' : 'rgba(255,255,255,0.06)'}`,
+                                        borderRadius: message.role === 'user' ? '18px 18px 6px 18px' : '18px 18px 18px 6px',
+                                        padding: '0.95rem 1rem',
+                                        lineHeight: '1.6',
+                                        whiteSpace: 'pre-wrap'
+                                    }}
+                                >
+                                    {message.content}
+                                </div>
+                            ))}
+                            {aiLoading && (
+                                <div style={{ alignSelf: 'flex-start', maxWidth: '82%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '18px 18px 18px 6px', padding: '0.95rem 1rem', color: '#cbd5e1' }}>
+                                    Thinking...
+                                </div>
+                            )}
+                            <div ref={aiChatEndRef}></div>
+                        </div>
+
+                        <form onSubmit={handleAiSend} style={{ padding: '1rem 1.25rem', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: '0.75rem' }}>
+                            <input
+                                type="text"
+                                className="kds-input"
+                                value={aiInput}
+                                onChange={(e) => setAiInput(e.target.value)}
+                                placeholder="Ask about revenue, orders, stock, menu performance, or support pressure..."
+                                style={{ flex: 1 }}
+                            />
+                            <button type="submit" className="btn-primary" disabled={aiLoading || !aiInput.trim()} style={{ background: 'linear-gradient(135deg, #8b5cf6, #3b82f6)', color: '#fff', minWidth: '120px' }}>
+                                {aiLoading ? 'Thinking...' : 'Ask AI'}
+                            </button>
+                        </form>
                     </div>
                 </div>
             )}

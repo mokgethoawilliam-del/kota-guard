@@ -48,7 +48,14 @@ function tokenizeMeaningfully(value: string) {
 
 function parseInventoryIntent(
   message: string,
-  ingredients: Array<{ id: string; name: string; unit?: string | null; current_stock?: number | null }>,
+  ingredients: Array<{
+    id: string;
+    name: string;
+    current_stock?: number | null;
+    restock_input_label?: string | null;
+    restock_input_quantity?: number | null;
+    restock_output_quantity?: number | null;
+  }>,
 ) {
   const normalizedMessage = normalizeText(message);
   const quantityMatch = normalizedMessage.match(/(\d+(?:\.\d+)?)/);
@@ -95,11 +102,22 @@ function parseInventoryIntent(
   }
 
   const currentStock = Number(ingredientMatch.current_stock ?? 0);
+  const restockLabel = normalizeText(ingredientMatch.restock_input_label || "");
+  const restockInputQuantity = Number(ingredientMatch.restock_input_quantity ?? 0);
+  const restockOutputQuantity = Number(ingredientMatch.restock_output_quantity ?? 0);
+  const mentionsRestockLabel = restockLabel && normalizedMessage.includes(restockLabel);
+  const convertedQuantity =
+    operation === "increase_stock" &&
+    mentionsRestockLabel &&
+    restockInputQuantity > 0 &&
+    restockOutputQuantity > 0
+      ? Number(((quantity / restockInputQuantity) * restockOutputQuantity).toFixed(2))
+      : quantity;
   const projectedStock =
     operation === "increase_stock"
-      ? currentStock + quantity
+      ? currentStock + convertedQuantity
       : operation === "decrease_stock"
-        ? Math.max(0, currentStock - quantity)
+        ? Math.max(0, currentStock - convertedQuantity)
         : Math.max(0, quantity);
 
   return {
@@ -107,8 +125,13 @@ function parseInventoryIntent(
     operation,
     ingredient_id: ingredientMatch.id,
     ingredient_name: ingredientMatch.name,
-    unit: ingredientMatch.unit || "",
-    quantity,
+    quantity: convertedQuantity,
+    source_quantity: quantity,
+    source_label: mentionsRestockLabel ? ingredientMatch.restock_input_label || "" : "",
+    restock_note:
+      mentionsRestockLabel && convertedQuantity !== quantity
+        ? `${quantity} ${ingredientMatch.restock_input_label} converts to ${convertedQuantity} usable stock.`
+        : "",
     current_stock: currentStock,
     projected_stock: projectedStock,
   };
@@ -260,7 +283,7 @@ serve(async (req) => {
         supabase.from("vendors").select("id, name, payment_config").eq("id", vendorId).single(),
         supabase
           .from("ingredients")
-          .select("id, name, current_stock, unit, low_stock_threshold")
+          .select("id, name, current_stock, low_stock_threshold, restock_input_label, restock_input_quantity, restock_output_quantity")
           .eq("vendor_id", vendorId)
           .order("name")
           .limit(50),
@@ -315,10 +338,12 @@ serve(async (req) => {
       return jsonResponse({
         reply:
           inventoryIntent.operation === "set_stock_exactly"
-            ? `I heard: set ${inventoryIntent.ingredient_name} to ${inventoryIntent.quantity} ${inventoryIntent.unit}. Confirm this update?`
+            ? `I heard: set ${inventoryIntent.ingredient_name} to ${inventoryIntent.quantity}. Confirm this update?`
             : inventoryIntent.operation === "decrease_stock"
-              ? `I heard: remove ${inventoryIntent.quantity} ${inventoryIntent.unit} from ${inventoryIntent.ingredient_name}. Confirm this stock update?`
-              : `I heard: add ${inventoryIntent.quantity} ${inventoryIntent.unit} to ${inventoryIntent.ingredient_name}. Confirm this stock update?`,
+              ? `I heard: remove ${inventoryIntent.quantity} from ${inventoryIntent.ingredient_name}. Confirm this stock update?`
+              : inventoryIntent.source_label
+                ? `I heard: add ${inventoryIntent.source_quantity} ${inventoryIntent.source_label} of ${inventoryIntent.ingredient_name}. Confirm this stock update?`
+                : `I heard: add ${inventoryIntent.quantity} to ${inventoryIntent.ingredient_name}. Confirm this stock update?`,
         pending_action: inventoryIntent,
       });
     }

@@ -631,7 +631,7 @@ export default function AdminDashboard({ session }) {
                 ...current,
                 {
                     role: 'assistant',
-                    content: `Done. ${aiPendingAction.ingredient_name} is now ${data?.new_stock} ${data?.ingredient?.unit || aiPendingAction.unit} in stock.`
+                    content: `Done. ${aiPendingAction.ingredient_name} is now ${data?.new_stock} in stock.`
                 }
             ]);
             setAiPendingAction(null);
@@ -928,7 +928,15 @@ export default function AdminDashboard({ session }) {
     };
 
     // Phase 9: Add / Delete Ingredients
-    const [editingIngredient, setEditingIngredient] = useState({ id: null, name: '', unit: '', current_stock: '', low_stock_threshold: '' });
+    const [editingIngredient, setEditingIngredient] = useState({
+        id: null,
+        name: '',
+        current_stock: '',
+        low_stock_threshold: '',
+        restock_input_label: '',
+        restock_input_quantity: '',
+        restock_output_quantity: ''
+    });
     const [isAddingIngredient, setIsAddingIngredient] = useState(false);
 
     const handleSaveIngredient = async (e) => {
@@ -936,9 +944,11 @@ export default function AdminDashboard({ session }) {
         try {
             const payload = {
                 name: editingIngredient.name,
-                unit: editingIngredient.unit,
                 current_stock: parseFloat(editingIngredient.current_stock || 0),
-                low_stock_threshold: parseFloat(editingIngredient.low_stock_threshold || 10)
+                low_stock_threshold: parseFloat(editingIngredient.low_stock_threshold || 10),
+                restock_input_label: (editingIngredient.restock_input_label || '').trim() || null,
+                restock_input_quantity: editingIngredient.restock_input_quantity === '' ? null : parseFloat(editingIngredient.restock_input_quantity || 0),
+                restock_output_quantity: editingIngredient.restock_output_quantity === '' ? null : parseFloat(editingIngredient.restock_output_quantity || 0)
             };
 
             let query = supabase.from('ingredients');
@@ -957,7 +967,7 @@ export default function AdminDashboard({ session }) {
                 setIngredients([...ingredients, data[0]].sort((a, b) => a.name.localeCompare(b.name)));
             }
 
-            setEditingIngredient({ id: null, name: '', unit: '', current_stock: '', low_stock_threshold: '' });
+            setEditingIngredient({ id: null, name: '', current_stock: '', low_stock_threshold: '', restock_input_label: '', restock_input_quantity: '', restock_output_quantity: '' });
             setIsAddingIngredient(false);
         } catch (err) {
             console.error(err);
@@ -2991,30 +3001,6 @@ export default function AdminDashboard({ session }) {
                         </div>
 
                         <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {aiPendingAction && (
-                                <div style={{ alignSelf: 'stretch', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.24)', borderRadius: '14px', padding: '1rem' }}>
-                                    <div style={{ color: '#86efac', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.45rem' }}>Pending Stock Update</div>
-                                    <div style={{ fontWeight: '700', marginBottom: '0.35rem' }}>{aiPendingAction.ingredient_name}</div>
-                                    <div style={{ color: '#cbd5e1', fontSize: '0.92rem', lineHeight: '1.6' }}>
-                                        {aiPendingAction.operation === 'set_stock_exactly'
-                                            ? `Set stock to ${aiPendingAction.quantity} ${aiPendingAction.unit}.`
-                                            : aiPendingAction.operation === 'decrease_stock'
-                                                ? `Remove ${aiPendingAction.quantity} ${aiPendingAction.unit} from current stock.`
-                                                : `Add ${aiPendingAction.quantity} ${aiPendingAction.unit} to current stock.`}
-                                    </div>
-                                    <div style={{ color: '#94a3b8', fontSize: '0.84rem', marginTop: '0.5rem' }}>
-                                        Current: {aiPendingAction.current_stock} {aiPendingAction.unit}  |  Projected: {aiPendingAction.projected_stock} {aiPendingAction.unit}
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.9rem', flexWrap: 'wrap' }}>
-                                        <button type="button" className="btn-primary" onClick={handleAiInventoryConfirm} disabled={aiActionLoading} style={{ background: '#10b981', color: '#04130b' }}>
-                                            {aiActionLoading ? 'Applying...' : 'Confirm Update'}
-                                        </button>
-                                        <button type="button" className="btn-secondary" onClick={() => setAiPendingAction(null)} disabled={aiActionLoading}>
-                                            Cancel
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
                             {aiMessages.map((message, idx) => (
                                 <div
                                     key={`${message.role}-${idx}`}
@@ -3036,6 +3022,35 @@ export default function AdminDashboard({ session }) {
                             {aiLoading && (
                                 <div style={{ alignSelf: 'flex-start', maxWidth: '82%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '18px 18px 18px 6px', padding: '0.95rem 1rem', color: '#cbd5e1' }}>
                                     Thinking...
+                                </div>
+                            )}
+                            {aiPendingAction && (
+                                <div style={{ alignSelf: 'stretch', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.24)', borderRadius: '14px', padding: '1rem' }}>
+                                    <div style={{ color: '#86efac', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.45rem' }}>Pending Stock Update</div>
+                                    <div style={{ fontWeight: '700', marginBottom: '0.35rem' }}>{aiPendingAction.ingredient_name}</div>
+                                    <div style={{ color: '#cbd5e1', fontSize: '0.92rem', lineHeight: '1.6' }}>
+                                        {aiPendingAction.operation === 'set_stock_exactly'
+                                            ? `Set stock to ${aiPendingAction.quantity}.`
+                                            : aiPendingAction.operation === 'decrease_stock'
+                                                ? `Remove ${aiPendingAction.quantity} from current stock.`
+                                                : `Add ${aiPendingAction.quantity} to current stock.`}
+                                    </div>
+                                    {aiPendingAction.restock_note && (
+                                        <div style={{ color: '#94a3b8', fontSize: '0.84rem', marginTop: '0.45rem' }}>
+                                            {aiPendingAction.restock_note}
+                                        </div>
+                                    )}
+                                    <div style={{ color: '#94a3b8', fontSize: '0.84rem', marginTop: '0.5rem' }}>
+                                        Current: {aiPendingAction.current_stock} | Projected: {aiPendingAction.projected_stock}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.9rem', flexWrap: 'wrap' }}>
+                                        <button type="button" className="btn-primary" onClick={handleAiInventoryConfirm} disabled={aiActionLoading} style={{ background: '#10b981', color: '#04130b' }}>
+                                            {aiActionLoading ? 'Applying...' : 'Confirm Update'}
+                                        </button>
+                                        <button type="button" className="btn-secondary" onClick={() => setAiPendingAction(null)} disabled={aiActionLoading}>
+                                            Cancel
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                             <div ref={aiChatEndRef}></div>
@@ -3347,7 +3362,7 @@ export default function AdminDashboard({ session }) {
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid #334155', paddingBottom: '1rem' }}>
                                     <h3 style={{ fontSize: '1.5rem' }}>{editingIngredient.id ? "Edit Ingredient" : "Add New Ingredient"}</h3>
                                     <button className="btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem' }} onClick={() => {
-                                        setEditingIngredient({ id: null, name: '', unit: '', current_stock: '', low_stock_threshold: '' });
+                                        setEditingIngredient({ id: null, name: '', current_stock: '', low_stock_threshold: '', restock_input_label: '', restock_input_quantity: '', restock_output_quantity: '' });
                                         setIsAddingIngredient(false);
                                     }}>✕ Close</button>
                                 </div>
@@ -3361,19 +3376,34 @@ export default function AdminDashboard({ session }) {
                                         <input type="text" required className="form-input" placeholder="e.g. Eggs" value={editingIngredient.name} onChange={(e) => setEditingIngredient({ ...editingIngredient, name: e.target.value })} />
                                         <small style={{ color: '#94a3b8', marginTop: '0.25rem', display: 'block' }}>Must exactly match the name used in your recipes for accurate auto-deduction.</small>
                                     </div>
-                                    <div className="form-group">
-                                        <label>Unit Metric</label>
-                                        <input type="text" required className="form-input" placeholder="e.g. slices, kg, pieces" value={editingIngredient.unit} onChange={(e) => setEditingIngredient({ ...editingIngredient, unit: e.target.value })} />
-                                        <small style={{ color: '#94a3b8', marginTop: '0.25rem', display: 'block' }}>The measurement unit used for this item so you know what '1' means.</small>
-                                    </div>
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                         <div className="form-group">
-                                            <label>Current Stock Level</label>
+                                            <label>Usable Stock Count</label>
                                             <input type="number" required className="form-input" placeholder="0" value={editingIngredient.current_stock} onChange={(e) => setEditingIngredient({ ...editingIngredient, current_stock: e.target.value })} />
                                         </div>
                                         <div className="form-group">
                                             <label>Low Stock Alert At</label>
                                             <input type="number" required className="form-input" placeholder="10" value={editingIngredient.low_stock_threshold} onChange={(e) => setEditingIngredient({ ...editingIngredient, low_stock_threshold: e.target.value })} />
+                                        </div>
+                                    </div>
+                                    <div style={{ padding: '1rem', borderRadius: '12px', border: '1px solid rgba(59,130,246,0.18)', background: 'rgba(59,130,246,0.05)' }}>
+                                        <div style={{ fontWeight: '700', marginBottom: '0.35rem', color: '#bfdbfe' }}>Optional Bulk Restock Rule</div>
+                                        <p style={{ color: '#94a3b8', margin: '0 0 1rem 0', fontSize: '0.85rem', lineHeight: '1.5' }}>
+                                            If this ingredient is bought in bulk, tell the system how that bulk purchase turns into usable stock. Example: 2 kg becomes 20 usable counts.
+                                        </p>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                                            <div className="form-group">
+                                                <label>Bulk Amount</label>
+                                                <input type="number" className="form-input" placeholder="2" value={editingIngredient.restock_input_quantity} onChange={(e) => setEditingIngredient({ ...editingIngredient, restock_input_quantity: e.target.value })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Bulk Label</label>
+                                                <input type="text" className="form-input" placeholder="kg" value={editingIngredient.restock_input_label} onChange={(e) => setEditingIngredient({ ...editingIngredient, restock_input_label: e.target.value })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Usable Count Added</label>
+                                                <input type="number" className="form-input" placeholder="20" value={editingIngredient.restock_output_quantity} onChange={(e) => setEditingIngredient({ ...editingIngredient, restock_output_quantity: e.target.value })} />
+                                            </div>
                                         </div>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
@@ -3389,8 +3419,8 @@ export default function AdminDashboard({ session }) {
                             <thead>
                                 <tr>
                                     <th>Ingredient</th>
-                                    <th>Unit Metric</th>
-                                    <th>Current Stock Level</th>
+                                    <th>Stock Count</th>
+                                    <th>Restock Rule</th>
                                     <th>Status</th>
                                     <th>Action</th>
                                 </tr>
@@ -3401,8 +3431,12 @@ export default function AdminDashboard({ session }) {
                                     return (
                                         <tr key={ing.id} style={{ borderLeft: isLow ? '4px solid #ef4444' : '4px solid transparent' }}>
                                             <td><strong>{ing.name}</strong></td>
-                                            <td>{ing.unit}</td>
                                             <td style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{ing.current_stock}</td>
+                                            <td style={{ color: '#94a3b8' }}>
+                                                {ing.restock_input_quantity && ing.restock_input_label && ing.restock_output_quantity
+                                                    ? `${ing.restock_input_quantity} ${ing.restock_input_label} -> ${ing.restock_output_quantity}`
+                                                    : <span style={{ color: '#64748b' }}>Direct count</span>}
+                                            </td>
                                             <td>
                                                 {isLow
                                                     ? <span className="status-badge status-paid">Low Stock</span>
@@ -3421,9 +3455,11 @@ export default function AdminDashboard({ session }) {
                                                                 setEditingIngredient({
                                                                     id: ing.id,
                                                                     name: ing.name,
-                                                                    unit: ing.unit,
                                                                     current_stock: ing.current_stock.toString(),
-                                                                    low_stock_threshold: ing.low_stock_threshold.toString()
+                                                                    low_stock_threshold: ing.low_stock_threshold.toString(),
+                                                                    restock_input_label: ing.restock_input_label || '',
+                                                                    restock_input_quantity: ing.restock_input_quantity?.toString?.() || '',
+                                                                    restock_output_quantity: ing.restock_output_quantity?.toString?.() || ''
                                                                 });
                                                                 setIsAddingIngredient(true);
                                                                 window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -3507,7 +3543,7 @@ export default function AdminDashboard({ session }) {
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid #334155', paddingBottom: '1rem' }}>
                                             <div>
                                                 <h3 style={{ margin: 0, color: '#3b82f6', fontSize: '1.25rem' }}>Construct Recipe: {editingRecipeFor.name}</h3>
-                                                <p style={{ margin: '0.25rem 0 0 0', color: '#94a3b8', fontSize: '0.9rem' }}>Define how many units of each inventory ingredient are used to make this item.</p>
+                                                <p style={{ margin: '0.25rem 0 0 0', color: '#94a3b8', fontSize: '0.9rem' }}>Define how many usable stock counts of each ingredient are used to make this item.</p>
                                             </div>
                                             <button className="btn-secondary" onClick={() => setEditingRecipeFor(null)}>Cancel</button>
                                         </div>
@@ -3522,7 +3558,7 @@ export default function AdminDashboard({ session }) {
                                                     >
                                                         <option value="">-- Select Ingredient --</option>
                                                         {ingredients.map(ing => (
-                                                            <option key={ing.id} value={ing.name}>{ing.name} ({ing.unit})</option>
+                                                            <option key={ing.id} value={ing.name}>{ing.name}</option>
                                                         ))}
                                                     </select>
                                                     <input
@@ -3530,7 +3566,7 @@ export default function AdminDashboard({ session }) {
                                                         step="0.01"
                                                         min="0"
                                                         className="kds-input"
-                                                        placeholder="Qty per Item"
+                                                        placeholder="Count per Item"
                                                         value={row.quantity}
                                                         onChange={(e) => handleRecipeIngredientChange(idx, 'quantity', e.target.value)}
                                                     />

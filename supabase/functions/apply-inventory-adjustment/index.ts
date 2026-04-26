@@ -71,7 +71,7 @@ serve(async (req) => {
 
     const { data: ingredient, error: ingredientError } = await adminSupabase
       .from("ingredients")
-      .select("id, vendor_id, name, unit, current_stock")
+      .select("id, vendor_id, name, current_stock")
       .eq("id", ingredientId)
       .eq("vendor_id", vendorId)
       .single();
@@ -96,7 +96,7 @@ serve(async (req) => {
       .update({ current_stock: newStock })
       .eq("id", ingredient.id)
       .eq("vendor_id", vendorId)
-      .select("id, name, unit, current_stock, low_stock_threshold")
+      .select("id, name, current_stock, low_stock_threshold, restock_input_label, restock_input_quantity, restock_output_quantity")
       .single();
 
     if (updateError || !updatedIngredient) {

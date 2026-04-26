@@ -1171,25 +1171,6 @@ export default function AdminDashboard({ session }) {
 
 
 
-    if (loading || !vendorConfig) return (
-        <div style={{ background: '#0f172a', color: '#fff', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1.5rem', textAlign: 'center', padding: '2rem' }}>
-            <div className="loading-spinner"></div>
-            <div>
-                <h2 style={{ marginBottom: '0.5rem' }}>Configuring your kitchen...</h2>
-                <p style={{ color: '#94a3b8', maxWidth: '400px', fontSize: '0.9rem' }}>
-                    If this takes more than 10 seconds, please ensure you have run the <b>master-setup.sql</b> script in your Supabase dashboard.
-                </p>
-            </div>
-            
-            <button 
-                onClick={() => window.location.reload()}
-                style={{ background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', padding: '0.75rem 1.5rem', borderRadius: '12px', cursor: 'pointer' }}
-            >
-                 Refresh Page
-            </button>
-        </div>
-    );
-
     // ── Monetization: Trial & Subscription Helpers ──────────────────────────
     const getTrialInfo = () => {
         if (!vendorConfig) return { isExpired: false, daysLeft: 7 };
@@ -1252,6 +1233,25 @@ export default function AdminDashboard({ session }) {
     }, [activeTab, allowedTabs]);
 
     // ────────────────────────────────────────────────────────────────────────
+
+    if (loading || !vendorConfig) return (
+        <div style={{ background: '#0f172a', color: '#fff', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1.5rem', textAlign: 'center', padding: '2rem' }}>
+            <div className="loading-spinner"></div>
+            <div>
+                <h2 style={{ marginBottom: '0.5rem' }}>Configuring your kitchen...</h2>
+                <p style={{ color: '#94a3b8', maxWidth: '400px', fontSize: '0.9rem' }}>
+                    If this takes more than 10 seconds, please ensure you have run the <b>master-setup.sql</b> script in your Supabase dashboard.
+                </p>
+            </div>
+            
+            <button 
+                onClick={() => window.location.reload()}
+                style={{ background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', padding: '0.75rem 1.5rem', borderRadius: '12px', cursor: 'pointer' }}
+            >
+                 Refresh Page
+            </button>
+        </div>
+    );
 
     const paymentConfig = vendorConfig?.payment_config || {};
     const paystackPublicKey = (paymentConfig.paystack_public_key || '').trim();

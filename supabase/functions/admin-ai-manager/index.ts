@@ -29,6 +29,23 @@ function normalizeText(value: string) {
     .trim();
 }
 
+function tokenizeMeaningfully(value: string) {
+  const stopWords = new Set([
+    "add", "added", "set", "change", "make", "to", "inventory", "stock",
+    "refill", "refilled", "restock", "restocked", "receive", "received",
+    "remove", "removed", "used", "use", "damaged", "wasted", "waste",
+    "sold", "deduct", "minus", "and", "the", "a", "an", "of", "for",
+    "in", "into", "on", "my", "our", "just", "have", "has", "had",
+    "slice", "slices", "piece", "pieces", "kg", "g", "gram", "grams",
+    "ml", "l", "litre", "litres", "roll", "rolls", "loaf", "loaves",
+    "pack", "packs", "bottle", "bottles", "unit", "units",
+  ]);
+
+  return normalizeText(value)
+    .split(" ")
+    .filter((token) => token && !stopWords.has(token));
+}
+
 function parseInventoryIntent(
   message: string,
   ingredients: Array<{ id: string; name: string; unit?: string | null; current_stock?: number | null }>,
@@ -51,12 +68,31 @@ function parseInventoryIntent(
 
   if (!operation) return null;
 
-  const ingredientMatch = ingredients.find((ingredient) => {
-    const normalizedIngredient = normalizeText(ingredient.name);
-    return normalizedIngredient && normalizedMessage.includes(normalizedIngredient);
-  });
+  const meaningfulMessageTokens = tokenizeMeaningfully(message);
+  const ingredientMatch =
+    ingredients.find((ingredient) => {
+      const normalizedIngredient = normalizeText(ingredient.name);
+      return normalizedIngredient && normalizedMessage.includes(normalizedIngredient);
+    }) ||
+    ingredients
+      .map((ingredient) => {
+        const ingredientTokens = tokenizeMeaningfully(ingredient.name);
+        const overlap = ingredientTokens.filter((token) => meaningfulMessageTokens.includes(token)).length;
+        return { ingredient, overlap, tokenCount: ingredientTokens.length };
+      })
+      .filter((candidate) => candidate.overlap > 0)
+      .sort((a, b) => {
+        if (b.overlap !== a.overlap) return b.overlap - a.overlap;
+        return a.tokenCount - b.tokenCount;
+      })[0]?.ingredient;
 
-  if (!ingredientMatch) return null;
+  if (!ingredientMatch) {
+    return {
+      type: "inventory_adjustment_unmatched",
+      operation,
+      quantity,
+    };
+  }
 
   const currentStock = Number(ingredientMatch.current_stock ?? 0);
   const projectedStock =
@@ -236,6 +272,13 @@ serve(async (req) => {
 
     const inventoryIntent = parseInventoryIntent(message, ingredients || []);
     if (inventoryIntent) {
+      if (inventoryIntent.type === "inventory_adjustment_unmatched") {
+        return jsonResponse({
+          reply: `I understood this as a stock update, but I could not match the ingredient name to your inventory list. Try the exact ingredient name shown in Inventory first.`,
+          pending_action: null,
+        });
+      }
+
       return jsonResponse({
         reply:
           inventoryIntent.operation === "set_stock_exactly"

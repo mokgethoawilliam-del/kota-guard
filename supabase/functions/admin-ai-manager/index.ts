@@ -21,6 +21,63 @@ function normalizeJson(text: string) {
   return trimmed;
 }
 
+function normalizeText(value: string) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseInventoryIntent(
+  message: string,
+  ingredients: Array<{ id: string; name: string; unit?: string | null; current_stock?: number | null }>,
+) {
+  const normalizedMessage = normalizeText(message);
+  const quantityMatch = normalizedMessage.match(/(\d+(?:\.\d+)?)/);
+  if (!quantityMatch) return null;
+
+  const quantity = Number(quantityMatch[1]);
+  if (!quantity || Number.isNaN(quantity)) return null;
+
+  let operation: "increase_stock" | "decrease_stock" | "set_stock_exactly" | null = null;
+  if (/\b(set|change|make)\b/.test(normalizedMessage) && /\bto\b/.test(normalizedMessage)) {
+    operation = "set_stock_exactly";
+  } else if (/\b(refill|refilled|restock|restocked|add|added|receive|received|bought|buy|loaded)\b/.test(normalizedMessage)) {
+    operation = "increase_stock";
+  } else if (/\b(remove|removed|used|use|damaged|wasted|waste|sold|deduct|minus)\b/.test(normalizedMessage)) {
+    operation = "decrease_stock";
+  }
+
+  if (!operation) return null;
+
+  const ingredientMatch = ingredients.find((ingredient) => {
+    const normalizedIngredient = normalizeText(ingredient.name);
+    return normalizedIngredient && normalizedMessage.includes(normalizedIngredient);
+  });
+
+  if (!ingredientMatch) return null;
+
+  const currentStock = Number(ingredientMatch.current_stock ?? 0);
+  const projectedStock =
+    operation === "increase_stock"
+      ? currentStock + quantity
+      : operation === "decrease_stock"
+        ? Math.max(0, currentStock - quantity)
+        : Math.max(0, quantity);
+
+  return {
+    type: "inventory_adjustment",
+    operation,
+    ingredient_id: ingredientMatch.id,
+    ingredient_name: ingredientMatch.name,
+    unit: ingredientMatch.unit || "",
+    quantity,
+    current_stock: currentStock,
+    projected_stock: projectedStock,
+  };
+}
+
 async function callGrok(apiKey: string, prompt: string) {
   const response = await fetch("https://api.x.ai/v1/chat/completions", {
     method: "POST",
@@ -89,42 +146,79 @@ serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return jsonResponse({ error: "Missing authorization header" }, 401);
+    }
+
     const { vendorId, message, messages = [] } = await req.json();
     if (!vendorId || !message?.trim()) {
       return jsonResponse({ error: "Missing vendorId or message" }, 400);
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const authedSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const [{ data: vendor }, { data: orders }, { data: ingredients }, { data: expenses }, { data: menuItems }] =
+    const {
+      data: { user },
+      error: userError,
+    } = await authedSupabase.auth.getUser();
+
+    if (userError || !user) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("vendor_id, role")
+      .eq("id", user.id)
+      .single();
+
+    const allowedRoles = new Set(["owner", "admin", "inventory_staff"]);
+    if (!profile || profile.vendor_id !== vendorId || !allowedRoles.has(String(profile.role || ""))) {
+      return jsonResponse({ error: "Forbidden for this vendor" }, 403);
+    }
+
+    const isInventoryStaff = profile.role === "inventory_staff";
+
+    const [{ data: vendor }, { data: ingredients }, { data: orders }, { data: expenses }, { data: menuItems }] =
       await Promise.all([
         supabase.from("vendors").select("id, name, payment_config").eq("id", vendorId).single(),
         supabase
-          .from("orders")
-          .select("id, order_number, total_price, status, created_at, customer_arrived")
-          .eq("vendor_id", vendorId)
-          .order("created_at", { ascending: false })
-          .limit(50),
-        supabase
           .from("ingredients")
-          .select("name, stock_quantity, unit, low_stock_threshold")
+          .select("id, name, current_stock, unit, low_stock_threshold")
           .eq("vendor_id", vendorId)
           .order("name")
           .limit(50),
-        supabase
-          .from("expenses")
-          .select("description, amount, expense_date")
-          .eq("vendor_id", vendorId)
-          .order("expense_date", { ascending: false })
-          .limit(20),
-        supabase
-          .from("menu_items")
-          .select("name, price, is_available")
-          .eq("vendor_id", vendorId)
-          .order("price")
-          .limit(50),
+        isInventoryStaff
+          ? Promise.resolve({ data: [] })
+          : supabase
+              .from("orders")
+              .select("id, order_number, total_price, status, created_at, customer_arrived")
+              .eq("vendor_id", vendorId)
+              .order("created_at", { ascending: false })
+              .limit(50),
+        isInventoryStaff
+          ? Promise.resolve({ data: [] })
+          : supabase
+              .from("expenses")
+              .select("description, amount, expense_date")
+              .eq("vendor_id", vendorId)
+              .order("expense_date", { ascending: false })
+              .limit(20),
+        isInventoryStaff
+          ? Promise.resolve({ data: [] })
+          : supabase
+              .from("menu_items")
+              .select("name, price, is_available")
+              .eq("vendor_id", vendorId)
+              .order("price")
+              .limit(50),
       ]);
 
     if (!vendor) {
@@ -137,12 +231,27 @@ serve(async (req) => {
       .reduce((sum: number, order: any) => sum + Number(order.total_price || 0), 0);
     const lowStock = (ingredients || []).filter((item: any) => {
       const threshold = Number(item.low_stock_threshold ?? 5);
-      return Number(item.stock_quantity ?? 0) <= threshold;
+      return Number(item.current_stock ?? 0) <= threshold;
     });
+
+    const inventoryIntent = parseInventoryIntent(message, ingredients || []);
+    if (inventoryIntent) {
+      return jsonResponse({
+        reply:
+          inventoryIntent.operation === "set_stock_exactly"
+            ? `I heard: set ${inventoryIntent.ingredient_name} to ${inventoryIntent.quantity} ${inventoryIntent.unit}. Confirm this update?`
+            : inventoryIntent.operation === "decrease_stock"
+              ? `I heard: remove ${inventoryIntent.quantity} ${inventoryIntent.unit} from ${inventoryIntent.ingredient_name}. Confirm this stock update?`
+              : `I heard: add ${inventoryIntent.quantity} ${inventoryIntent.unit} to ${inventoryIntent.ingredient_name}. Confirm this stock update?`,
+        pending_action: inventoryIntent,
+      });
+    }
 
     const prompt = JSON.stringify({
       task:
-        "Act like an operations manager for the vendor. Answer the user's question using only the provided data. Be concise, practical, and specific. If data is missing, say so plainly. Focus on orders, revenue, stock, menu performance, and support load.",
+        isInventoryStaff
+          ? "Act like an inventory manager for the vendor. Answer using only the provided ingredient and stock data. Be concise, practical, and specific. You can help with restocking, shortages, wastage, and stock priorities. If the user asks about revenue, customers, billing, or private owner settings, say this staff mode only handles inventory operations."
+          : "Act like an operations manager for the vendor. Answer the user's question using only the provided data. Be concise, practical, and specific. If data is missing, say so plainly. Focus on orders, revenue, stock, menu performance, and support load.",
       vendor: {
         id: vendor.id,
         name: vendor.name,
@@ -176,7 +285,18 @@ serve(async (req) => {
 
     if (!reply) {
       reply = normalizeJson(`
-You can ask me about:
+${isInventoryStaff
+  ? `You can ask me about:
+- low-stock ingredients
+- restocking priorities
+- stock adjustments such as "add 54 slices of cheese"
+- ingredients that are out of stock
+
+Current stock snapshot for ${vendor.name}:
+- Tracked ingredients: ${(ingredients || []).length}
+- Out of stock: ${(ingredients || []).filter((item: any) => Number(item.current_stock ?? 0) <= 0).length}
+- Low-stock items: ${lowStock.length}`
+  : `You can ask me about:
 - today's revenue and active orders
 - stock risks and low-stock items
 - which orders are stuck
@@ -186,11 +306,11 @@ Current snapshot for ${vendor.name}:
 - Active orders: ${activeOrders.length}
 - Ready orders: ${activeOrders.filter((o: any) => o.status === "ready").length}
 - Low-stock items: ${lowStock.length}
-- Revenue across non-pending orders: R ${totalRevenue.toFixed(2)}
+- Revenue across non-pending orders: R ${totalRevenue.toFixed(2)}`}
       `);
     }
 
-    return jsonResponse({ reply });
+    return jsonResponse({ reply, pending_action: null });
   } catch (error) {
     console.error("admin-ai-manager error:", error);
     return jsonResponse({ error: error.message || "Internal server error" }, 500);

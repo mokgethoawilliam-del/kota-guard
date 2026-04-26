@@ -118,11 +118,20 @@ export default function AdminDashboard({ session }) {
     // Phase 17: AI Manager
     const [aiMessages, setAiMessages] = useState([{
         role: 'assistant',
-        content: 'Hello! I am your AI Manager. I have real-time access to your orders, inventory, and revenue. Ask me anything about your business!'
+        content: 'Hello! I am your AI Manager. I can help with stock updates, inventory risks, and day-to-day operations across your shop.'
     }]);
     const [aiInput, setAiInput] = useState('');
     const [aiLoading, setAiLoading] = useState(false);
+    const [aiPendingAction, setAiPendingAction] = useState(null);
+    const [aiActionLoading, setAiActionLoading] = useState(false);
     const aiChatEndRef = React.useRef(null);
+    const userRole = profile?.role || 'owner';
+    const isInventoryStaff = userRole === 'inventory_staff';
+    const allowedTabs = isInventoryStaff ? ['inventory', 'ai', 'help'] : null;
+
+    const defaultAiGreeting = isInventoryStaff
+        ? 'Hello! I am your Stock Copilot. I can help you log refills, deduct wastage, and point out stock risks without touching billing or private owner settings.'
+        : 'Hello! I am your AI Manager. I can help with stock updates, inventory risks, and day-to-day operations across your shop.';
 
     useEffect(() => {
         aiChatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -231,7 +240,7 @@ export default function AdminDashboard({ session }) {
             // 1. Fetch Profile to get vendor_id
             const { data: profileData, error: pErr } = await supabase
                 .from('profiles')
-                .select('vendor_id, full_name')
+                .select('vendor_id, full_name, role')
                 .eq('id', session.user.id)
                 .single();
 
@@ -241,7 +250,8 @@ export default function AdminDashboard({ session }) {
                 if (metadata?.vendor_id) {
                     const fallbackProfile = {
                         vendor_id: metadata.vendor_id,
-                        full_name: metadata.full_name || 'Shop Owner'
+                        full_name: metadata.full_name || 'Shop Owner',
+                        role: metadata.role || 'owner'
                     };
                     setProfile(fallbackProfile);
                     setCurrentVendorId(metadata.vendor_id);
@@ -262,6 +272,10 @@ export default function AdminDashboard({ session }) {
     useEffect(() => {
         if (!currentVendorId) return;
         fetchInitialData();
+
+        if (isInventoryStaff) {
+            return;
+        }
 
         // 1. Subscribe to Realtime Updates on the 'orders' table
         const channel = supabase
@@ -366,7 +380,7 @@ export default function AdminDashboard({ session }) {
             supabase.removeChannel(channel);
             supabase.removeChannel(chatChannel);
         };
-    }, [currentVendorId]);
+    }, [currentVendorId, isInventoryStaff]);
 
     // Auto-Lock Inactivity Timer for the Vault
     useEffect(() => {
@@ -413,18 +427,52 @@ export default function AdminDashboard({ session }) {
         if (!currentVendorId) return;
         setIsRefreshing(true);
         try {
-            // No need to set loading(true) here as it's already true from the start
-            // and we want a smooth transition after profile load.
+            if (isInventoryStaff) {
+                const { data: publicVendorData } = await supabase
+                    .from('public_vendors')
+                    .select('id, name, branding')
+                    .eq('id', currentVendorId)
+                    .single();
 
-            // Fetch Vendor Profile
+                if (publicVendorData) {
+                    setVendorConfig({
+                        id: publicVendorData.id,
+                        name: publicVendorData.name,
+                        branding: publicVendorData.branding || {},
+                        logo_url: publicVendorData?.branding?.logo_url || null
+                    });
+                }
+
+                const { data: locData } = await supabase
+                    .from('locations')
+                    .select('id, name, is_active')
+                    .eq('vendor_id', currentVendorId);
+                if (locData) setLocations(locData);
+
+                const { data: ingData, error: ingErr } = await supabase
+                    .from('ingredients')
+                    .select('*')
+                    .eq('vendor_id', currentVendorId)
+                    .order('name');
+
+                if (ingErr) throw ingErr;
+                setIngredients(ingData || []);
+
+                setOrders([]);
+                setHistoryOrders([]);
+                setExpenses([]);
+                setMenuItems([]);
+                setChats([]);
+                setTestimonials([]);
+                return;
+            }
+
             const { data: vData } = await supabase.from('vendors').select('*').eq('id', currentVendorId).single();
             if (vData) setVendorConfig(vData);
 
-            // Get valid locations for this vendor
             const { data: locData } = await supabase.from('locations').select('*').eq('vendor_id', currentVendorId);
             if (locData) setLocations(locData);
 
-            // Get all non-pending orders for this vendor
             const { data: orderData, error: orderErr } = await supabase
                 .from('orders')
                 .select(`
@@ -448,7 +496,6 @@ export default function AdminDashboard({ session }) {
             setOrders(active);
             setHistoryOrders(history);
 
-            // Fetch Expenses for this vendor
             const { data: expData, error: expErr } = await supabase
                 .from('expenses')
                 .select('*')
@@ -459,7 +506,6 @@ export default function AdminDashboard({ session }) {
                 setExpenses(expData);
             }
 
-            // Fetch Ingredients for this vendor
             const { data: ingData, error: ingErr } = await supabase
                 .from('ingredients')
                 .select('*')
@@ -470,7 +516,6 @@ export default function AdminDashboard({ session }) {
                 setIngredients(ingData);
             }
 
-            // Fetch Menu Items (For CMS) for this vendor
             const { data: menuData, error: menuErr } = await supabase
                 .from('menu_items')
                 .select('*')
@@ -481,7 +526,6 @@ export default function AdminDashboard({ session }) {
                 setMenuItems(menuData);
             }
 
-            // Fetch Support Chats
             const { data: chatData } = await supabase
                 .from('support_chats')
                 .select('*')
@@ -492,7 +536,6 @@ export default function AdminDashboard({ session }) {
                 setChats(chatData);
             }
 
-            // Fetch Testimonials
             const { data: testData } = await supabase
                 .from('testimonials')
                 .select('*')
@@ -536,6 +579,8 @@ export default function AdminDashboard({ session }) {
 
             if (error) throw error;
 
+            setAiPendingAction(data?.pending_action || null);
+
             setAiMessages(current => [
                 ...current,
                 {
@@ -554,6 +599,53 @@ export default function AdminDashboard({ session }) {
             ]);
         } finally {
             setAiLoading(false);
+        }
+    };
+
+    const handleAiInventoryConfirm = async () => {
+        if (!aiPendingAction || aiActionLoading || !currentVendorId) return;
+        setAiActionLoading(true);
+
+        try {
+            const { data, error } = await supabase.functions.invoke('apply-inventory-adjustment', {
+                body: {
+                    vendorId: currentVendorId,
+                    ingredientId: aiPendingAction.ingredient_id,
+                    operation: aiPendingAction.operation,
+                    quantity: aiPendingAction.quantity,
+                    note: `AI Manager confirmed update: ${aiPendingAction.ingredient_name}`
+                }
+            });
+
+            if (error) throw error;
+
+            if (data?.ingredient) {
+                setIngredients(current =>
+                    current
+                        .map(ingredient => ingredient.id === data.ingredient.id ? { ...ingredient, ...data.ingredient } : ingredient)
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                );
+            }
+
+            setAiMessages(current => [
+                ...current,
+                {
+                    role: 'assistant',
+                    content: `Done. ${aiPendingAction.ingredient_name} is now ${data?.new_stock} ${data?.ingredient?.unit || aiPendingAction.unit} in stock.`
+                }
+            ]);
+            setAiPendingAction(null);
+        } catch (err) {
+            console.error('AI inventory update error:', err);
+            setAiMessages(current => [
+                ...current,
+                {
+                    role: 'assistant',
+                    content: 'I could not apply that stock update. Please try again or update the ingredient manually in Inventory.'
+                }
+            ]);
+        } finally {
+            setAiActionLoading(false);
         }
     };
 
@@ -1128,6 +1220,12 @@ export default function AdminDashboard({ session }) {
         }
     };
     const handleTabClick = (tabId) => {
+        if (allowedTabs && !allowedTabs.includes(tabId)) {
+            alert('This staff workspace only has access to Inventory, AI Manager, and Help Center.');
+            setActiveTab(allowedTabs[0]);
+            return;
+        }
+
         const { isExpired } = getTrialInfo();
         const status = vendorConfig?.subscription_status;
         const isRestricted = (isExpired && status !== 'active') || status === 'past_due' || status === 'cancelled';
@@ -1141,6 +1239,17 @@ export default function AdminDashboard({ session }) {
         
         setActiveTab(tabId);
     };
+
+    useEffect(() => {
+        setAiMessages([{ role: 'assistant', content: defaultAiGreeting }]);
+        setAiPendingAction(null);
+    }, [defaultAiGreeting]);
+
+    useEffect(() => {
+        if (allowedTabs && !allowedTabs.includes(activeTab)) {
+            setActiveTab(allowedTabs[0]);
+        }
+    }, [activeTab, allowedTabs]);
 
     // ────────────────────────────────────────────────────────────────────────
 
@@ -1223,6 +1332,32 @@ export default function AdminDashboard({ session }) {
         return window.confirm(message);
     };
 
+    const sidebarNavItems = [
+        { id: 'overview', label: 'Overview', icon: <Icons.Dashboard /> },
+        { id: 'ai', label: 'AI Manager', icon: <Icons.Brain />, accent: 'linear-gradient(135deg, rgba(139,92,246,0.3), rgba(59,130,246,0.2))', borderColor: 'rgba(139,92,246,0.5)' },
+        { id: 'kds', label: 'Live Kitchen', icon: <Icons.Kitchen /> },
+        { id: 'support', label: 'Live Chat', icon: <Icons.Chat /> },
+        { id: 'history', label: 'History Vault', icon: <Icons.History /> },
+        { id: 'finances', label: 'Finances', icon: <Icons.Finance /> },
+        { id: 'inventory', label: 'Inventory', icon: <Icons.Inventory /> },
+        { id: 'customers', label: 'Customers', icon: <Icons.Users /> },
+        { id: 'testimonials', label: 'Testimonials', icon: <Icons.Testimonials /> },
+        { id: 'logistics', label: 'Logistics', icon: <Icons.Logistics /> },
+        { id: 'cms', label: 'CMS Settings', icon: <Icons.Settings /> },
+        { id: 'help', label: 'Help Center', icon: <Icons.Help /> },
+    ];
+
+    const visibleSidebarItems = allowedTabs
+        ? sidebarNavItems.filter(item => allowedTabs.includes(item.id))
+        : sidebarNavItems;
+
+    const staffAiPrompts = [
+        'I have just refilled 54 slices of cheese.',
+        'What is my stock risk today?',
+        'Which ingredients are nearly finished?',
+        'Summarize what needs restocking first.'
+    ];
+
     return (
         <div className="admin-shell">
             {/* ── MONETIZATION GATE */}
@@ -1287,45 +1422,22 @@ export default function AdminDashboard({ session }) {
                 </div>
 
                 <div className="sidebar-nav">
-                    <button className={`sidebar-item ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => handleTabClick('overview')}>
-                        <Icons.Dashboard /> Overview
-                    </button>
-                    <button className={`sidebar-item ${activeTab === 'ai' ? 'active' : ''}`} onClick={() => handleTabClick('ai')} style={{ background: activeTab === 'ai' ? 'linear-gradient(135deg, rgba(139,92,246,0.3), rgba(59,130,246,0.2))' : '', borderColor: activeTab === 'ai' ? 'rgba(139,92,246,0.5)' : '' }}>
-                        <Icons.Brain /> AI Manager
-                    </button>
-                    <button className={`sidebar-item ${activeTab === 'kds' ? 'active' : ''}`} onClick={() => handleTabClick('kds')}>
-                        <Icons.Kitchen /> Live Kitchen
-                    </button>
-                    <button className={`sidebar-item ${activeTab === 'support' ? 'active' : ''}`} onClick={() => handleTabClick('support')}>
-                        <Icons.Chat /> Live Chat
-                    </button>
-                    <button className={`sidebar-item ${activeTab === 'history' ? 'active' : ''}`} onClick={() => handleTabClick('history')}>
-                        <Icons.History /> History Vault
-                    </button>
-                    <button className={`sidebar-item ${activeTab === 'finances' ? 'active' : ''}`} onClick={() => handleTabClick('finances')}>
-                        <Icons.Finance /> Finances
-                    </button>
-                    <button className={`sidebar-item ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => handleTabClick('inventory')}>
-                        <Icons.Inventory />
-                        <span>Inventory</span>
-                    </button>
-                    <button className={`sidebar-item ${activeTab === 'customers' ? 'active' : ''}`} onClick={() => handleTabClick('customers')}>
-                        <Icons.Users />
-                        <span>Customers</span>
-                    </button>
-                    <button className={`sidebar-item ${activeTab === 'testimonials' ? 'active' : ''}`} onClick={() => handleTabClick('testimonials')}>
-                        <Icons.Testimonials />
-                        <span>Testimonials</span>
-                    </button>
-                    <button className={`sidebar-item ${activeTab === 'logistics' ? 'active' : ''}`} onClick={() => handleTabClick('logistics')}>
-                        <Icons.Logistics /> Logistics
-                    </button>
-                    <button className={`sidebar-item ${activeTab === 'cms' ? 'active' : ''}`} onClick={() => handleTabClick('cms')}>
-                        <Icons.Settings /> CMS Settings
-                    </button>
-                    <button className={`sidebar-item ${activeTab === 'help' ? 'active' : ''}`} onClick={() => handleTabClick('help')}>
-                        <Icons.Help /> Help Center
-                    </button>
+                    {visibleSidebarItems.map(item => (
+                        <button
+                            key={item.id}
+                            className={`sidebar-item ${activeTab === item.id ? 'active' : ''}`}
+                            onClick={() => handleTabClick(item.id)}
+                            style={item.id === 'ai'
+                                ? {
+                                    background: activeTab === item.id ? item.accent : '',
+                                    borderColor: activeTab === item.id ? item.borderColor : ''
+                                }
+                                : undefined}
+                        >
+                            {item.icon}
+                            <span>{item.label}</span>
+                        </button>
+                    ))}
                 </div>
 
                 <div className="sidebar-footer">
@@ -1795,24 +1907,28 @@ export default function AdminDashboard({ session }) {
                                         <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.8rem' }}>{session?.user?.email}</p>
                                     </div>
                                     <div style={{ padding: '0.5rem' }}>
-                                        <button 
-                                            onClick={() => {
-                                                handleTabClick('integrations');
-                                                setIsProfileMenuOpen(false);
-                                            }}
-                                            style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                                        >
-                                            <span style={{ fontSize: '1rem' }}></span> Security Vault
-                                        </button>
-                                        <button 
-                                            onClick={() => {
-                                                setShowBillingModal(true);
-                                                setIsProfileMenuOpen(false);
-                                            }}
-                                            style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                                        >
-                                            <Icons.CreditCard /> Billing & Subscription
-                                        </button>
+                                        {!isInventoryStaff && (
+                                            <>
+                                                <button 
+                                                    onClick={() => {
+                                                        handleTabClick('integrations');
+                                                        setIsProfileMenuOpen(false);
+                                                    }}
+                                                    style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                                                >
+                                                    <span style={{ fontSize: '1rem' }}></span> Security Vault
+                                                </button>
+                                                <button 
+                                                    onClick={() => {
+                                                        setShowBillingModal(true);
+                                                        setIsProfileMenuOpen(false);
+                                                    }}
+                                                    style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                                                >
+                                                    <Icons.CreditCard /> Billing & Subscription
+                                                </button>
+                                            </>
+                                        )}
                                         <button 
                                             onClick={() => {
                                                 supabase.auth.signOut();
@@ -1822,12 +1938,14 @@ export default function AdminDashboard({ session }) {
                                         >
                                             Logout
                                         </button>
-                                        <button 
-                                            onClick={() => setShowDeleteModal(true)}
-                                            style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', borderRadius: '8px', fontSize: '0.8rem' }}
-                                        >
-                                            Delete Account
-                                        </button>
+                                        {!isInventoryStaff && (
+                                            <button 
+                                                onClick={() => setShowDeleteModal(true)}
+                                                style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', borderRadius: '8px', fontSize: '0.8rem' }}
+                                            >
+                                                Delete Account
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -2803,36 +2921,40 @@ export default function AdminDashboard({ session }) {
                     <div style={{ background: '#0f172a', border: '1px solid rgba(139,92,246,0.24)', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         <div>
                             <div style={{ color: '#a78bfa', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.4rem' }}>AI Manager</div>
-                            <h2 style={{ margin: 0, fontSize: '1.4rem' }}>Business Copilot</h2>
+                            <h2 style={{ margin: 0, fontSize: '1.4rem' }}>{isInventoryStaff ? 'Stock Copilot' : 'Business Copilot'}</h2>
                             <p style={{ color: '#94a3b8', fontSize: '0.92rem', lineHeight: '1.6', marginTop: '0.75rem' }}>
-                                Ask about orders, revenue, stock pressure, slow branches, menu performance, or what needs attention next.
+                                {isInventoryStaff
+                                    ? 'Use plain language to update stock, log received items, track shortages, and spot what needs restocking next.'
+                                    : 'Ask about orders, revenue, stock pressure, slow branches, menu performance, or what needs attention next.'}
                             </p>
                         </div>
 
                         <div style={{ display: 'grid', gap: '0.75rem' }}>
                             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '0.9rem 1rem' }}>
-                                <div style={{ color: '#64748b', fontSize: '0.78rem', marginBottom: '0.25rem' }}>Active Orders</div>
-                                <div style={{ fontSize: '1.4rem', fontWeight: '800' }}>{orders.length}</div>
+                                <div style={{ color: '#64748b', fontSize: '0.78rem', marginBottom: '0.25rem' }}>{isInventoryStaff ? 'Tracked Ingredients' : 'Active Orders'}</div>
+                                <div style={{ fontSize: '1.4rem', fontWeight: '800' }}>{isInventoryStaff ? ingredients.length : orders.length}</div>
                             </div>
                             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '0.9rem 1rem' }}>
-                                <div style={{ color: '#64748b', fontSize: '0.78rem', marginBottom: '0.25rem' }}>Ready for Collection</div>
-                                <div style={{ fontSize: '1.4rem', fontWeight: '800' }}>{orders.filter(o => o.status === 'ready').length}</div>
+                                <div style={{ color: '#64748b', fontSize: '0.78rem', marginBottom: '0.25rem' }}>{isInventoryStaff ? 'Out of Stock' : 'Ready for Collection'}</div>
+                                <div style={{ fontSize: '1.4rem', fontWeight: '800' }}>
+                                    {isInventoryStaff ? ingredients.filter(ing => Number(ing.current_stock ?? 0) <= 0).length : orders.filter(o => o.status === 'ready').length}
+                                </div>
                             </div>
                             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '0.9rem 1rem' }}>
                                 <div style={{ color: '#64748b', fontSize: '0.78rem', marginBottom: '0.25rem' }}>Low Stock Signals</div>
                                 <div style={{ fontSize: '1.4rem', fontWeight: '800' }}>
-                                    {ingredients.filter(ing => Number(ing.stock_quantity ?? 0) <= Number(ing.low_stock_threshold ?? 5)).length}
+                                    {ingredients.filter(ing => Number(ing.current_stock ?? 0) <= Number(ing.low_stock_threshold ?? 5)).length}
                                 </div>
                             </div>
                         </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                            {[
+                            {(isInventoryStaff ? staffAiPrompts : [
                                 'What should I focus on right now?',
                                 'Which orders are stuck?',
                                 'What is my stock risk today?',
                                 'Summarize today’s business performance.'
-                            ].map(prompt => (
+                            ]).map(prompt => (
                                 <button
                                     key={prompt}
                                     type="button"
@@ -2849,14 +2971,18 @@ export default function AdminDashboard({ session }) {
                     <div style={{ background: '#0f172a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', display: 'flex', flexDirection: 'column', minHeight: '70vh', overflow: 'hidden' }}>
                         <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
                             <div>
-                                <div style={{ fontWeight: '700', fontSize: '1rem' }}>Operations Chat</div>
-                                <div style={{ color: '#64748b', fontSize: '0.84rem' }}>Grounded in your own orders, stock, menu, and expense data</div>
+                                <div style={{ fontWeight: '700', fontSize: '1rem' }}>{isInventoryStaff ? 'Inventory Chat' : 'Operations Chat'}</div>
+                                <div style={{ color: '#64748b', fontSize: '0.84rem' }}>
+                                    {isInventoryStaff ? 'Grounded in your own ingredient and stock data only' : 'Grounded in your own orders, stock, menu, and expense data'}
+                                </div>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setAiMessages([{
                                     role: 'assistant',
-                                    content: 'Hello! I am your AI Manager. I have real-time access to your orders, inventory, and revenue. Ask me anything about your business!'
+                                    content: isInventoryStaff
+                                        ? 'Hello! I am your Stock Copilot. I can help you log refills, deduct wastage, and point out stock risks without touching billing or private owner settings.'
+                                        : 'Hello! I am your AI Manager. I have real-time access to your orders, inventory, and revenue. Ask me anything about your business!'
                                 }])}
                                 style={{ background: 'transparent', border: '1px solid #334155', color: '#94a3b8', borderRadius: '10px', padding: '0.55rem 0.85rem', cursor: 'pointer' }}
                             >
@@ -2865,6 +2991,30 @@ export default function AdminDashboard({ session }) {
                         </div>
 
                         <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {aiPendingAction && (
+                                <div style={{ alignSelf: 'stretch', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.24)', borderRadius: '14px', padding: '1rem' }}>
+                                    <div style={{ color: '#86efac', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.45rem' }}>Pending Stock Update</div>
+                                    <div style={{ fontWeight: '700', marginBottom: '0.35rem' }}>{aiPendingAction.ingredient_name}</div>
+                                    <div style={{ color: '#cbd5e1', fontSize: '0.92rem', lineHeight: '1.6' }}>
+                                        {aiPendingAction.operation === 'set_stock_exactly'
+                                            ? `Set stock to ${aiPendingAction.quantity} ${aiPendingAction.unit}.`
+                                            : aiPendingAction.operation === 'decrease_stock'
+                                                ? `Remove ${aiPendingAction.quantity} ${aiPendingAction.unit} from current stock.`
+                                                : `Add ${aiPendingAction.quantity} ${aiPendingAction.unit} to current stock.`}
+                                    </div>
+                                    <div style={{ color: '#94a3b8', fontSize: '0.84rem', marginTop: '0.5rem' }}>
+                                        Current: {aiPendingAction.current_stock} {aiPendingAction.unit}  |  Projected: {aiPendingAction.projected_stock} {aiPendingAction.unit}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.9rem', flexWrap: 'wrap' }}>
+                                        <button type="button" className="btn-primary" onClick={handleAiInventoryConfirm} disabled={aiActionLoading} style={{ background: '#10b981', color: '#04130b' }}>
+                                            {aiActionLoading ? 'Applying...' : 'Confirm Update'}
+                                        </button>
+                                        <button type="button" className="btn-secondary" onClick={() => setAiPendingAction(null)} disabled={aiActionLoading}>
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                             {aiMessages.map((message, idx) => (
                                 <div
                                     key={`${message.role}-${idx}`}
@@ -2897,7 +3047,7 @@ export default function AdminDashboard({ session }) {
                                 className="kds-input"
                                 value={aiInput}
                                 onChange={(e) => setAiInput(e.target.value)}
-                                placeholder="Ask about revenue, orders, stock, menu performance, or support pressure..."
+                                placeholder={isInventoryStaff ? 'Try: I have just refilled 54 slices of cheese...' : 'Ask about revenue, orders, stock, menu performance, or support pressure...'}
                                 style={{ flex: 1 }}
                             />
                             <button type="submit" className="btn-primary" disabled={aiLoading || !aiInput.trim()} style={{ background: 'linear-gradient(135deg, #8b5cf6, #3b82f6)', color: '#fff', minWidth: '120px' }}>
@@ -3170,11 +3320,19 @@ export default function AdminDashboard({ session }) {
                             <button className="btn-secondary" onClick={fetchInitialData} disabled={isRefreshing} style={isRefreshing ? { opacity: 0.7, cursor: 'not-allowed' } : {}}>
                                 {isRefreshing ? '↻ Refreshing...' : '↻ Refresh'}
                             </button>
-                            <button className="btn-primary" onClick={() => setIsAddingIngredient(true)}>
-                                + Add Ingredient
-                            </button>
+                            {!isInventoryStaff && (
+                                <button className="btn-primary" onClick={() => setIsAddingIngredient(true)}>
+                                    + Add Ingredient
+                                </button>
+                            )}
                         </div>
                     </div>
+
+                    {isInventoryStaff && (
+                        <div style={{ marginBottom: '1.25rem', padding: '0.9rem 1rem', borderRadius: '12px', border: '1px solid rgba(59,130,246,0.25)', background: 'rgba(59,130,246,0.08)', color: '#bfdbfe' }}>
+                            Staff stock mode is locked to viewing inventory here. Use <strong>AI Manager</strong> to log refills, wastage, and stock adjustments.
+                        </div>
+                    )}
 
                     {isAddingIngredient && (
                         <div style={{
@@ -3252,32 +3410,36 @@ export default function AdminDashboard({ session }) {
                                                 }
                                             </td>
                                             <td>
-                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                    <button
-                                                        className="btn-primary"
-                                                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', background: '#3b82f6', color: '#fff' }}
-                                                        onClick={() => {
-                                                            setEditingIngredient({
-                                                                id: ing.id,
-                                                                name: ing.name,
-                                                                unit: ing.unit,
-                                                                current_stock: ing.current_stock.toString(),
-                                                                low_stock_threshold: ing.low_stock_threshold.toString()
-                                                            });
-                                                            setIsAddingIngredient(true);
-                                                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                                                        }}
-                                                    >
-                                                        Edit
-                                                    </button>
-                                                    <button
-                                                        className="btn-danger"
-                                                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', background: '#ef4444', color: '#fff' }}
-                                                        onClick={() => handleDeleteIngredient(ing.id, ing.name)}
-                                                    >
-                                                        Delete
-                                                    </button>
-                                                </div>
+                                                {isInventoryStaff ? (
+                                                    <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Use AI Manager</span>
+                                                ) : (
+                                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                        <button
+                                                            className="btn-primary"
+                                                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', background: '#3b82f6', color: '#fff' }}
+                                                            onClick={() => {
+                                                                setEditingIngredient({
+                                                                    id: ing.id,
+                                                                    name: ing.name,
+                                                                    unit: ing.unit,
+                                                                    current_stock: ing.current_stock.toString(),
+                                                                    low_stock_threshold: ing.low_stock_threshold.toString()
+                                                                });
+                                                                setIsAddingIngredient(true);
+                                                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                            }}
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                        <button
+                                                            className="btn-danger"
+                                                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', background: '#ef4444', color: '#fff' }}
+                                                            onClick={() => handleDeleteIngredient(ing.id, ing.name)}
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </td>
                                         </tr>
                                     );

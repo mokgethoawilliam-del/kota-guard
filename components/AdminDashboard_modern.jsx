@@ -2460,15 +2460,15 @@ export default function AdminDashboard({ session }) {
                                                 <p style={{ color: '#94a3b8', fontSize: '0.82rem', marginBottom: '1.5rem', lineHeight: '1.6' }}>The AI Manager uses your own API key — the platform charges nothing extra. Add one or both keys. The system automatically uses whichever is available, with <strong style={{ color: '#fff' }}>Grok as the primary</strong> and <strong style={{ color: '#fff' }}>Gemini as the fallback</strong>.</p>
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                                                     <div style={{ padding: '1.25rem', border: '1px solid rgba(139,92,246,0.3)', borderRadius: '10px', background: 'rgba(139,92,246,0.05)' }}>
-                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: '#c4b5fd', marginBottom: '0.75rem', fontWeight: '600' }}>Grok API Key <span style={{ fontSize: '0.7rem', background: 'rgba(139,92,246,0.3)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>Primary</span></label>
+                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: '#c4b5fd', marginBottom: '0.75rem', fontWeight: '600' }}>GroqCloud / xAI Grok Key <span style={{ fontSize: '0.7rem', background: 'rgba(139,92,246,0.3)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>Primary</span></label>
                                                         <input
                                                             type="password"
                                                             className="kds-input"
                                                             value={vendorConfig?.payment_config?.grok_api_key || ''}
                                                             onChange={(e) => setVendorConfig({...vendorConfig, payment_config: {...vendorConfig.payment_config, grok_api_key: e.target.value}})}
-                                                            placeholder="xai-..."
+                                                            placeholder="gsk_... or xai-..."
                                                         />
-                                                        <small style={{ color: '#64748b', marginTop: '0.4rem', display: 'block' }}>Get your free key at <a href="https://console.x.ai" target="_blank" style={{ color: '#7c3aed' }}>console.x.ai</a></small>
+                                                        <small style={{ color: '#64748b', marginTop: '0.4rem', display: 'block' }}>GroqCloud keys come from <a href="https://console.groq.com/keys" target="_blank" style={{ color: '#7c3aed' }}>console.groq.com</a>. xAI Grok keys come from <a href="https://console.x.ai" target="_blank" style={{ color: '#7c3aed' }}>console.x.ai</a>.</small>
                                                     </div>
                                                     <div style={{ padding: '1.25rem', border: '1px solid rgba(59,130,246,0.3)', borderRadius: '10px', background: 'rgba(59,130,246,0.05)' }}>
                                                         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: '#93c5fd', marginBottom: '0.75rem', fontWeight: '600' }}>Gemini API Key <span style={{ fontSize: '0.7rem', background: 'rgba(59,130,246,0.2)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>Fallback</span></label>

@@ -114,7 +114,7 @@ function parseInventoryIntent(
   };
 }
 
-async function callGrok(apiKey: string, prompt: string) {
+async function callXaiGrok(apiKey: string, prompt: string) {
   const response = await fetch("https://api.x.ai/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -142,6 +142,39 @@ async function callGrok(apiKey: string, prompt: string) {
   if (!response.ok) {
     const text = await response.text();
     throw new Error(`Grok request failed: ${text}`);
+  }
+
+  const data = await response.json();
+  return data?.choices?.[0]?.message?.content ?? "";
+}
+
+async function callGroqCloud(apiKey: string, prompt: string) {
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an operations-focused business manager for a food vendor. Reply in concise plain text with practical advice grounded in the provided shop data.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      temperature: 0.2,
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`GroqCloud request failed: ${text}`);
   }
 
   const data = await response.json();
@@ -313,13 +346,15 @@ serve(async (req) => {
       latest_user_message: message,
     });
 
-    const grokApiKey = vendor.payment_config?.grok_api_key;
+    const groqOrGrokApiKey = vendor.payment_config?.groq_api_key || vendor.payment_config?.grok_api_key;
     const geminiApiKey = vendor.payment_config?.gemini_api_key;
 
     let reply = "";
 
-    if (grokApiKey) {
-      reply = await callGrok(grokApiKey, prompt).catch(() => "");
+    if (groqOrGrokApiKey) {
+      reply = groqOrGrokApiKey.startsWith("gsk_")
+        ? await callGroqCloud(groqOrGrokApiKey, prompt).catch(() => "")
+        : await callXaiGrok(groqOrGrokApiKey, prompt).catch(() => "");
     }
 
     if (!reply && geminiApiKey) {

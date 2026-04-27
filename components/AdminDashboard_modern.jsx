@@ -61,6 +61,9 @@ export default function AdminDashboard({ session }) {
     const [heroImageFile, setHeroImageFile] = useState(null);
     const [logoFile, setLogoFile] = useState(null);
     const [uploadingHero, setUploadingHero] = useState(false);
+    const [cmsCopilotPrompt, setCmsCopilotPrompt] = useState('');
+    const [cmsCopilotLoading, setCmsCopilotLoading] = useState(false);
+    const [cmsCopilotDraft, setCmsCopilotDraft] = useState(null);
     
     // Menu Image Upload State
     const [menuImageFile, setMenuImageFile] = useState(null);
@@ -671,6 +674,60 @@ export default function AdminDashboard({ session }) {
         } finally {
             setAiActionLoading(false);
         }
+    };
+
+    const handleCmsCopilotGenerate = async () => {
+        if (!cmsCopilotPrompt.trim() || !currentVendorId || !vendorConfig || cmsCopilotLoading) return;
+        setCmsCopilotLoading(true);
+
+        try {
+            const { data, error } = await supabase.functions.invoke('website-cms-copilot', {
+                body: {
+                    vendorId: currentVendorId,
+                    prompt: cmsCopilotPrompt.trim(),
+                    currentBranding: vendorConfig.branding || {},
+                    vendorName: vendorConfig.name
+                }
+            });
+
+            if (error) throw error;
+
+            setCmsCopilotDraft({
+                ...data?.draft,
+                reply: data?.reply || ''
+            });
+        } catch (err) {
+            console.error('Website CMS copilot error:', err);
+            alert('Website CMS Copilot could not generate a draft. Please confirm your AI keys are saved in the vault and that the website-cms-copilot function is deployed.');
+        } finally {
+            setCmsCopilotLoading(false);
+        }
+    };
+
+    const applyCmsCopilotDraft = () => {
+        if (!cmsCopilotDraft) return;
+
+        setVendorConfig((current) => {
+            if (!current) return current;
+
+            const nextBranding = {
+                ...(current.branding || {}),
+                ...(cmsCopilotDraft.tagline ? { tagline: cmsCopilotDraft.tagline } : {}),
+                ...(cmsCopilotDraft.welcome_text ? { welcome_text: cmsCopilotDraft.welcome_text } : {}),
+                ...(cmsCopilotDraft.hero_title ? { hero_title: cmsCopilotDraft.hero_title } : {}),
+                ...(cmsCopilotDraft.hero_highlight ? { hero_highlight: cmsCopilotDraft.hero_highlight } : {}),
+                ...(cmsCopilotDraft.hero_subtitle ? { hero_subtitle: cmsCopilotDraft.hero_subtitle } : {}),
+                ...(cmsCopilotDraft.about_text ? { about_text: cmsCopilotDraft.about_text } : {}),
+                ...(/^#[0-9a-f]{6}$/i.test(String(cmsCopilotDraft.primary_color || '').trim()) ? { primary_color: String(cmsCopilotDraft.primary_color).trim() } : {})
+            };
+
+            return {
+                ...current,
+                branding: nextBranding
+            };
+        });
+
+        alert('AI draft applied to the branding fields. Save Brand Identity when you are happy with it.');
     };
 
     const generateAiReportPdf = () => {
@@ -3286,6 +3343,7 @@ export default function AdminDashboard({ session }) {
                                 <li><strong>Staff access is tighter</strong>. Inventory staff are now restricted to stock-related tools instead of seeing full owner-level controls.</li>
                                 <li><strong>Reservations are now supported</strong> with public booking requests on the landing page and a management view in admin.</li>
                                 <li><strong>AI PDF reports are now supported</strong> for buyers, items, branches, sales, expenses, stock, kitchen activity, reservations, and more.</li>
+                                <li><strong>Website CMS Copilot is now available</strong> inside branding settings to draft landing-page copy before you save it.</li>
                             </ul>
                         </div>
 
@@ -3299,6 +3357,7 @@ export default function AdminDashboard({ session }) {
                                 <li>You can also tell it stock actions like <strong>"Add 20 cheese slices"</strong> and then confirm the update.</li>
                                 <li>If you buy ingredients in bulk, the AI can convert them into usable stock when you set up a restock conversion rule.</li>
                                 <li>You can ask for branded PDFs such as <strong>"generate my top buyers report from April to May"</strong>, <strong>"make a net profit PDF for this month"</strong>, or <strong>"generate a reservations report for this month"</strong>.</li>
+                                <li>The branding section now includes a <strong>Website CMS Copilot</strong> that can draft hero copy and about text before you apply it to the form.</li>
                             </ul>
                         </div>
 
@@ -4309,6 +4368,111 @@ export default function AdminDashboard({ session }) {
                                 <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                      Brand & Website Identity
                                 </h2>
+                                <div style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.22)', borderRadius: '16px', padding: '1.25rem', marginBottom: '1.5rem' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+                                        <div>
+                                            <div style={{ color: '#c4b5fd', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.35rem' }}>Website CMS Copilot</div>
+                                            <h3 style={{ margin: 0, fontSize: '1.15rem' }}>Draft landing-page copy from the admin side</h3>
+                                            <p style={{ color: '#94a3b8', marginTop: '0.65rem', lineHeight: '1.6', maxWidth: '760px' }}>
+                                                Tell the copilot what kind of business this is, the tone you want, and whether bookings matter. It will draft website copy that you can review and apply into the CMS fields below.
+                                            </p>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                            {[
+                                                'Make this feel like a modern family restaurant with table bookings.',
+                                                'Write warmer homepage copy for a date-night grill and lounge.',
+                                                'Create polished landing page copy for a venue that hosts private events.'
+                                            ].map((prompt) => (
+                                                <button
+                                                    key={prompt}
+                                                    type="button"
+                                                    className="btn-secondary"
+                                                    onClick={() => setCmsCopilotPrompt(prompt)}
+                                                    style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.18)', color: '#ddd6fe' }}
+                                                >
+                                                    Use Prompt
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div style={{ marginTop: '1rem', display: 'grid', gap: '0.85rem' }}>
+                                        <textarea
+                                            className="kds-input"
+                                            rows="4"
+                                            value={cmsCopilotPrompt}
+                                            onChange={(e) => setCmsCopilotPrompt(e.target.value)}
+                                            placeholder="Example: Design a polished restaurant landing page for bookings and family dining. Keep it warm, premium, and welcoming. Make the copy work for a South African audience without sounding generic."
+                                            style={{ minHeight: '110px', resize: 'vertical' }}
+                                        />
+                                        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                            <button type="button" className="btn-primary" onClick={handleCmsCopilotGenerate} disabled={cmsCopilotLoading || !cmsCopilotPrompt.trim()} style={{ background: '#8b5cf6', color: '#fff' }}>
+                                                {cmsCopilotLoading ? 'Drafting...' : 'Generate Website Draft'}
+                                            </button>
+                                            <button type="button" className="btn-secondary" onClick={() => setCmsCopilotDraft(null)} disabled={cmsCopilotLoading || !cmsCopilotDraft}>
+                                                Clear Draft
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {cmsCopilotDraft && (
+                                        <div style={{ marginTop: '1rem', background: 'rgba(15,23,42,0.68)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '14px', padding: '1rem', display: 'grid', gap: '0.9rem' }}>
+                                            <div>
+                                                <div style={{ color: '#93c5fd', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.35rem' }}>Suggested Draft</div>
+                                                <div style={{ color: '#e2e8f0', lineHeight: '1.6' }}>{cmsCopilotDraft.reply || 'Review the draft below and apply it into the branding fields when you are happy.'}</div>
+                                            </div>
+
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem' }}>
+                                                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '0.85rem' }}>
+                                                    <div style={{ color: '#94a3b8', fontSize: '0.78rem', marginBottom: '0.25rem' }}>Tagline</div>
+                                                    <div>{cmsCopilotDraft.tagline || '-'}</div>
+                                                </div>
+                                                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '0.85rem' }}>
+                                                    <div style={{ color: '#94a3b8', fontSize: '0.78rem', marginBottom: '0.25rem' }}>Welcome Text</div>
+                                                    <div>{cmsCopilotDraft.welcome_text || '-'}</div>
+                                                </div>
+                                                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '0.85rem' }}>
+                                                    <div style={{ color: '#94a3b8', fontSize: '0.78rem', marginBottom: '0.25rem' }}>Hero Title</div>
+                                                    <div>{cmsCopilotDraft.hero_title || '-'}</div>
+                                                </div>
+                                                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '0.85rem' }}>
+                                                    <div style={{ color: '#94a3b8', fontSize: '0.78rem', marginBottom: '0.25rem' }}>Hero Highlight</div>
+                                                    <div>{cmsCopilotDraft.hero_highlight || '-'}</div>
+                                                </div>
+                                                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '0.85rem' }}>
+                                                    <div style={{ color: '#94a3b8', fontSize: '0.78rem', marginBottom: '0.25rem' }}>Hero Subtitle</div>
+                                                    <div>{cmsCopilotDraft.hero_subtitle || '-'}</div>
+                                                </div>
+                                                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '0.85rem' }}>
+                                                    <div style={{ color: '#94a3b8', fontSize: '0.78rem', marginBottom: '0.25rem' }}>Suggested Primary Color</div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                                        <span style={{ width: '16px', height: '16px', borderRadius: '999px', background: /^#[0-9a-f]{6}$/i.test(String(cmsCopilotDraft.primary_color || '').trim()) ? cmsCopilotDraft.primary_color : '#475569', border: '1px solid rgba(255,255,255,0.14)', display: 'inline-block' }}></span>
+                                                        <span>{cmsCopilotDraft.primary_color || '-'}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '0.9rem' }}>
+                                                <div style={{ color: '#94a3b8', fontSize: '0.78rem', marginBottom: '0.4rem' }}>About Section</div>
+                                                <div style={{ lineHeight: '1.7', color: '#e2e8f0' }}>{cmsCopilotDraft.about_text || '-'}</div>
+                                            </div>
+
+                                            <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '0.9rem' }}>
+                                                <div style={{ color: '#94a3b8', fontSize: '0.78rem', marginBottom: '0.4rem' }}>Design Direction</div>
+                                                <div style={{ lineHeight: '1.7', color: '#cbd5e1' }}>{cmsCopilotDraft.design_direction || 'No extra design notes returned.'}</div>
+                                            </div>
+
+                                            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                                <button type="button" className="btn-primary" onClick={applyCmsCopilotDraft} style={{ background: '#10b981', color: '#04130b' }}>
+                                                    Apply Draft To Fields
+                                                </button>
+                                                <span style={{ color: '#94a3b8', fontSize: '0.88rem', alignSelf: 'center' }}>
+                                                    This updates the form only. Use <strong>Save Brand Identity</strong> when you are happy with it.
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                                 {vendorConfig ? (
                                     <form onSubmit={async (e) => {
                                         e.preventDefault();

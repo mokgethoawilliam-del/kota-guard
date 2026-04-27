@@ -25,6 +25,20 @@ function VendorLandingPage() {
     const [assistantLoading, setAssistantLoading] = useState(false);
     const [assistantDraftCart, setAssistantDraftCart] = useState([]);
     const [liveSupportMode, setLiveSupportMode] = useState(false);
+    const [reservationForm, setReservationForm] = useState({
+        reservation_type: 'table',
+        customer_name: '',
+        customer_phone: '',
+        customer_email: '',
+        guest_count: 2,
+        reservation_date: '',
+        reservation_time: '',
+        location_id: '',
+        occasion: '',
+        special_requests: ''
+    });
+    const [reservationLoading, setReservationLoading] = useState(false);
+    const [reservationSuccess, setReservationSuccess] = useState(false);
 
     useEffect(() => {
         const fetchVendorData = async () => {
@@ -268,6 +282,49 @@ function VendorLandingPage() {
         }
     };
 
+    const submitReservation = async (e) => {
+        e.preventDefault();
+        if (!vendor?.id || !reservationForm.customer_name || !reservationForm.customer_phone || !reservationForm.reservation_date) return;
+
+        setReservationLoading(true);
+        try {
+            const payload = {
+                vendor_id: vendor.id,
+                location_id: reservationForm.location_id || null,
+                reservation_type: reservationForm.reservation_type,
+                customer_name: reservationForm.customer_name.trim(),
+                customer_phone: reservationForm.customer_phone.trim(),
+                customer_email: reservationForm.customer_email.trim() || null,
+                guest_count: Number(reservationForm.guest_count || 1),
+                reservation_date: reservationForm.reservation_date,
+                reservation_time: reservationForm.reservation_time || null,
+                occasion: reservationForm.occasion.trim() || null,
+                special_requests: reservationForm.special_requests.trim() || null,
+            };
+
+            const { error } = await supabase.from('reservations').insert(payload);
+            if (error) throw error;
+
+            setReservationSuccess(true);
+            setReservationForm({
+                reservation_type: 'table',
+                customer_name: '',
+                customer_phone: '',
+                customer_email: '',
+                guest_count: 2,
+                reservation_date: '',
+                reservation_time: '',
+                location_id: '',
+                occasion: '',
+                special_requests: ''
+            });
+        } catch (err) {
+            alert('Reservation request failed: ' + err.message);
+        } finally {
+            setReservationLoading(false);
+        }
+    };
+
     if (loading) return <div style={{ background: '#0f172a', color: '#fff', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading {vendorSlug || 'VulaHub'}...</div>;
     if (!vendor) return <div style={{ background: '#0f172a', color: '#fff', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Vendor "{vendorSlug}" not found.</div>;
 
@@ -319,6 +376,9 @@ function VendorLandingPage() {
                                     <button className="btn-primary hero-btn" onClick={() => setView('menu')} style={{ flex: '1 1 200px', maxWidth: '250px', padding: '1.25rem', fontSize: '1.1rem' }}>
                                         Start Online Order
                                     </button>
+                                    <button className="btn-secondary hero-btn" onClick={() => document.getElementById('book-with-us')?.scrollIntoView({ behavior: 'smooth' })} style={{ flex: '1 1 200px', maxWidth: '250px', padding: '1.25rem', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', fontSize: '1.1rem' }}>
+                                        Book a Table / Venue
+                                    </button>
                                     <button className="btn-secondary hero-btn" onClick={() => document.getElementById('find-us').scrollIntoView({ behavior: 'smooth' })} style={{ flex: '1 1 200px', maxWidth: '250px', padding: '1.25rem', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', fontSize: '1.1rem' }}>
                                         Locations & Maps
                                     </button>
@@ -354,6 +414,113 @@ function VendorLandingPage() {
                                         <span style={{ fontSize: '3rem', display: 'block', marginBottom: '1rem' }}></span>
                                         <p style={{ color: '#64748b' }}>Upload menu photos in CMS to see them here!</p>
                                     </div>
+                                )}
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="book-with-us" style={{ padding: '8rem 2rem', background: '#0f172a' }}>
+                        <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem', alignItems: 'start' }}>
+                            <div>
+                                <span style={{ color: 'var(--primary-color)', fontWeight: 'bold', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>
+                                    Reservations
+                                </span>
+                                <h2 style={{ fontSize: '3rem', fontWeight: '800', marginBottom: '1rem' }}>Book a table or reserve the venue</h2>
+                                <p style={{ color: '#94a3b8', lineHeight: '1.7', fontSize: '1.05rem' }}>
+                                    If this business takes seated bookings or private venue requests, send your reservation here and the team will confirm it from the admin side.
+                                </p>
+                                <div style={{ marginTop: '1.5rem', display: 'grid', gap: '0.85rem', color: '#cbd5e1' }}>
+                                    <div>• Choose table booking or venue booking</div>
+                                    <div>• Pick your preferred date, time, and branch</div>
+                                    <div>• Add guest count and occasion notes</div>
+                                </div>
+                            </div>
+
+                            <div style={{ background: 'rgba(30, 41, 59, 0.82)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '2rem' }}>
+                                {reservationSuccess ? (
+                                    <div style={{ textAlign: 'center', padding: '2rem 1rem', color: '#d1fae5' }}>
+                                        <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>✓</div>
+                                        <h3 style={{ marginBottom: '0.5rem', color: '#34d399' }}>Reservation request sent</h3>
+                                        <p style={{ color: '#94a3b8', lineHeight: '1.6' }}>
+                                            The business has received your booking request and can now confirm it from their admin dashboard.
+                                        </p>
+                                        <button
+                                            type="button"
+                                            className="btn-secondary"
+                                            style={{ marginTop: '1rem' }}
+                                            onClick={() => setReservationSuccess(false)}
+                                        >
+                                            Make another booking
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <form onSubmit={submitReservation} style={{ display: 'grid', gap: '1rem' }}>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                            <div>
+                                                <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.4rem' }}>Booking Type</label>
+                                                <select value={reservationForm.reservation_type} onChange={(e) => setReservationForm({ ...reservationForm, reservation_type: e.target.value })} style={{ width: '100%', padding: '0.95rem', borderRadius: '10px', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc' }}>
+                                                    <option value="table">Table Booking</option>
+                                                    <option value="venue">Venue Booking</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.4rem' }}>Guests</label>
+                                                <input type="number" min="1" required value={reservationForm.guest_count} onChange={(e) => setReservationForm({ ...reservationForm, guest_count: e.target.value })} style={{ width: '100%', padding: '0.95rem', borderRadius: '10px', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc' }} />
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.4rem' }}>Your Name</label>
+                                            <input required value={reservationForm.customer_name} onChange={(e) => setReservationForm({ ...reservationForm, customer_name: e.target.value })} style={{ width: '100%', padding: '0.95rem', borderRadius: '10px', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc' }} />
+                                        </div>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                            <div>
+                                                <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.4rem' }}>WhatsApp Number</label>
+                                                <input required value={reservationForm.customer_phone} onChange={(e) => setReservationForm({ ...reservationForm, customer_phone: e.target.value })} style={{ width: '100%', padding: '0.95rem', borderRadius: '10px', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc' }} />
+                                            </div>
+                                            <div>
+                                                <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.4rem' }}>Email</label>
+                                                <input type="email" value={reservationForm.customer_email} onChange={(e) => setReservationForm({ ...reservationForm, customer_email: e.target.value })} style={{ width: '100%', padding: '0.95rem', borderRadius: '10px', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc' }} />
+                                            </div>
+                                        </div>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: allLocations.length ? '1fr 1fr 1fr' : '1fr 1fr', gap: '1rem' }}>
+                                            <div>
+                                                <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.4rem' }}>Date</label>
+                                                <input type="date" required value={reservationForm.reservation_date} onChange={(e) => setReservationForm({ ...reservationForm, reservation_date: e.target.value })} style={{ width: '100%', padding: '0.95rem', borderRadius: '10px', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc' }} />
+                                            </div>
+                                            <div>
+                                                <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.4rem' }}>Time</label>
+                                                <input type="time" value={reservationForm.reservation_time} onChange={(e) => setReservationForm({ ...reservationForm, reservation_time: e.target.value })} style={{ width: '100%', padding: '0.95rem', borderRadius: '10px', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc' }} />
+                                            </div>
+                                            {allLocations.length > 0 && (
+                                                <div>
+                                                    <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.4rem' }}>Branch</label>
+                                                    <select value={reservationForm.location_id} onChange={(e) => setReservationForm({ ...reservationForm, location_id: e.target.value })} style={{ width: '100%', padding: '0.95rem', borderRadius: '10px', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc' }}>
+                                                        <option value="">Any branch</option>
+                                                        {allLocations.map((loc) => (
+                                                            <option key={loc.id} value={loc.id}>{loc.name}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div>
+                                            <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.4rem' }}>Occasion</label>
+                                            <input value={reservationForm.occasion} onChange={(e) => setReservationForm({ ...reservationForm, occasion: e.target.value })} placeholder="Birthday, meeting, private function..." style={{ width: '100%', padding: '0.95rem', borderRadius: '10px', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc' }} />
+                                        </div>
+
+                                        <div>
+                                            <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.4rem' }}>Special Requests</label>
+                                            <textarea rows="4" value={reservationForm.special_requests} onChange={(e) => setReservationForm({ ...reservationForm, special_requests: e.target.value })} placeholder="Seating preference, decor, catering notes..." style={{ width: '100%', padding: '0.95rem', borderRadius: '10px', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc', resize: 'vertical' }} />
+                                        </div>
+
+                                        <button type="submit" className="btn-primary" disabled={reservationLoading} style={{ padding: '1rem', fontSize: '1rem' }}>
+                                            {reservationLoading ? 'Sending...' : 'Send Reservation Request'}
+                                        </button>
+                                    </form>
                                 )}
                             </div>
                         </div>

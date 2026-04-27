@@ -187,6 +187,7 @@ function parsePdfReportIntent(message: string) {
     | "kitchen_performance"
     | "stock_usage_wastage"
     | "staff_performance"
+    | "reservations_summary"
     | "expenses_summary"
     | "low_stock"
     | "order_status"
@@ -209,6 +210,8 @@ function parsePdfReportIntent(message: string) {
     kind = "stock_usage_wastage";
   } else if (/\b(staff|employee|employees|team|cashier|runner|clerk)\b/.test(normalized) && /\b(report|performance|activity|pdf)\b/.test(normalized)) {
     kind = "staff_performance";
+  } else if (/\b(reservation|reservations|booking|bookings|table|venue)\b/.test(normalized) && /\b(report|summary|activity|pdf)\b/.test(normalized)) {
+    kind = "reservations_summary";
   } else if (/\b(branch|branches|location|locations|stall|stalls)\b/.test(normalized) && /\b(report|performance|sales|revenue|pdf)\b/.test(normalized)) {
     kind = "branch_performance";
   } else if (/\b(expense|expenses|cost|costs|spend)\b/.test(normalized)) {
@@ -537,6 +540,17 @@ serve(async (req) => {
 
     const reportIntent = parsePdfReportIntent(message);
     if (reportIntent && !isInventoryStaff) {
+      const { data: reportReservations, error: reportReservationsError } = await supabase
+        .from("reservations")
+        .select("reservation_type, status, customer_name, customer_phone, guest_count, reservation_date, reservation_time, created_at, location_id")
+        .eq("vendor_id", vendorId)
+        .gte("reservation_date", reportIntent.startDateIso.slice(0, 10))
+        .lte("reservation_date", reportIntent.endDateIso.slice(0, 10))
+        .order("reservation_date", { ascending: true })
+        .limit(1000);
+
+      if (reportReservationsError) throw reportReservationsError;
+
       const { data: reportExpenses, error: reportExpensesError } = await supabase
         .from("expenses")
         .select("description, amount, expense_date")
@@ -606,6 +620,7 @@ serve(async (req) => {
       if (reportOrdersError) throw reportOrdersError;
 
       const typedOrders = (reportOrders || []) as any[];
+      const typedReservations = (reportReservations || []) as any[];
       const typedExpenses = (reportExpenses || []) as any[];
       const typedAdjustments = (reportAdjustments || []) as any[];
       const typedPendingOrders = (pendingOrders || []) as any[];
@@ -1128,13 +1143,54 @@ serve(async (req) => {
           },
         });
       }
+
+      if (reportIntent.reportKind === "reservations_summary") {
+        if (typedReservations.length === 0) {
+          return jsonResponse({ reply: `I could not find reservation activity for ${reportIntent.dateLabel} yet.`, pending_action: null });
+        }
+
+        return jsonResponse({
+          reply: `I prepared a reservations PDF for ${reportIntent.dateLabel}.`,
+          pending_action: {
+            type: "pdf_report",
+            report_kind: "reservations_summary",
+            title: "Reservations Summary",
+            subtitle: reportIntent.dateLabel,
+            columns: [
+              { key: "reservation_date", label: "Date", format: "date" },
+              { key: "reservation_time", label: "Time" },
+              { key: "customer_name", label: "Customer" },
+              { key: "reservation_type", label: "Type" },
+              { key: "guest_count", label: "Guests" },
+              { key: "status", label: "Status" },
+            ],
+            rows: typedReservations,
+            generated_at: generatedAt,
+            summary: {
+              reservation_count: typedReservations.length,
+              confirmed_count: typedReservations.filter((reservation) => reservation.status === "confirmed").length,
+              pending_count: typedReservations.filter((reservation) => reservation.status === "pending").length,
+              venue_bookings: typedReservations.filter((reservation) => reservation.reservation_type === "venue").length,
+            },
+          },
+        });
+      }
     }
+
+    const { data: recentReservations } = !isInventoryStaff
+      ? await supabase
+          .from("reservations")
+          .select("reservation_type, status, customer_name, guest_count, reservation_date, reservation_time")
+          .eq("vendor_id", vendorId)
+          .order("reservation_date", { ascending: true })
+          .limit(30)
+      : { data: [] };
 
     const prompt = JSON.stringify({
       task:
         isInventoryStaff
           ? "Act like an inventory manager for the vendor. Answer using only the provided ingredient and stock data. Be concise, practical, and specific. You can help with restocking, shortages, wastage, and stock priorities. If the user asks about revenue, customers, billing, or private owner settings, say this staff mode only handles inventory operations."
-          : "Act like an operations manager for the vendor. Answer the user's question using only the provided data. Be concise, practical, and specific. If data is missing, say so plainly. Focus on orders, revenue, stock, menu performance, and support load.",
+          : "Act like an operations manager for the vendor. Answer the user's question using only the provided data. Be concise, practical, and specific. If data is missing, say so plainly. Focus on orders, reservations, revenue, stock, menu performance, and support load.",
       vendor: {
         id: vendor.id,
         name: vendor.name,
@@ -1144,8 +1200,11 @@ serve(async (req) => {
         active_order_count: activeOrders.length,
         ready_order_count: activeOrders.filter((o: any) => o.status === "ready").length,
         low_stock_count: lowStock.length,
+        pending_reservation_count: (recentReservations || []).filter((reservation: any) => reservation.status === "pending").length,
+        upcoming_reservation_count: (recentReservations || []).filter((reservation: any) => ["pending", "confirmed"].includes(reservation.status)).length,
       },
       recent_orders: orders || [],
+      recent_reservations: recentReservations || [],
       low_stock_items: lowStock,
       recent_expenses: expenses || [],
       menu_items: menuItems || [],

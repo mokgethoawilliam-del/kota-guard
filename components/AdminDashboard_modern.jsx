@@ -113,6 +113,7 @@ export default function AdminDashboard({ session }) {
 
     // Phase 16: Customers & Testimonials
     const [testimonials, setTestimonials] = useState([]);
+    const [reservations, setReservations] = useState([]);
     const [showGateModal, setShowGateModal] = useState(false);
 
     // Phase 17: AI Manager
@@ -131,7 +132,7 @@ export default function AdminDashboard({ session }) {
 
     const defaultAiGreeting = isInventoryStaff
         ? 'Hello! I am your Stock Copilot. I can help you log refills, deduct wastage, and point out stock risks without touching billing or private owner settings.'
-        : 'Hello! I am your AI Manager. I can help with stock updates, inventory risks, and day-to-day operations across your shop.';
+        : 'Hello! I am your AI Manager. I can help with bookings, orders, stock updates, inventory risks, revenue, and day-to-day operations across your shop.';
 
     useEffect(() => {
         aiChatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -212,6 +213,14 @@ export default function AdminDashboard({ session }) {
                 <circle cx="12" cy="12" r="10"></circle>
                 <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
                 <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+        ),
+        Calendar: () => (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
             </svg>
         ),
         CreditCard: () => (
@@ -464,6 +473,7 @@ export default function AdminDashboard({ session }) {
                 setMenuItems([]);
                 setChats([]);
                 setTestimonials([]);
+                setReservations([]);
                 return;
             }
 
@@ -534,6 +544,20 @@ export default function AdminDashboard({ session }) {
             
             if (chatData) {
                 setChats(chatData);
+            }
+
+            const { data: reservationData } = await supabase
+                .from('reservations')
+                .select(`
+                    *,
+                    locations (name)
+                `)
+                .eq('vendor_id', currentVendorId)
+                .order('reservation_date', { ascending: true })
+                .order('reservation_time', { ascending: true });
+
+            if (reservationData) {
+                setReservations(reservationData);
             }
 
             const { data: testData } = await supabase
@@ -1419,6 +1443,29 @@ export default function AdminDashboard({ session }) {
         }
     };
 
+    const updateReservationStatus = async (reservationId, nextStatus) => {
+        try {
+            const { error } = await supabase
+                .from('reservations')
+                .update({ status: nextStatus })
+                .eq('id', reservationId);
+
+            if (error) throw error;
+
+            setReservations((current) =>
+                current.map((reservation) =>
+                    reservation.id === reservationId
+                        ? { ...reservation, status: nextStatus, updated_at: new Date().toISOString() }
+                        : reservation
+                )
+            );
+
+            alert(`Reservation marked ${nextStatus}.`);
+        } catch (err) {
+            alert("Could not update reservation: " + err.message);
+        }
+    };
+
     const confirmAction = async (message, confirmLabel = 'Delete') => {
         if (window.__vulahubConfirm) {
             return window.__vulahubConfirm({
@@ -1437,6 +1484,7 @@ export default function AdminDashboard({ session }) {
         { id: 'ai', label: 'AI Manager', icon: <Icons.Brain />, accent: 'linear-gradient(135deg, rgba(139,92,246,0.3), rgba(59,130,246,0.2))', borderColor: 'rgba(139,92,246,0.5)' },
         { id: 'kds', label: 'Live Kitchen', icon: <Icons.Kitchen /> },
         { id: 'support', label: 'Live Chat', icon: <Icons.Chat /> },
+        { id: 'reservations', label: 'Reservations', icon: <Icons.Calendar /> },
         { id: 'history', label: 'History Vault', icon: <Icons.History /> },
         { id: 'finances', label: 'Finances', icon: <Icons.Finance /> },
         { id: 'inventory', label: 'Inventory', icon: <Icons.Inventory /> },
@@ -3025,7 +3073,7 @@ export default function AdminDashboard({ session }) {
                             <p style={{ color: '#94a3b8', fontSize: '0.92rem', lineHeight: '1.6', marginTop: '0.75rem' }}>
                                 {isInventoryStaff
                                     ? 'Use plain language to update stock, log received items, track shortages, and spot what needs restocking next.'
-                                    : 'Ask about orders, revenue, stock pressure, slow branches, menu performance, or what needs attention next.'}
+                                    : 'Ask about bookings, orders, revenue, stock pressure, branch performance, menu performance, or what needs attention next.'}
                             </p>
                         </div>
 
@@ -3052,8 +3100,9 @@ export default function AdminDashboard({ session }) {
                             {(isInventoryStaff ? staffAiPrompts : [
                                 'What should I focus on right now?',
                                 'Which orders are stuck?',
-                                'What is my stock risk today?',
-                                'Summarize today’s business performance.'
+                                'How many bookings do I have this week?',
+                                'Generate a reservations report for this month.',
+                                "Summarize today's business performance."
                             ]).map(prompt => (
                                 <button
                                     key={prompt}
@@ -3073,7 +3122,7 @@ export default function AdminDashboard({ session }) {
                             <div>
                                 <div style={{ fontWeight: '700', fontSize: '1rem' }}>{isInventoryStaff ? 'Inventory Chat' : 'Operations Chat'}</div>
                                 <div style={{ color: '#64748b', fontSize: '0.84rem' }}>
-                                    {isInventoryStaff ? 'Grounded in your own ingredient and stock data only' : 'Grounded in your own orders, stock, menu, and expense data'}
+                                    {isInventoryStaff ? 'Grounded in your own ingredient and stock data only' : 'Grounded in your own bookings, orders, stock, menu, and expense data'}
                                 </div>
                             </div>
                             <button
@@ -3082,7 +3131,7 @@ export default function AdminDashboard({ session }) {
                                     role: 'assistant',
                                     content: isInventoryStaff
                                         ? 'Hello! I am your Stock Copilot. I can help you log refills, deduct wastage, and point out stock risks without touching billing or private owner settings.'
-                                        : 'Hello! I am your AI Manager. I have real-time access to your orders, inventory, and revenue. Ask me anything about your business!'
+                                        : 'Hello! I am your AI Manager. I can help with bookings, orders, inventory, revenue, reports, and what needs attention in your business right now.'
                                 }])}
                                 style={{ background: 'transparent', border: '1px solid #334155', color: '#94a3b8', borderRadius: '10px', padding: '0.55rem 0.85rem', cursor: 'pointer' }}
                             >
@@ -3206,7 +3255,7 @@ export default function AdminDashboard({ session }) {
                                 className="kds-input"
                                 value={aiInput}
                                 onChange={(e) => setAiInput(e.target.value)}
-                                placeholder={isInventoryStaff ? 'Try: I have just refilled 54 slices of cheese...' : 'Ask about revenue, orders, stock, menu performance, or support pressure...'}
+                                placeholder={isInventoryStaff ? 'Try: I have just refilled 54 slices of cheese...' : 'Ask about bookings, revenue, orders, stock, reports, or support pressure...'}
                                 style={{ flex: 1 }}
                             />
                             <button type="submit" className="btn-primary" disabled={aiLoading || !aiInput.trim()} style={{ background: 'linear-gradient(135deg, #8b5cf6, #3b82f6)', color: '#fff', minWidth: '120px' }}>
@@ -3230,25 +3279,26 @@ export default function AdminDashboard({ session }) {
                         <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.22)', borderRadius: '12px', padding: '2rem' }}>
                             <h3 style={{ fontSize: '1.5rem', color: '#60a5fa', marginBottom: '1rem' }}> Recent Developments</h3>
                             <ul style={{ color: '#cbd5e1', paddingLeft: '1.25rem', margin: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem', lineHeight: '1.6' }}>
-                                <li><strong>AI Manager</strong> can now answer shop questions, highlight low-stock risk, and help with stock updates.</li>
+                                <li><strong>AI Manager</strong> can now answer shop questions, highlight low-stock risk, help with stock updates, and prepare branded PDF reports.</li>
                                 <li><strong>Stock updates are safer</strong>. AI suggestions now ask for confirmation before anything changes in inventory.</li>
                                 <li><strong>Collection flow is cleaner</strong>. Orders still use the PIN flow when a PIN exists, but older affected orders can still be completed through the normal collected button.</li>
                                 <li><strong>Vendor payments are separated</strong>. Vendor buyer payments and your own platform billing are no longer mixed together.</li>
                                 <li><strong>Staff access is tighter</strong>. Inventory staff are now restricted to stock-related tools instead of seeing full owner-level controls.</li>
-                                <li><strong>AI PDF reports are now supported</strong> for buyers, items, branches, sales, expenses, stock, kitchen activity, and more.</li>
+                                <li><strong>Reservations are now supported</strong> with public booking requests on the landing page and a management view in admin.</li>
+                                <li><strong>AI PDF reports are now supported</strong> for buyers, items, branches, sales, expenses, stock, kitchen activity, reservations, and more.</li>
                             </ul>
                         </div>
 
                         <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '2rem' }}>
                             <h3 style={{ fontSize: '1.5rem', color: '#8b5cf6', marginBottom: '1rem' }}> AI Manager</h3>
                             <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
-                                The <strong>AI Manager</strong> is your shop copilot. You can ask it about slow branches, stock pressure, active orders, low-stock items, and day summaries.
+                                The <strong>AI Manager</strong> is your shop copilot. You can ask it about bookings, slow branches, stock pressure, active orders, low-stock items, and day summaries.
                             </p>
                             <ul style={{ color: '#cbd5e1', marginTop: '1rem', paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                <li>Use it for questions like <strong>"What should I focus on right now?"</strong> or <strong>"Which orders are stuck?"</strong></li>
+                                <li>Use it for questions like <strong>"What should I focus on right now?"</strong>, <strong>"Which orders are stuck?"</strong>, or <strong>"How many bookings do I have this week?"</strong></li>
                                 <li>You can also tell it stock actions like <strong>"Add 20 cheese slices"</strong> and then confirm the update.</li>
                                 <li>If you buy ingredients in bulk, the AI can convert them into usable stock when you set up a restock conversion rule.</li>
-                                <li>You can ask for branded PDFs such as <strong>"generate my top buyers report from April to May"</strong> or <strong>"make a net profit PDF for this month"</strong>.</li>
+                                <li>You can ask for branded PDFs such as <strong>"generate my top buyers report from April to May"</strong>, <strong>"make a net profit PDF for this month"</strong>, or <strong>"generate a reservations report for this month"</strong>.</li>
                             </ul>
                         </div>
 
@@ -3292,10 +3342,10 @@ export default function AdminDashboard({ session }) {
                         <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '2rem' }}>
                             <h3 style={{ fontSize: '1.5rem', color: '#f97316', marginBottom: '1rem' }}> Reservations & Venue Bookings</h3>
                             <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
-                                Table bookings and venue reservations are <strong>not yet built into this admin</strong>. The current system is strong for takeaway, delivery, kitchen flow, support chat, stock, and branded storefronts, but reservations need their own booking model.
+                                Table bookings and venue reservations are now part of this admin. Vendors can collect booking requests from their landing page and manage them inside the new <strong>Reservations</strong> tab.
                             </p>
                             <p style={{ color: '#cbd5e1', lineHeight: '1.6', marginTop: '0.85rem' }}>
-                                For a restaurant or venue client, we can add a reservation module with booking slots, guest counts, booking status, deposits, and staff-facing reservation management inside this same admin.
+                                The current MVP supports table and venue booking requests, guest counts, preferred date and time, branch selection, occasion notes, and booking status updates from pending through completed.
                             </p>
                         </div>
 
@@ -3320,6 +3370,109 @@ export default function AdminDashboard({ session }) {
                                 <li>Inventory staff should use their restricted workspace instead of the owner dashboard.</li>
                             </ul>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'reservations' && (
+                <div className="vault-container">
+                    <div className="vault-header">
+                        <div>
+                            <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Reservations & Venue Bookings</h2>
+                            <p style={{ color: '#94a3b8' }}>Manage table bookings and private venue requests from your landing page.</p>
+                        </div>
+                        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                            <div className="status-badge status-paid">Pending: {reservations.filter((r) => r.status === 'pending').length}</div>
+                            <div className="status-badge status-ready">Confirmed: {reservations.filter((r) => r.status === 'confirmed').length}</div>
+                            <div className="status-badge status-completed">Completed: {reservations.filter((r) => r.status === 'completed').length}</div>
+                        </div>
+                    </div>
+
+                    <div className="table-responsive">
+                        <table className="vault-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Guest</th>
+                                    <th>Type</th>
+                                    <th>Guests</th>
+                                    <th>Branch</th>
+                                    <th>Status</th>
+                                    <th>Notes</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {reservations.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="8" className="empty-state">No reservation requests yet.</td>
+                                    </tr>
+                                ) : (
+                                    reservations.map((reservation) => (
+                                        <tr key={reservation.id}>
+                                            <td>
+                                                <strong>{new Date(reservation.reservation_date).toLocaleDateString()}</strong>
+                                                <br />
+                                                <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>{reservation.reservation_time || 'Time not set'}</span>
+                                            </td>
+                                            <td>
+                                                {reservation.customer_name}
+                                                <br />
+                                                <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>{reservation.customer_phone}</span>
+                                                {reservation.customer_email && (
+                                                    <>
+                                                        <br />
+                                                        <span style={{ color: '#64748b', fontSize: '0.8rem' }}>{reservation.customer_email}</span>
+                                                    </>
+                                                )}
+                                            </td>
+                                            <td style={{ textTransform: 'capitalize' }}>{reservation.reservation_type}</td>
+                                            <td>{reservation.guest_count}</td>
+                                            <td>{reservation.locations?.name || 'Any branch'}</td>
+                                            <td>
+                                                <span className={`status-badge status-${reservation.status === 'cancelled' ? 'paid' : reservation.status === 'completed' ? 'completed' : reservation.status === 'confirmed' ? 'ready' : reservation.status}`}>
+                                                    {reservation.status}
+                                                </span>
+                                            </td>
+                                            <td style={{ maxWidth: '220px', color: '#cbd5e1' }}>
+                                                {reservation.occasion && <div><strong>Occasion:</strong> {reservation.occasion}</div>}
+                                                {reservation.special_requests && <div style={{ marginTop: '0.35rem' }}>{reservation.special_requests}</div>}
+                                                {!reservation.occasion && !reservation.special_requests && <span style={{ color: '#64748b' }}>No extra notes</span>}
+                                            </td>
+                                            <td>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                                                    {reservation.status === 'pending' && (
+                                                        <>
+                                                            <button className="btn-primary" style={{ padding: '0.45rem 0.65rem', fontSize: '0.8rem', background: '#10b981', color: '#052e16' }} onClick={() => updateReservationStatus(reservation.id, 'confirmed')}>
+                                                                Confirm
+                                                            </button>
+                                                            <button className="btn-secondary" style={{ padding: '0.45rem 0.65rem', fontSize: '0.8rem' }} onClick={() => updateReservationStatus(reservation.id, 'cancelled')}>
+                                                                Decline
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                    {reservation.status === 'confirmed' && (
+                                                        <>
+                                                            <button className="btn-primary" style={{ padding: '0.45rem 0.65rem', fontSize: '0.8rem', background: '#3b82f6', color: '#eff6ff' }} onClick={() => updateReservationStatus(reservation.id, 'seated')}>
+                                                                Mark Seated
+                                                            </button>
+                                                            <button className="btn-secondary" style={{ padding: '0.45rem 0.65rem', fontSize: '0.8rem' }} onClick={() => updateReservationStatus(reservation.id, 'cancelled')}>
+                                                                Cancel
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                    {reservation.status === 'seated' && (
+                                                        <button className="btn-primary" style={{ padding: '0.45rem 0.65rem', fontSize: '0.8rem', background: '#8b5cf6', color: '#f5f3ff' }} onClick={() => updateReservationStatus(reservation.id, 'completed')}>
+                                                            Complete
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             )}
@@ -4438,3 +4591,4 @@ const OrderCard = ({ order, updateOrderStatus, showLocation, setIsVerifyingPin, 
         </div>
     );
 };
+

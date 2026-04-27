@@ -649,6 +649,96 @@ export default function AdminDashboard({ session }) {
         }
     };
 
+    const generateAiReportPdf = () => {
+        if (!aiPendingAction || aiPendingAction.type !== 'pdf_report' || !vendorConfig) return;
+
+        const doc = new jsPDF();
+        const brand = vendorConfig.branding || {};
+        const vendorName = vendorConfig.name || 'Vendor Report';
+        const primaryColor = brand.primary_color || '#0f172a';
+        const primaryRgb = primaryColor.startsWith('#') && (primaryColor.length === 7 || primaryColor.length === 4)
+            ? primaryColor
+                  .replace('#', '')
+                  .match(primaryColor.length === 4 ? /.{1}/g : /.{2}/g)
+                  ?.map((part) => primaryColor.length === 4 ? parseInt(part + part, 16) : parseInt(part, 16))
+            : [15, 23, 42];
+
+        const [r, g, b] = Array.isArray(primaryRgb) && primaryRgb.length === 3 ? primaryRgb : [15, 23, 42];
+        doc.setFillColor(r, g, b);
+        doc.rect(0, 0, 210, 30, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(20);
+        doc.text(vendorName, 14, 16);
+        doc.setFontSize(11);
+        doc.text(aiPendingAction.title || 'Business Report', 14, 24);
+
+        doc.setTextColor(31, 41, 55);
+        doc.setFontSize(10);
+        doc.text(aiPendingAction.subtitle || '', 14, 38);
+        doc.text(`Generated: ${new Date(aiPendingAction.generated_at || Date.now()).toLocaleString()}`, 14, 44);
+
+        if (brand.tagline) {
+            doc.text(String(brand.tagline), 14, 50);
+        }
+
+        const formatPdfValue = (value, format) => {
+            if (format === 'currency') return `R ${Number(value || 0).toFixed(2)}`;
+            if (format === 'date') return value ? new Date(value).toLocaleDateString() : '-';
+            return value ?? '-';
+        };
+
+        autoTable(doc, {
+            startY: brand.tagline ? 58 : 54,
+            head: [(aiPendingAction.columns || []).map((column) => column.label)],
+            body: (aiPendingAction.rows || []).map((row) =>
+                (aiPendingAction.columns || []).map((column) => formatPdfValue(row[column.key], column.format))
+            ),
+            styles: {
+                fontSize: 10,
+                cellPadding: 3
+            },
+            headStyles: {
+                fillColor: [r, g, b]
+            }
+        });
+
+        const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 80;
+        doc.setFontSize(11);
+        doc.setTextColor(31, 41, 55);
+        const summaryEntries = Object.entries(aiPendingAction.summary || {});
+        summaryEntries.forEach(([key, value], index) => {
+            const humanKey = key.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+            const formattedValue = /revenue|spend|value|expense/i.test(key)
+                ? `R ${Number(value || 0).toFixed(2)}`
+                : value;
+            doc.text(`${humanKey}: ${formattedValue}`, 14, finalY + 12 + (index * 8));
+        });
+
+        doc.setFontSize(8);
+        doc.setTextColor(148, 163, 184);
+        doc.text('Powered by VulaHub', 14, finalY + 20 + (summaryEntries.length * 8));
+
+        const fileSlug = (vendorConfig.slug || vendorName || 'vendor')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-|-$/g, '');
+        const reportSlug = String(aiPendingAction.title || 'report')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-|-$/g, '');
+
+        doc.save(`${fileSlug}_${reportSlug}_${Date.now()}.pdf`);
+
+        setAiMessages((current) => [
+            ...current,
+            {
+                role: 'assistant',
+                content: `Your PDF is ready. I generated ${aiPendingAction.title?.toLowerCase() || 'the report'} with ${vendorName} leading the branding and VulaHub kept secondary.`
+            }
+        ]);
+        setAiPendingAction(null);
+    };
+
     const updateOrderStatus = async (orderId, newStatus) => {
         const order = orders.find(o => o.id === orderId);
         if (!order) return;
@@ -3024,7 +3114,7 @@ export default function AdminDashboard({ session }) {
                                     Thinking...
                                 </div>
                             )}
-                            {aiPendingAction && (
+                            {aiPendingAction?.type === 'inventory_adjustment' && (
                                 <div style={{ alignSelf: 'stretch', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.24)', borderRadius: '14px', padding: '1rem' }}>
                                     <div style={{ color: '#86efac', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.45rem' }}>Pending Stock Update</div>
                                     <div style={{ fontWeight: '700', marginBottom: '0.35rem' }}>{aiPendingAction.ingredient_name}</div>
@@ -3048,6 +3138,60 @@ export default function AdminDashboard({ session }) {
                                             {aiActionLoading ? 'Applying...' : 'Confirm Update'}
                                         </button>
                                         <button type="button" className="btn-secondary" onClick={() => setAiPendingAction(null)} disabled={aiActionLoading}>
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                            {aiPendingAction?.type === 'pdf_report' && (
+                                <div style={{ alignSelf: 'stretch', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.24)', borderRadius: '14px', padding: '1rem' }}>
+                                    <div style={{ color: '#93c5fd', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.45rem' }}>Pending PDF Report</div>
+                                    <div style={{ fontWeight: '700', marginBottom: '0.35rem' }}>{aiPendingAction.title}</div>
+                                    <div style={{ color: '#cbd5e1', fontSize: '0.92rem', lineHeight: '1.6' }}>
+                                        {aiPendingAction.subtitle}
+                                    </div>
+                                    <div style={{ color: '#94a3b8', fontSize: '0.84rem', marginTop: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+                                        {Object.entries(aiPendingAction.summary || {}).map(([key, value]) => {
+                                            const label = key.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+                                            const formatted = /revenue|spend|value|expense/i.test(key)
+                                                ? `R ${Number(value || 0).toFixed(2)}`
+                                                : value;
+                                            return <span key={key}>{label}: {formatted}</span>;
+                                        })}
+                                    </div>
+                                    <div style={{ marginTop: '0.8rem', maxHeight: '180px', overflowY: 'auto', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.75rem' }}>
+                                        {(aiPendingAction.rows || []).slice(0, 5).map((row) => (
+                                            <div key={`${aiPendingAction.report_kind}-${row.rank || row.item_name || row.branch_name || row.status || row.customer_phone || row.description || 'row'}`} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.75rem', padding: '0.45rem 0', color: '#e2e8f0' }}>
+                                                <div>
+                                                    {(aiPendingAction.columns || []).slice(0, 3).map((column, idx) => (
+                                                        <div key={column.key} style={{ color: idx === 0 ? '#f8fafc' : '#94a3b8', fontWeight: idx === 0 ? '600' : '400', fontSize: idx === 0 ? '0.94rem' : '0.82rem' }}>
+                                                            {column.label}: {column.format === 'currency'
+                                                                ? `R ${Number(row[column.key] || 0).toFixed(2)}`
+                                                                : column.format === 'date'
+                                                                    ? (row[column.key] ? new Date(row[column.key]).toLocaleDateString() : '-')
+                                                                    : row[column.key]}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <div style={{ textAlign: 'right', color: '#cbd5e1', fontSize: '0.82rem' }}>
+                                                    {(aiPendingAction.columns || []).slice(3).map((column) => (
+                                                        <div key={column.key}>
+                                                            {column.label}: {column.format === 'currency'
+                                                                ? `R ${Number(row[column.key] || 0).toFixed(2)}`
+                                                                : column.format === 'date'
+                                                                    ? (row[column.key] ? new Date(row[column.key]).toLocaleDateString() : '-')
+                                                                    : row[column.key]}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.9rem', flexWrap: 'wrap' }}>
+                                        <button type="button" className="btn-primary" onClick={generateAiReportPdf} style={{ background: '#3b82f6', color: '#eff6ff' }}>
+                                            Generate PDF
+                                        </button>
+                                        <button type="button" className="btn-secondary" onClick={() => setAiPendingAction(null)}>
                                             Cancel
                                         </button>
                                     </div>

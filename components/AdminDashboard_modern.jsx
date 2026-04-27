@@ -4124,15 +4124,22 @@ export default function AdminDashboard({ session }) {
 // Helper Components defined outside to prevent re-renders on clock ticks
 const OrderCard = ({ order, updateOrderStatus, showLocation, setIsVerifyingPin, setVerificationPin, setPinError }) => {
     const isDelivery = order.fulfillment_method === 'delivery';
-    const confirmLegacyComplete = async () => {
-        const message = 'Complete this order without the collection PIN? Use this only for older affected orders where the customer never received their PIN.';
+    const handleReadyCompletion = async () => {
+        if (order.collection_pin) {
+            setVerificationPin('');
+            setPinError('');
+            setIsVerifyingPin(order);
+            return;
+        }
+
+        const message = 'This order has no stored collection PIN. Complete it now?';
         const ok = window.__vulahubConfirm
             ? await window.__vulahubConfirm({
-                title: 'Legacy Order Override',
+                title: 'Complete Order',
                 message,
-                confirmLabel: 'Complete Legacy Order',
+                confirmLabel: isDelivery ? 'Mark Delivered' : 'Mark Collected',
                 cancelLabel: 'Cancel',
-                tone: 'danger'
+                tone: 'warning'
             })
             : window.confirm(message);
 
@@ -4229,29 +4236,12 @@ const OrderCard = ({ order, updateOrderStatus, showLocation, setIsVerifyingPin, 
                     </button>
                 )}
                 {order.status === 'ready' && (
-                    <>
-                        <button 
-                            className="btn-kds btn-complete" 
-                            onClick={() => {
-                                setVerificationPin('');
-                                setPinError('');
-                                setIsVerifyingPin(order);
-                            }}
-                        >
-                            {isDelivery ? 'Mark Delivered' : 'Mark Collected'}
-                        </button>
-                        <button
-                            className="btn-kds"
-                            style={{
-                                background: 'rgba(250, 204, 21, 0.14)',
-                                color: '#facc15',
-                                border: '1px solid rgba(250, 204, 21, 0.35)'
-                            }}
-                            onClick={confirmLegacyComplete}
-                        >
-                            Legacy Complete
-                        </button>
-                    </>
+                    <button 
+                        className="btn-kds btn-complete" 
+                        onClick={handleReadyCompletion}
+                    >
+                        {isDelivery ? 'Mark Delivered' : 'Mark Collected'}
+                    </button>
                 )}
             </div>
         </div>

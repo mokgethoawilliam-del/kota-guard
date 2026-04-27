@@ -39,6 +39,7 @@ function VendorLandingPage() {
     });
     const [reservationLoading, setReservationLoading] = useState(false);
     const [reservationSuccess, setReservationSuccess] = useState(false);
+    const [isHeroCopyVisible, setIsHeroCopyVisible] = useState(true);
 
     useEffect(() => {
         const fetchVendorData = async () => {
@@ -107,6 +108,24 @@ function VendorLandingPage() {
 
         fetchVendorData();
     }, [vendorSlug]);
+
+    useEffect(() => {
+        if (view !== 'landing') {
+            setIsHeroCopyVisible(true);
+            return;
+        }
+
+        let revealTimeout;
+        const interval = setInterval(() => {
+            setIsHeroCopyVisible(false);
+            revealTimeout = setTimeout(() => setIsHeroCopyVisible(true), 1400);
+        }, 5600);
+
+        return () => {
+            clearInterval(interval);
+            if (revealTimeout) clearTimeout(revealTimeout);
+        };
+    }, [view]);
 
     
     useEffect(() => {
@@ -329,19 +348,33 @@ function VendorLandingPage() {
     if (!vendor) return <div style={{ background: '#0f172a', color: '#fff', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Vendor "{vendorSlug}" not found.</div>;
 
     const branding = vendor.branding || {};
+    const landingLogoUrl = vendor.logo_url || branding.logo_url || '';
 
     return (
         <div className="landing-wrapper" style={{ background: '#0f172a', color: '#f8fafc', position: 'relative', minHeight: '100vh' }}>
             <header className="brand-header" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, background: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(10px)', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                    {view !== 'landing' && (
                        <button onClick={() => setView('landing')} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '8px', padding: '0.4rem 0.8rem', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                            ← Home
                        </button>
                    )}
-                   <div>
-                       <div className="brand-logo" style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--primary-color)' }}>{vendor.name}</div>
-                       <div className="brand-tagline" style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{branding.tagline || 'Premium Kota Experience'}</div>
+                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                       {landingLogoUrl ? (
+                           <img
+                               src={landingLogoUrl}
+                               alt={`${vendor.name} logo`}
+                               style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', flexShrink: 0 }}
+                           />
+                       ) : (
+                           <div style={{ width: '48px', height: '48px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary-color)', fontWeight: '800', background: 'rgba(255,255,255,0.04)', flexShrink: 0 }}>
+                               {(vendor.name || 'V').slice(0, 1).toUpperCase()}
+                           </div>
+                       )}
+                       <div>
+                           <div className="brand-logo" style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--primary-color)' }}>{vendor.name}</div>
+                           <div className="brand-tagline" style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{branding.tagline || 'Signature Food Experience'}</div>
+                       </div>
                    </div>
                 </div>
                 <div style={{ display: 'flex', gap: '1rem' }}>
@@ -363,14 +396,16 @@ function VendorLandingPage() {
                         <div className="hero-grid">
                             <div className="hero-content">
                                 <span style={{ color: 'var(--primary-color)', fontWeight: 'bold', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>
-                                    {branding.welcome_text || '"Dumelang chommi tsaka"'}
+                                    {branding.welcome_text || 'Welcome to our kitchen'}
                                 </span>
-                                <h1 className="hero-title" style={{ fontSize: 'clamp(2.5rem, 8vw, 4rem)', lineHeight: '1.1', fontWeight: '800' }}>
-                                    {branding.hero_title || 'Nothing brings people together like'} <span style={{ color: 'var(--primary-color)' }}>{branding.hero_highlight || 'good quality food.'}</span>
-                                </h1>
-                                <p className="hero-subtitle" style={{ fontSize: '1.25rem', marginTop: '1.5rem', opacity: 0.9, color: '#94a3b8' }}>
-                                    {branding.hero_subtitle || 'Eskort Or Nothing. Kel Rata Zwap.'}
-                                </p>
+                                <div style={{ transition: 'opacity 1s ease, transform 1s ease', opacity: isHeroCopyVisible ? 1 : 0.08, transform: isHeroCopyVisible ? 'translateY(0)' : 'translateY(10px)' }}>
+                                    <h1 className="hero-title" style={{ fontSize: 'clamp(2.5rem, 8vw, 4rem)', lineHeight: '1.1', fontWeight: '800' }}>
+                                        {branding.hero_title || 'Good food for'} <span style={{ color: 'var(--primary-color)' }}>{branding.hero_highlight || 'every occasion.'}</span>
+                                    </h1>
+                                    <p className="hero-subtitle" style={{ fontSize: '1.25rem', marginTop: '1.5rem', opacity: 0.9, color: '#94a3b8' }}>
+                                        {branding.hero_subtitle || 'Order online, book a table, or connect with the team in a few taps.'}
+                                    </p>
+                                </div>
 
                                 <div className="hero-buttons" style={{ display: 'flex', gap: '1rem', marginTop: '3rem', flexWrap: 'wrap' }}>
                                     <button className="btn-primary hero-btn" onClick={() => setView('menu')} style={{ flex: '1 1 200px', maxWidth: '250px', padding: '1.25rem', fontSize: '1.1rem' }}>
@@ -701,7 +736,7 @@ function VendorLandingPage() {
                         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
                            <h2 style={{ color: '#f8fafc', marginBottom: '1.5rem' }}>{vendor.name}</h2>
                            <p style={{ maxWidth: '600px', margin: '0 auto 3rem auto', lineHeight: '1.8' }}>
-                               {branding.about_text || 'Premium dining experience delivered straight to your neighborhood.'}
+                               {branding.about_text || 'Fresh flavours, warm hospitality, and service shaped around your business and your guests.'}
                            </p>
                            <p>&copy; {new Date().getFullYear()} {vendor.name}. All rights reserved. Powered by <span style={{ color: '#00e676', fontWeight: 'bold' }}>VulaHub</span>.</p>
                         </div>

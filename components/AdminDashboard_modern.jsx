@@ -4396,7 +4396,11 @@ export default function AdminDashboard({ session }) {
                                                 <input type="text" className="kds-input" value={vendorConfig.branding?.welcome_text || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, welcome_text: e.target.value}})} />
                                             </div>
                                             <div className="form-group">
-                                                <label>Store Logo (Top Sidebar)</label>
+                                                <label>Hero Title</label>
+                                                <input type="text" className="kds-input" value={vendorConfig.branding?.hero_title || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, hero_title: e.target.value}})} placeholder="e.g. Good food for" />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Store Logo</label>
                                                 {vendorConfig.logo_url && (
                                                     <div style={{ marginBottom: '0.5rem' }}>
                                                         <img src={vendorConfig.logo_url} alt="Logo" style={{ height: '40px', borderRadius: '4px', border: '1px solid #334155' }} />
@@ -4409,7 +4413,7 @@ export default function AdminDashboard({ session }) {
                                                     onChange={(e) => setLogoFile(e.target.files[0])} 
                                                     style={{ padding: '0.5rem' }}
                                                 />
-                                                <small style={{ color: '#64748b' }}>Appears at the top of your sidebar.</small>
+                                                <small style={{ color: '#64748b' }}>Appears in the admin sidebar and at the top-left of your landing page.</small>
                                             </div>
                                             <div className="form-group">
                                                 <label>Custom Domain (e.g. www.chef-dips.co.za)</label>
@@ -4419,7 +4423,12 @@ export default function AdminDashboard({ session }) {
 
                                         <div className="form-group" style={{ marginBottom: '1.5rem' }}>
                                             <label>Hero Title Highlight</label>
-                                            <input type="text" placeholder="e.g. good quality food." className="kds-input" value={vendorConfig.branding?.hero_highlight || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, hero_highlight: e.target.value}})} />
+                                            <input type="text" placeholder="e.g. every occasion." className="kds-input" value={vendorConfig.branding?.hero_highlight || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, hero_highlight: e.target.value}})} />
+                                        </div>
+
+                                        <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                                            <label>Hero Subtitle</label>
+                                            <input type="text" placeholder="e.g. Premium dining with bold local flavour." className="kds-input" value={vendorConfig.branding?.hero_subtitle || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, hero_subtitle: e.target.value}})} />
                                         </div>
 
                                         <div className="form-group" style={{ marginBottom: '1.5rem' }}>

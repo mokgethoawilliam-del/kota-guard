@@ -3389,11 +3389,11 @@ export default function AdminDashboard({ session }) {
                                     <div style={{ padding: '1rem', borderRadius: '12px', border: '1px solid rgba(59,130,246,0.18)', background: 'rgba(59,130,246,0.05)' }}>
                                         <div style={{ fontWeight: '700', marginBottom: '0.35rem', color: '#bfdbfe' }}>Optional Bulk Restock Rule</div>
                                         <p style={{ color: '#94a3b8', margin: '0 0 1rem 0', fontSize: '0.85rem', lineHeight: '1.5' }}>
-                                            If this ingredient is bought in bulk, tell the system how that bulk purchase turns into usable stock. Example: 2 kg becomes 20 usable counts.
+                                            If this ingredient is bought in bulk, tell the system how that bulk purchase turns into usable stock. Example: 2 kg becomes 20 slices.
                                         </p>
                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
                                             <div className="form-group">
-                                                <label>Bulk Amount</label>
+                                                <label>When I Buy</label>
                                                 <input type="number" className="form-input" placeholder="2" value={editingIngredient.restock_input_quantity} onChange={(e) => setEditingIngredient({ ...editingIngredient, restock_input_quantity: e.target.value })} />
                                             </div>
                                             <div className="form-group">
@@ -3401,9 +3401,14 @@ export default function AdminDashboard({ session }) {
                                                 <input type="text" className="form-input" placeholder="kg" value={editingIngredient.restock_input_label} onChange={(e) => setEditingIngredient({ ...editingIngredient, restock_input_label: e.target.value })} />
                                             </div>
                                             <div className="form-group">
-                                                <label>Usable Count Added</label>
+                                                <label>It Becomes</label>
                                                 <input type="number" className="form-input" placeholder="20" value={editingIngredient.restock_output_quantity} onChange={(e) => setEditingIngredient({ ...editingIngredient, restock_output_quantity: e.target.value })} />
                                             </div>
+                                        </div>
+                                        <div style={{ color: '#cbd5e1', marginTop: '0.85rem', fontSize: '0.88rem' }}>
+                                            {editingIngredient.restock_input_quantity && editingIngredient.restock_input_label && editingIngredient.restock_output_quantity
+                                                ? `${editingIngredient.restock_input_quantity} ${editingIngredient.restock_input_label} becomes ${editingIngredient.restock_output_quantity} usable stock.`
+                                                : 'Leave this blank if you count stock directly instead of buying it in bulk.'}
                                         </div>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
@@ -3420,7 +3425,7 @@ export default function AdminDashboard({ session }) {
                                 <tr>
                                     <th>Ingredient</th>
                                     <th>Stock Count</th>
-                                    <th>Restock Rule</th>
+                                    <th>Restock Conversion</th>
                                     <th>Status</th>
                                     <th>Action</th>
                                 </tr>
@@ -3434,7 +3439,7 @@ export default function AdminDashboard({ session }) {
                                             <td style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{ing.current_stock}</td>
                                             <td style={{ color: '#94a3b8' }}>
                                                 {ing.restock_input_quantity && ing.restock_input_label && ing.restock_output_quantity
-                                                    ? `${ing.restock_input_quantity} ${ing.restock_input_label} -> ${ing.restock_output_quantity}`
+                                                    ? `${ing.restock_input_quantity} ${ing.restock_input_label} becomes ${ing.restock_output_quantity}`
                                                     : <span style={{ color: '#64748b' }}>Direct count</span>}
                                             </td>
                                             <td>
@@ -4119,6 +4124,22 @@ export default function AdminDashboard({ session }) {
 // Helper Components defined outside to prevent re-renders on clock ticks
 const OrderCard = ({ order, updateOrderStatus, showLocation, setIsVerifyingPin, setVerificationPin, setPinError }) => {
     const isDelivery = order.fulfillment_method === 'delivery';
+    const confirmLegacyComplete = async () => {
+        const message = 'Complete this order without the collection PIN? Use this only for older affected orders where the customer never received their PIN.';
+        const ok = window.__vulahubConfirm
+            ? await window.__vulahubConfirm({
+                title: 'Legacy Order Override',
+                message,
+                confirmLabel: 'Complete Legacy Order',
+                cancelLabel: 'Cancel',
+                tone: 'danger'
+            })
+            : window.confirm(message);
+
+        if (ok) {
+            updateOrderStatus(order.id, 'completed');
+        }
+    };
 
     return (
         <div className="kds-card" style={order.customer_arrived ? { border: '3px solid #ef4444', animation: order.status !== 'completed' ? 'pulse 2s infinite' : 'none', position: 'relative' } : { position: 'relative' }}>
@@ -4208,16 +4229,29 @@ const OrderCard = ({ order, updateOrderStatus, showLocation, setIsVerifyingPin, 
                     </button>
                 )}
                 {order.status === 'ready' && (
-                    <button 
-                        className="btn-kds btn-complete" 
-                        onClick={() => {
-                            setVerificationPin('');
-                            setPinError('');
-                            setIsVerifyingPin(order);
-                        }}
-                    >
-                        {isDelivery ? 'Mark Delivered' : 'Mark Collected'}
-                    </button>
+                    <>
+                        <button 
+                            className="btn-kds btn-complete" 
+                            onClick={() => {
+                                setVerificationPin('');
+                                setPinError('');
+                                setIsVerifyingPin(order);
+                            }}
+                        >
+                            {isDelivery ? 'Mark Delivered' : 'Mark Collected'}
+                        </button>
+                        <button
+                            className="btn-kds"
+                            style={{
+                                background: 'rgba(250, 204, 21, 0.14)',
+                                color: '#facc15',
+                                border: '1px solid rgba(250, 204, 21, 0.35)'
+                            }}
+                            onClick={confirmLegacyComplete}
+                        >
+                            Legacy Complete
+                        </button>
+                    </>
                 )}
             </div>
         </div>

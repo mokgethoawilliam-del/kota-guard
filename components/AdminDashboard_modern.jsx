@@ -4563,7 +4563,12 @@ export default function AdminDashboard({ session }) {
                                                         .from('business-documents')
                                                         .getPublicUrl(filePath);
                                                     finalLogoUrl = publicUrl;
+                                                    finalBranding.logo_url = publicUrl;
                                                 }
+                                            }
+
+                                            if (finalLogoUrl && !finalBranding.logo_url) {
+                                                finalBranding.logo_url = finalLogoUrl;
                                             }
 
                                             const { error } = await supabase.from('vendors').update({
@@ -4603,6 +4608,26 @@ export default function AdminDashboard({ session }) {
                                             <div className="form-group">
                                                 <label>Welcome Text</label>
                                                 <input type="text" className="kds-input" value={vendorConfig.branding?.welcome_text || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, welcome_text: e.target.value}})} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Contact Email</label>
+                                                <input
+                                                    type="email"
+                                                    className="kds-input"
+                                                    placeholder="e.g. bookings@yourbusiness.com"
+                                                    value={vendorConfig.branding?.contact_email || ''}
+                                                    onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, contact_email: e.target.value}})}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>WhatsApp Number</label>
+                                                <input
+                                                    type="text"
+                                                    className="kds-input"
+                                                    placeholder="e.g. 0812345678"
+                                                    value={vendorConfig.branding?.contact_whatsapp || ''}
+                                                    onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, contact_whatsapp: e.target.value}})}
+                                                />
                                             </div>
                                             <div className="form-group">
                                                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>

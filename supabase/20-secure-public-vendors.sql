@@ -72,6 +72,7 @@ SELECT
     name,
     slug,
     custom_domain,
+    logo_url,
     branding,
     is_active,
     plan,

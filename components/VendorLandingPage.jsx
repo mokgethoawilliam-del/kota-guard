@@ -25,6 +25,7 @@ function VendorLandingPage() {
     const [assistantLoading, setAssistantLoading] = useState(false);
     const [assistantDraftCart, setAssistantDraftCart] = useState([]);
     const [liveSupportMode, setLiveSupportMode] = useState(false);
+    const [activeLegalDoc, setActiveLegalDoc] = useState(null);
     const [reservationForm, setReservationForm] = useState({
         reservation_type: 'table',
         customer_name: '',
@@ -350,6 +351,13 @@ function VendorLandingPage() {
     const branding = vendor.branding || {};
     const landingLogoUrl = vendor.logo_url || branding.logo_url || '';
     const reservationsEnabled = Boolean(branding.enable_reservations);
+    const contactEmail = (branding.contact_email || '').trim();
+    const contactWhatsapp = (branding.contact_whatsapp || '').trim();
+    const whatsappDigits = contactWhatsapp.replace(/\D/g, '');
+    const whatsappLinkNumber = whatsappDigits.startsWith('0')
+        ? `27${whatsappDigits.slice(1)}`
+        : whatsappDigits;
+    const hasContactSection = Boolean(contactEmail || contactWhatsapp);
 
     return (
         <div className="landing-wrapper" style={{ background: '#0f172a', color: '#f8fafc', position: 'relative', minHeight: '100vh' }}>
@@ -422,6 +430,11 @@ function VendorLandingPage() {
                                     <button className="btn-secondary hero-btn" onClick={() => document.getElementById('find-us').scrollIntoView({ behavior: 'smooth' })} style={{ flex: '1 1 200px', maxWidth: '250px', padding: '1.25rem', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', fontSize: '1.1rem' }}>
                                         Locations & Maps
                                     </button>
+                                    {hasContactSection && (
+                                        <button className="btn-secondary hero-btn" onClick={() => document.getElementById('contact-us')?.scrollIntoView({ behavior: 'smooth' })} style={{ flex: '1 1 200px', maxWidth: '250px', padding: '1.25rem', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', fontSize: '1.1rem' }}>
+                                            Contact Us
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
@@ -565,6 +578,54 @@ function VendorLandingPage() {
                             </div>
                         </div>
                     </section>}
+
+                    {hasContactSection && (
+                        <section id="contact-us" style={{ padding: '8rem 2rem', background: '#020617' }}>
+                            <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem', alignItems: 'stretch' }}>
+                                <div>
+                                    <span style={{ color: 'var(--primary-color)', fontWeight: 'bold', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>
+                                        Contact
+                                    </span>
+                                    <h2 style={{ fontSize: '3rem', fontWeight: '800', marginBottom: '1rem' }}>Reach the team directly</h2>
+                                    <p style={{ color: '#94a3b8', lineHeight: '1.7', fontSize: '1.05rem' }}>
+                                        Need to ask something before ordering, confirm a booking detail, or chat with the business directly? Use the contact details below.
+                                    </p>
+                                </div>
+
+                                <div style={{ background: 'rgba(30, 41, 59, 0.82)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '2rem', display: 'grid', gap: '1rem' }}>
+                                    {contactWhatsapp && (
+                                        <div style={{ padding: '1rem 1.1rem', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(15, 23, 42, 0.85)' }}>
+                                            <div style={{ color: '#94a3b8', fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '1.3px', marginBottom: '0.35rem' }}>WhatsApp</div>
+                                            <div style={{ color: '#f8fafc', fontSize: '1.05rem', fontWeight: '700', marginBottom: '0.85rem', wordBreak: 'break-word' }}>{contactWhatsapp}</div>
+                                            {whatsappLinkNumber && (
+                                                <a
+                                                    href={`https://wa.me/${whatsappLinkNumber}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.85rem 1.1rem', borderRadius: '12px', background: 'var(--primary-color)', color: '#03140b', textDecoration: 'none', fontWeight: '800' }}
+                                                >
+                                                    Open WhatsApp
+                                                </a>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {contactEmail && (
+                                        <div style={{ padding: '1rem 1.1rem', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(15, 23, 42, 0.85)' }}>
+                                            <div style={{ color: '#94a3b8', fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '1.3px', marginBottom: '0.35rem' }}>Email</div>
+                                            <div style={{ color: '#f8fafc', fontSize: '1.05rem', fontWeight: '700', marginBottom: '0.85rem', wordBreak: 'break-word' }}>{contactEmail}</div>
+                                            <a
+                                                href={`mailto:${contactEmail}`}
+                                                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.85rem 1.1rem', borderRadius: '12px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#f8fafc', textDecoration: 'none', fontWeight: '700' }}
+                                            >
+                                                Send Email
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </section>
+                    )}
 
                     {/* Find Us Section (Locations & Maps) */}
                     <section id="find-us" style={{ padding: '8rem 2rem', background: '#0f172a' }}>
@@ -743,6 +804,22 @@ function VendorLandingPage() {
                            <p style={{ maxWidth: '600px', margin: '0 auto 3rem auto', lineHeight: '1.8' }}>
                                {branding.about_text || 'Fresh flavours, warm hospitality, and service shaped around your business and your guests.'}
                            </p>
+                           <div style={{ display: 'flex', justifyContent: 'center', gap: '1.25rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+                               <button
+                                   type="button"
+                                   onClick={() => setActiveLegalDoc('terms')}
+                                   style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: '600' }}
+                               >
+                                   Terms & Conditions
+                               </button>
+                               <button
+                                   type="button"
+                                   onClick={() => setActiveLegalDoc('privacy')}
+                                   style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: '600' }}
+                               >
+                                   Privacy Policy
+                               </button>
+                           </div>
                            <p>&copy; {new Date().getFullYear()} {vendor.name}. All rights reserved. Powered by <span style={{ color: '#00e676', fontWeight: 'bold' }}>VulaHub</span>.</p>
                         </div>
                     </footer>
@@ -849,6 +926,64 @@ function VendorLandingPage() {
                     </button>
                 )}
             </div>
+
+            {activeLegalDoc && (
+                <div style={{ position: 'fixed', inset: 0, zIndex: 1200, background: 'rgba(2, 6, 23, 0.82)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
+                    <div style={{ width: 'min(860px, 100%)', maxHeight: '85vh', overflowY: 'auto', background: '#0f172a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '24px', boxShadow: '0 30px 80px rgba(0,0,0,0.45)' }}>
+                        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+                            <div>
+                                <div style={{ color: 'var(--primary-color)', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase', fontSize: '0.8rem', marginBottom: '0.35rem' }}>
+                                    Legal
+                                </div>
+                                <h3 style={{ margin: 0, color: '#f8fafc', fontSize: '1.4rem' }}>
+                                    {activeLegalDoc === 'terms' ? 'Terms & Conditions' : 'Privacy Policy'}
+                                </h3>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setActiveLegalDoc(null)}
+                                style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#cbd5e1', borderRadius: '12px', padding: '0.65rem 0.9rem', cursor: 'pointer' }}
+                            >
+                                Close
+                            </button>
+                        </div>
+
+                        <div style={{ padding: '1.5rem', color: '#cbd5e1', lineHeight: '1.8' }}>
+                            {activeLegalDoc === 'terms' ? (
+                                <>
+                                    <p>
+                                        By using this website to browse the menu, place orders, submit booking requests, or contact <strong>{vendor.name}</strong>, you agree to use the service lawfully and provide accurate information.
+                                    </p>
+                                    <p>
+                                        Orders, bookings, fulfilment times, availability, pricing, refunds, and service delivery are managed by the vendor operating this storefront. Product availability may change without notice, and submitted requests are subject to confirmation by the business.
+                                    </p>
+                                    <p>
+                                        If you place an order or submit a reservation request, you are responsible for supplying the correct contact details, collection or delivery information, and any relevant booking notes. The business may contact you to confirm or adjust your request.
+                                    </p>
+                                    <p>
+                                        VulaHub provides the software that powers this storefront, but food quality, hygiene, fulfilment, venue service, and direct customer service obligations remain the responsibility of the vendor.
+                                    </p>
+                                </>
+                            ) : (
+                                <>
+                                    <p>
+                                        This storefront may collect personal details you submit directly, such as your name, WhatsApp number, email address, order details, reservation details, and support messages. That information is used to process orders, confirm bookings, provide support, and operate the storefront experience.
+                                    </p>
+                                    <p>
+                                        Information submitted on this site is shared with <strong>{vendor.name}</strong> for business operations and may also be processed by VulaHub as the platform provider for hosting, order management, reservations, analytics, and related communications.
+                                    </p>
+                                    <p>
+                                        Payment information is handled through the configured payment provider and is not stored in full on the public storefront. Contact details may be used to send order updates, booking confirmations, or support follow-ups relevant to your interaction with the business.
+                                    </p>
+                                    <p>
+                                        If you want your information corrected or removed, contact the business directly using the details on this website, or reach out to platform support where applicable.
+                                    </p>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

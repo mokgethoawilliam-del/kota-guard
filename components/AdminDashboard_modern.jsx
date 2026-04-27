@@ -4560,6 +4560,26 @@ export default function AdminDashboard({ session }) {
                                                 <input type="text" className="kds-input" value={vendorConfig.branding?.welcome_text || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, welcome_text: e.target.value}})} />
                                             </div>
                                             <div className="form-group">
+                                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={Boolean(vendorConfig.branding?.enable_reservations)}
+                                                        onChange={(e) => setVendorConfig({
+                                                            ...vendorConfig,
+                                                            branding: {
+                                                                ...vendorConfig.branding,
+                                                                enable_reservations: e.target.checked
+                                                            }
+                                                        })}
+                                                        style={{ width: '16px', height: '16px' }}
+                                                    />
+                                                    Enable Reservations & Venue Bookings
+                                                </label>
+                                                <small style={{ color: '#64748b', display: 'block', marginTop: '0.5rem' }}>
+                                                    Turn this on only for restaurants, lounges, and venues that want booking requests on the landing page.
+                                                </small>
+                                            </div>
+                                            <div className="form-group">
                                                 <label>Hero Title</label>
                                                 <input type="text" className="kds-input" value={vendorConfig.branding?.hero_title || ''} onChange={(e) => setVendorConfig({...vendorConfig, branding: {...vendorConfig.branding, hero_title: e.target.value}})} placeholder="e.g. Good food for" />
                                             </div>

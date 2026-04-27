@@ -349,6 +349,7 @@ function VendorLandingPage() {
 
     const branding = vendor.branding || {};
     const landingLogoUrl = vendor.logo_url || branding.logo_url || '';
+    const reservationsEnabled = Boolean(branding.enable_reservations);
 
     return (
         <div className="landing-wrapper" style={{ background: '#0f172a', color: '#f8fafc', position: 'relative', minHeight: '100vh' }}>
@@ -403,7 +404,9 @@ function VendorLandingPage() {
                                         {branding.hero_title || 'Good food for'} <span style={{ color: 'var(--primary-color)' }}>{branding.hero_highlight || 'every occasion.'}</span>
                                     </h1>
                                     <p className="hero-subtitle" style={{ fontSize: '1.25rem', marginTop: '1.5rem', opacity: 0.9, color: '#94a3b8' }}>
-                                        {branding.hero_subtitle || 'Order online, book a table, or connect with the team in a few taps.'}
+                                        {branding.hero_subtitle || (reservationsEnabled
+                                            ? 'Order online, book a table, or connect with the team in a few taps.'
+                                            : 'Order online, explore the menu, or connect with the team in a few taps.')}
                                     </p>
                                 </div>
 
@@ -411,9 +414,11 @@ function VendorLandingPage() {
                                     <button className="btn-primary hero-btn" onClick={() => setView('menu')} style={{ flex: '1 1 200px', maxWidth: '250px', padding: '1.25rem', fontSize: '1.1rem' }}>
                                         Start Online Order
                                     </button>
-                                    <button className="btn-secondary hero-btn" onClick={() => document.getElementById('book-with-us')?.scrollIntoView({ behavior: 'smooth' })} style={{ flex: '1 1 200px', maxWidth: '250px', padding: '1.25rem', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', fontSize: '1.1rem' }}>
-                                        Book a Table / Venue
-                                    </button>
+                                    {reservationsEnabled && (
+                                        <button className="btn-secondary hero-btn" onClick={() => document.getElementById('book-with-us')?.scrollIntoView({ behavior: 'smooth' })} style={{ flex: '1 1 200px', maxWidth: '250px', padding: '1.25rem', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', fontSize: '1.1rem' }}>
+                                            Book a Table / Venue
+                                        </button>
+                                    )}
                                     <button className="btn-secondary hero-btn" onClick={() => document.getElementById('find-us').scrollIntoView({ behavior: 'smooth' })} style={{ flex: '1 1 200px', maxWidth: '250px', padding: '1.25rem', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', fontSize: '1.1rem' }}>
                                         Locations & Maps
                                     </button>
@@ -454,7 +459,7 @@ function VendorLandingPage() {
                         </div>
                     </section>
 
-                    <section id="book-with-us" style={{ padding: '8rem 2rem', background: '#0f172a' }}>
+                    {reservationsEnabled && <section id="book-with-us" style={{ padding: '8rem 2rem', background: '#0f172a' }}>
                         <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem', alignItems: 'start' }}>
                             <div>
                                 <span style={{ color: 'var(--primary-color)', fontWeight: 'bold', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>
@@ -559,7 +564,7 @@ function VendorLandingPage() {
                                 )}
                             </div>
                         </div>
-                    </section>
+                    </section>}
 
                     {/* Find Us Section (Locations & Maps) */}
                     <section id="find-us" style={{ padding: '8rem 2rem', background: '#0f172a' }}>

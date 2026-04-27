@@ -61,6 +61,7 @@ export default function AdminDashboard({ session }) {
     const [heroImageFile, setHeroImageFile] = useState(null);
     const [logoFile, setLogoFile] = useState(null);
     const [uploadingHero, setUploadingHero] = useState(false);
+    const [brandingActivePanel, setBrandingActivePanel] = useState('overview');
     const [cmsCopilotPrompt, setCmsCopilotPrompt] = useState('');
     const [cmsCopilotLoading, setCmsCopilotLoading] = useState(false);
     const [cmsCopilotDraft, setCmsCopilotDraft] = useState(null);
@@ -4365,9 +4366,52 @@ export default function AdminDashboard({ session }) {
                         {/* 4. Brand & Website Identity */}
                         {cmsActiveSubTab === 'branding' && (
                             <div className="finances-card" style={{ border: '1px solid #00e676' }}>
-                                <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                     Brand & Website Identity
-                                </h2>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+                                    <h2 style={{ fontSize: '1.5rem', margin: 0, display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                         Brand & Website Identity
+                                    </h2>
+                                    {brandingActivePanel !== 'overview' && (
+                                        <button
+                                            type="button"
+                                            className="btn-secondary"
+                                            onClick={() => setBrandingActivePanel('overview')}
+                                        >
+                                            Back to Brand Settings
+                                        </button>
+                                    )}
+                                </div>
+
+                                {brandingActivePanel === 'overview' && (
+                                    <div style={{ display: 'grid', gap: '1rem', marginBottom: '1.5rem' }}>
+                                        <button
+                                            type="button"
+                                            className="btn-secondary"
+                                            onClick={() => setBrandingActivePanel('identity')}
+                                            style={{ justifyContent: 'space-between', textAlign: 'left', padding: '1.1rem 1.25rem', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: '#f8fafc' }}
+                                        >
+                                            <span>
+                                                <strong style={{ display: 'block', marginBottom: '0.25rem' }}>1. Core Brand Settings</strong>
+                                                <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Logo, hero copy, reservations toggle, colors, domain, and website identity.</span>
+                                            </span>
+                                            <span style={{ color: '#00e676' }}>Open</span>
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            className="btn-secondary"
+                                            onClick={() => setBrandingActivePanel('copilot')}
+                                            style={{ justifyContent: 'space-between', textAlign: 'left', padding: '1.1rem 1.25rem', background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.22)', color: '#f8fafc' }}
+                                        >
+                                            <span>
+                                                <strong style={{ display: 'block', marginBottom: '0.25rem' }}>2. Website CMS Copilot</strong>
+                                                <span style={{ color: '#c4b5fd', fontSize: '0.9rem' }}>Draft landing-page copy, tone, and visual direction before applying it to the CMS fields.</span>
+                                            </span>
+                                            <span style={{ color: '#c4b5fd' }}>Open</span>
+                                        </button>
+                                    </div>
+                                )}
+
+                                {brandingActivePanel === 'copilot' && (
                                 <div style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.22)', borderRadius: '16px', padding: '1.25rem', marginBottom: '1.5rem' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
                                         <div>
@@ -4473,7 +4517,8 @@ export default function AdminDashboard({ session }) {
                                         </div>
                                     )}
                                 </div>
-                                {vendorConfig ? (
+                                )}
+                                {brandingActivePanel === 'identity' && vendorConfig ? (
                                     <form onSubmit={async (e) => {
                                         e.preventDefault();
                                         try {
@@ -4644,9 +4689,9 @@ export default function AdminDashboard({ session }) {
                                         </button>
 
                                         </form>
-                                        ) : (
+                                        ) : brandingActivePanel === 'identity' ? (
                                             <p>Loading vendor settings...</p>
-                                        )}
+                                        ) : null}
                                     </div>
                                 )}
                             </div>

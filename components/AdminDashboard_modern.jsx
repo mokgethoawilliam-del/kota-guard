@@ -3235,6 +3235,7 @@ export default function AdminDashboard({ session }) {
                                 <li><strong>Collection flow is cleaner</strong>. Orders still use the PIN flow when a PIN exists, but older affected orders can still be completed through the normal collected button.</li>
                                 <li><strong>Vendor payments are separated</strong>. Vendor buyer payments and your own platform billing are no longer mixed together.</li>
                                 <li><strong>Staff access is tighter</strong>. Inventory staff are now restricted to stock-related tools instead of seeing full owner-level controls.</li>
+                                <li><strong>AI PDF reports are now supported</strong> for buyers, items, branches, sales, expenses, stock, kitchen activity, and more.</li>
                             </ul>
                         </div>
 
@@ -3247,6 +3248,7 @@ export default function AdminDashboard({ session }) {
                                 <li>Use it for questions like <strong>"What should I focus on right now?"</strong> or <strong>"Which orders are stuck?"</strong></li>
                                 <li>You can also tell it stock actions like <strong>"Add 20 cheese slices"</strong> and then confirm the update.</li>
                                 <li>If you buy ingredients in bulk, the AI can convert them into usable stock when you set up a restock conversion rule.</li>
+                                <li>You can ask for branded PDFs such as <strong>"generate my top buyers report from April to May"</strong> or <strong>"make a net profit PDF for this month"</strong>.</li>
                             </ul>
                         </div>
 
@@ -3273,6 +3275,28 @@ export default function AdminDashboard({ session }) {
                                 <li>Recipes deduct from usable stock automatically when orders are fulfilled.</li>
                                 <li>AI-assisted stock adjustments are logged for accountability.</li>
                             </ul>
+                        </div>
+
+                        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '2rem' }}>
+                            <h3 style={{ fontSize: '1.5rem', color: '#38bdf8', marginBottom: '1rem' }}> Shop Registration & Website</h3>
+                            <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
+                                When a vendor registers a shop, the system creates a vendor record, gives it a unique slug, and automatically makes a live landing page for that business.
+                            </p>
+                            <ul style={{ color: '#cbd5e1', marginTop: '1rem', paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <li>The landing page lives on a vendor route like <strong>/v/shop-slug</strong>.</li>
+                                <li>Branding, menu, testimonials, and support chat all feed into that vendor page.</li>
+                                <li>Custom domains can also point to the same vendor storefront when configured.</li>
+                            </ul>
+                        </div>
+
+                        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '2rem' }}>
+                            <h3 style={{ fontSize: '1.5rem', color: '#f97316', marginBottom: '1rem' }}> Reservations & Venue Bookings</h3>
+                            <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
+                                Table bookings and venue reservations are <strong>not yet built into this admin</strong>. The current system is strong for takeaway, delivery, kitchen flow, support chat, stock, and branded storefronts, but reservations need their own booking model.
+                            </p>
+                            <p style={{ color: '#cbd5e1', lineHeight: '1.6', marginTop: '0.85rem' }}>
+                                For a restaurant or venue client, we can add a reservation module with booking slots, guest counts, booking status, deposits, and staff-facing reservation management inside this same admin.
+                            </p>
                         </div>
 
                         <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '2rem' }}>

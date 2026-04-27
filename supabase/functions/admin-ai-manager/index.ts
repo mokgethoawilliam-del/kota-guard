@@ -181,6 +181,12 @@ function parsePdfReportIntent(message: string) {
     | "top_buyers"
     | "top_items"
     | "sales_summary"
+    | "net_profit"
+    | "repeat_customers"
+    | "unpaid_orders"
+    | "kitchen_performance"
+    | "stock_usage_wastage"
+    | "staff_performance"
     | "expenses_summary"
     | "low_stock"
     | "order_status"
@@ -191,6 +197,18 @@ function parsePdfReportIntent(message: string) {
     kind = "top_buyers";
   } else if (/\btop\b/.test(normalized) && /\b(item|items|menu|product|products|seller|sellers)\b/.test(normalized)) {
     kind = "top_items";
+  } else if (/\b(repeat|returning|loyal)\b/.test(normalized) && /\b(customer|customers|buyer|buyers)\b/.test(normalized)) {
+    kind = "repeat_customers";
+  } else if (/\b(net profit|profit)\b/.test(normalized)) {
+    kind = "net_profit";
+  } else if (/\b(unpaid|pending|owing|debt|debtor|debtors)\b/.test(normalized) && /\b(order|orders|customer|customers|report|pdf)\b/.test(normalized)) {
+    kind = "unpaid_orders";
+  } else if (/\b(kitchen|preparing|ready|collection|delivery)\b/.test(normalized) && /\b(report|performance|pdf|summary)\b/.test(normalized)) {
+    kind = "kitchen_performance";
+  } else if (/\b(wastage|waste|stock usage|usage|consumption|inventory movement)\b/.test(normalized)) {
+    kind = "stock_usage_wastage";
+  } else if (/\b(staff|employee|employees|team|cashier|runner|clerk)\b/.test(normalized) && /\b(report|performance|activity|pdf)\b/.test(normalized)) {
+    kind = "staff_performance";
   } else if (/\b(branch|branches|location|locations|stall|stalls)\b/.test(normalized) && /\b(report|performance|sales|revenue|pdf)\b/.test(normalized)) {
     kind = "branch_performance";
   } else if (/\b(expense|expenses|cost|costs|spend)\b/.test(normalized)) {
@@ -519,6 +537,50 @@ serve(async (req) => {
 
     const reportIntent = parsePdfReportIntent(message);
     if (reportIntent && !isInventoryStaff) {
+      const { data: reportExpenses, error: reportExpensesError } = await supabase
+        .from("expenses")
+        .select("description, amount, expense_date")
+        .eq("vendor_id", vendorId)
+        .gte("expense_date", reportIntent.startDateIso)
+        .lte("expense_date", reportIntent.endDateIso)
+        .order("expense_date", { ascending: false })
+        .limit(500);
+
+      if (reportExpensesError) throw reportExpensesError;
+
+      const { data: reportAdjustments, error: reportAdjustmentsError } = await supabase
+        .from("inventory_adjustments")
+        .select("operation, quantity, previous_stock, new_stock, note, source, created_at, actor_user_id")
+        .eq("vendor_id", vendorId)
+        .gte("created_at", reportIntent.startDateIso)
+        .lte("created_at", reportIntent.endDateIso)
+        .order("created_at", { ascending: false })
+        .limit(1000);
+
+      if (reportAdjustmentsError) throw reportAdjustmentsError;
+
+      const actorIds = Array.from(new Set((reportAdjustments || []).map((entry: any) => entry.actor_user_id).filter(Boolean)));
+      let profilesById = new Map<string, any>();
+      if (actorIds.length > 0) {
+        const { data: adjustmentProfiles } = await supabase
+          .from("profiles")
+          .select("id, full_name, role")
+          .in("id", actorIds);
+        profilesById = new Map((adjustmentProfiles || []).map((profile: any) => [profile.id, profile]));
+      }
+
+      const { data: pendingOrders, error: pendingOrdersError } = await supabase
+        .from("orders")
+        .select("order_number, customer_name, customer_phone, total_price, created_at, status")
+        .eq("vendor_id", vendorId)
+        .eq("status", "pending")
+        .gte("created_at", reportIntent.startDateIso)
+        .lte("created_at", reportIntent.endDateIso)
+        .order("created_at", { ascending: false })
+        .limit(1000);
+
+      if (pendingOrdersError) throw pendingOrdersError;
+
       const { data: reportOrders, error: reportOrdersError } = await supabase
         .from("orders")
         .select(`
@@ -544,6 +606,9 @@ serve(async (req) => {
       if (reportOrdersError) throw reportOrdersError;
 
       const typedOrders = (reportOrders || []) as any[];
+      const typedExpenses = (reportExpenses || []) as any[];
+      const typedAdjustments = (reportAdjustments || []) as any[];
+      const typedPendingOrders = (pendingOrders || []) as any[];
       const generatedAt = new Date().toISOString();
 
       if (reportIntent.reportKind === "top_buyers") {
@@ -677,18 +742,126 @@ serve(async (req) => {
         });
       }
 
-      if (reportIntent.reportKind === "expenses_summary") {
-        const { data: reportExpenses, error: reportExpensesError } = await supabase
-          .from("expenses")
-          .select("description, amount, expense_date")
-          .eq("vendor_id", vendorId)
-          .gte("expense_date", reportIntent.startDateIso)
-          .lte("expense_date", reportIntent.endDateIso)
-          .order("expense_date", { ascending: false })
-          .limit(500);
+      if (reportIntent.reportKind === "net_profit") {
+        const grossRevenue = typedOrders.reduce((sum, order) => sum + Number(order.total_price || 0), 0);
+        const totalExpenses = typedExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+        const netProfit = grossRevenue - totalExpenses;
+        const rows = [
+          { metric: "Gross Revenue", amount: Number(grossRevenue.toFixed(2)) },
+          { metric: "Logged Expenses", amount: Number(totalExpenses.toFixed(2)) },
+          { metric: "Estimated Net Profit", amount: Number(netProfit.toFixed(2)) },
+        ];
+        return jsonResponse({
+          reply: `I prepared a net profit PDF for ${reportIntent.dateLabel}.`,
+          pending_action: {
+            type: "pdf_report",
+            report_kind: "net_profit",
+            title: "Net Profit Report",
+            subtitle: reportIntent.dateLabel,
+            columns: [
+              { key: "metric", label: "Metric" },
+              { key: "amount", label: "Amount", format: "currency" },
+            ],
+            rows,
+            generated_at: generatedAt,
+            summary: {
+              gross_revenue: Number(grossRevenue.toFixed(2)),
+              total_expenses: Number(totalExpenses.toFixed(2)),
+              estimated_net_profit: Number(netProfit.toFixed(2)),
+            },
+          },
+        });
+      }
 
-        if (reportExpensesError) throw reportExpensesError;
-        const typedExpenses = (reportExpenses || []) as any[];
+      if (reportIntent.reportKind === "repeat_customers") {
+        const buyersMap = new Map<string, any>();
+        for (const order of typedOrders) {
+          const key = `${order.customer_phone || ""}::${order.customer_name || ""}`;
+          const existing = buyersMap.get(key) || {
+            customer_name: order.customer_name || "Walk-in",
+            customer_phone: order.customer_phone || "-",
+            order_count: 0,
+            total_spend: 0,
+            first_order_at: order.created_at,
+            latest_order_at: order.created_at,
+          };
+          existing.order_count += 1;
+          existing.total_spend += Number(order.total_price || 0);
+          if (new Date(order.created_at).getTime() < new Date(existing.first_order_at).getTime()) existing.first_order_at = order.created_at;
+          if (new Date(order.created_at).getTime() > new Date(existing.latest_order_at).getTime()) existing.latest_order_at = order.created_at;
+          buyersMap.set(key, existing);
+        }
+
+        const repeatRows = Array.from(buyersMap.values())
+          .filter((buyer) => buyer.order_count > 1)
+          .sort((a, b) => (b.order_count - a.order_count) || (b.total_spend - a.total_spend))
+          .slice(0, reportIntent.limit)
+          .map((buyer, index) => ({
+            rank: index + 1,
+            ...buyer,
+            total_spend: Number(buyer.total_spend.toFixed(2)),
+          }));
+
+        if (repeatRows.length === 0) {
+          return jsonResponse({ reply: `I could not find repeat customers in ${reportIntent.dateLabel} yet.`, pending_action: null });
+        }
+
+        return jsonResponse({
+          reply: `I prepared a repeat-customer PDF for ${reportIntent.dateLabel}.`,
+          pending_action: {
+            type: "pdf_report",
+            report_kind: "repeat_customers",
+            title: "Repeat Customer Report",
+            subtitle: reportIntent.dateLabel,
+            columns: [
+              { key: "rank", label: "Rank" },
+              { key: "customer_name", label: "Customer" },
+              { key: "customer_phone", label: "WhatsApp" },
+              { key: "order_count", label: "Orders" },
+              { key: "total_spend", label: "Total Spend", format: "currency" },
+              { key: "latest_order_at", label: "Last Order", format: "date" },
+            ],
+            rows: repeatRows,
+            generated_at: generatedAt,
+            summary: {
+              repeat_customer_count: repeatRows.length,
+              repeat_revenue: Number(repeatRows.reduce((sum, buyer) => sum + buyer.total_spend, 0).toFixed(2)),
+            },
+          },
+        });
+      }
+
+      if (reportIntent.reportKind === "unpaid_orders") {
+        if (typedPendingOrders.length === 0) {
+          return jsonResponse({ reply: `I could not find pending or unpaid orders for ${reportIntent.dateLabel}.`, pending_action: null });
+        }
+
+        return jsonResponse({
+          reply: `I prepared an unpaid-orders PDF for ${reportIntent.dateLabel}.`,
+          pending_action: {
+            type: "pdf_report",
+            report_kind: "unpaid_orders",
+            title: "Pending / Unpaid Orders",
+            subtitle: reportIntent.dateLabel,
+            columns: [
+              { key: "order_number", label: "Order #" },
+              { key: "customer_name", label: "Customer" },
+              { key: "customer_phone", label: "WhatsApp" },
+              { key: "total_price", label: "Amount", format: "currency" },
+              { key: "created_at", label: "Created", format: "date" },
+              { key: "status", label: "Status" },
+            ],
+            rows: typedPendingOrders.map((order) => ({ ...order, total_price: Number(order.total_price || 0) })),
+            generated_at: generatedAt,
+            summary: {
+              unpaid_order_count: typedPendingOrders.length,
+              unpaid_value: Number(typedPendingOrders.reduce((sum, order) => sum + Number(order.total_price || 0), 0).toFixed(2)),
+            },
+          },
+        });
+      }
+
+      if (reportIntent.reportKind === "expenses_summary") {
         if (typedExpenses.length === 0) {
           return jsonResponse({ reply: `I could not find expense records for ${reportIntent.dateLabel} yet.`, pending_action: null });
         }
@@ -780,6 +953,128 @@ serve(async (req) => {
             summary: {
               order_count: typedOrders.length,
               ready_orders: typedOrders.filter((order) => order.status === "ready").length,
+            },
+          },
+        });
+      }
+
+      if (reportIntent.reportKind === "kitchen_performance") {
+        const rows = [
+          { metric: "Orders sent to kitchen", value: typedOrders.filter((order) => ["preparing", "ready", "completed"].includes(order.status)).length },
+          { metric: "Still preparing", value: typedOrders.filter((order) => order.status === "preparing").length },
+          { metric: "Ready for collection", value: typedOrders.filter((order) => order.status === "ready").length },
+          { metric: "Completed handoffs", value: typedOrders.filter((order) => order.status === "completed").length },
+          { metric: "Customer arrived alerts", value: typedOrders.filter((order) => order.customer_arrived).length },
+        ];
+        return jsonResponse({
+          reply: `I prepared a kitchen performance PDF for ${reportIntent.dateLabel}.`,
+          pending_action: {
+            type: "pdf_report",
+            report_kind: "kitchen_performance",
+            title: "Kitchen Performance",
+            subtitle: reportIntent.dateLabel,
+            columns: [
+              { key: "metric", label: "Metric" },
+              { key: "value", label: "Value" },
+            ],
+            rows,
+            generated_at: generatedAt,
+            summary: {
+              kitchen_orders: rows[0].value,
+              ready_orders: rows[2].value,
+              completed_handoffs: rows[3].value,
+            },
+          },
+        });
+      }
+
+      if (reportIntent.reportKind === "stock_usage_wastage") {
+        if (typedAdjustments.length === 0) {
+          return jsonResponse({ reply: `I could not find inventory adjustment activity for ${reportIntent.dateLabel}.`, pending_action: null });
+        }
+
+        const usageRows = typedAdjustments.map((entry) => ({
+          created_at: entry.created_at,
+          operation: entry.operation,
+          quantity: Number(entry.quantity || 0),
+          source: entry.source || "manual",
+          note: entry.note || "-",
+        }));
+
+        const wasteCount = typedAdjustments.filter((entry) => /waste|wastage|damage/i.test(`${entry.note || ""} ${entry.source || ""}`)).length;
+
+        return jsonResponse({
+          reply: `I prepared a stock usage and wastage PDF for ${reportIntent.dateLabel}.`,
+          pending_action: {
+            type: "pdf_report",
+            report_kind: "stock_usage_wastage",
+            title: "Stock Usage & Wastage",
+            subtitle: reportIntent.dateLabel,
+            columns: [
+              { key: "created_at", label: "Date", format: "date" },
+              { key: "operation", label: "Operation" },
+              { key: "quantity", label: "Quantity" },
+              { key: "source", label: "Source" },
+              { key: "note", label: "Note" },
+            ],
+            rows: usageRows,
+            generated_at: generatedAt,
+            summary: {
+              adjustment_count: typedAdjustments.length,
+              waste_flagged_entries: wasteCount,
+            },
+          },
+        });
+      }
+
+      if (reportIntent.reportKind === "staff_performance") {
+        if (typedAdjustments.length === 0 || actorIds.length === 0) {
+          return jsonResponse({ reply: `I do not have enough staff activity data for ${reportIntent.dateLabel} yet. Staff reports currently rely on logged inventory adjustments.`, pending_action: null });
+        }
+
+        const staffMap = new Map<string, any>();
+        for (const entry of typedAdjustments) {
+          const actorId = entry.actor_user_id || "unknown";
+          const profile = profilesById.get(actorId);
+          const label = profile?.full_name || (actorId === "unknown" ? "Unassigned User" : "Staff User");
+          const existing = staffMap.get(actorId) || {
+            staff_name: label,
+            role: profile?.role || "unknown",
+            adjustment_count: 0,
+            total_quantity_touched: 0,
+          };
+          existing.adjustment_count += 1;
+          existing.total_quantity_touched += Number(entry.quantity || 0);
+          staffMap.set(actorId, existing);
+        }
+
+        const staffRows = Array.from(staffMap.values())
+          .sort((a, b) => (b.adjustment_count - a.adjustment_count) || (b.total_quantity_touched - a.total_quantity_touched))
+          .map((entry, index) => ({
+            rank: index + 1,
+            ...entry,
+            total_quantity_touched: Number(entry.total_quantity_touched.toFixed(2)),
+          }));
+
+        return jsonResponse({
+          reply: `I prepared a staff activity PDF for ${reportIntent.dateLabel}.`,
+          pending_action: {
+            type: "pdf_report",
+            report_kind: "staff_performance",
+            title: "Staff Activity Report",
+            subtitle: reportIntent.dateLabel,
+            columns: [
+              { key: "rank", label: "Rank" },
+              { key: "staff_name", label: "Staff" },
+              { key: "role", label: "Role" },
+              { key: "adjustment_count", label: "Logged Actions" },
+              { key: "total_quantity_touched", label: "Qty Touched" },
+            ],
+            rows: staffRows,
+            generated_at: generatedAt,
+            summary: {
+              active_staff_count: staffRows.length,
+              logged_actions: staffRows.reduce((sum, entry) => sum + Number(entry.adjustment_count || 0), 0),
             },
           },
         });

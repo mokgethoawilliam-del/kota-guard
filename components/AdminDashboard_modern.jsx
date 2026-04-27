@@ -3077,57 +3077,80 @@ export default function AdminDashboard({ session }) {
                 <div className="vault-container" style={{ maxWidth: '800px', margin: '0 auto' }}>
                     <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
                         <h2 style={{ fontSize: '2.5rem', marginBottom: '1rem', color: '#60a5fa' }}> Welcome to the Help Center!</h2>
-                        <p style={{ color: '#94a3b8', fontSize: '1.1rem' }}>Here is everything you need to know about your shop, explained simply so even a 10-year-old could run it.</p>
+                        <p style={{ color: '#94a3b8', fontSize: '1.1rem' }}>
+                            Here is the latest on how your shop works now, including the newer AI, stock, payment, and staff access changes.
+                        </p>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                        {/* Section 1 */}
-                        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '2rem' }}>
-                            <h3 style={{ fontSize: '1.5rem', color: '#00e676', marginBottom: '1rem' }}> Live Kitchen</h3>
-                            <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
-                                Think of the <strong>Live Kitchen</strong> as the beating heart of your shop. When a customer orders online or via WhatsApp, a magic ticket pops up here under "New Orders." 
-                            </p>
-                            <ul style={{ color: '#cbd5e1', marginTop: '1rem', paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                <li>Click <strong>Start Preparing</strong> when you put the kota in the pan. The customer gets told you are cooking!</li>
-                                <li>Click <strong>Mark Ready</strong> when it is in the box.</li>
-                                <li>Click <strong>Collected / Done</strong> when you hand it to the customer, and the ticket goes to the History vault.</li>
+                        <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.22)', borderRadius: '12px', padding: '2rem' }}>
+                            <h3 style={{ fontSize: '1.5rem', color: '#60a5fa', marginBottom: '1rem' }}> Recent Developments</h3>
+                            <ul style={{ color: '#cbd5e1', paddingLeft: '1.25rem', margin: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem', lineHeight: '1.6' }}>
+                                <li><strong>AI Manager</strong> can now answer shop questions, highlight low-stock risk, and help with stock updates.</li>
+                                <li><strong>Stock updates are safer</strong>. AI suggestions now ask for confirmation before anything changes in inventory.</li>
+                                <li><strong>Collection flow is cleaner</strong>. Orders still use the PIN flow when a PIN exists, but older affected orders can still be completed through the normal collected button.</li>
+                                <li><strong>Vendor payments are separated</strong>. Vendor buyer payments and your own platform billing are no longer mixed together.</li>
+                                <li><strong>Staff access is tighter</strong>. Inventory staff are now restricted to stock-related tools instead of seeing full owner-level controls.</li>
                             </ul>
                         </div>
 
-                        {/* Section 2 */}
                         <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '2rem' }}>
-                            <h3 style={{ fontSize: '1.5rem', color: '#3b82f6', marginBottom: '1rem' }}> Live Chat</h3>
+                            <h3 style={{ fontSize: '1.5rem', color: '#8b5cf6', marginBottom: '1rem' }}> AI Manager</h3>
                             <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
-                                This is your secret walkie-talkie to your customers. If they get confused or want to change their order, they will send a message from their phone, and you will see it here. Just click their order number and type back!
+                                The <strong>AI Manager</strong> is your shop copilot. You can ask it about slow branches, stock pressure, active orders, low-stock items, and day summaries.
+                            </p>
+                            <ul style={{ color: '#cbd5e1', marginTop: '1rem', paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <li>Use it for questions like <strong>"What should I focus on right now?"</strong> or <strong>"Which orders are stuck?"</strong></li>
+                                <li>You can also tell it stock actions like <strong>"Add 20 cheese slices"</strong> and then confirm the update.</li>
+                                <li>If you buy ingredients in bulk, the AI can convert them into usable stock when you set up a restock conversion rule.</li>
+                            </ul>
+                        </div>
+
+                        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '2rem' }}>
+                            <h3 style={{ fontSize: '1.5rem', color: '#00e676', marginBottom: '1rem' }}> Live Kitchen</h3>
+                            <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
+                                Think of the <strong>Live Kitchen</strong> as the order control room. New paid orders appear there first, then move through preparing, ready, and completed.
+                            </p>
+                            <ul style={{ color: '#cbd5e1', marginTop: '1rem', paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <li>Click <strong>Start Preparing</strong> when the order enters the kitchen.</li>
+                                <li>Click <strong>Mark Ready</strong> when it is packed and waiting.</li>
+                                <li>Click <strong>Mark Collected</strong> or <strong>Mark Delivered</strong> to close the order.</li>
+                                <li>If the order has a collection PIN, the system will ask for it before completion.</li>
+                            </ul>
+                        </div>
+
+                        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '2rem' }}>
+                            <h3 style={{ fontSize: '1.5rem', color: '#f59e0b', marginBottom: '1rem' }}> Inventory</h3>
+                            <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
+                                Inventory now works mainly with <strong>usable stock count</strong>. That means you track what the kitchen can actually use, like slices, rolls, cups, or bottles, instead of relying on confusing measurement fields in the main flow.
+                            </p>
+                            <ul style={{ color: '#cbd5e1', marginTop: '1rem', paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <li>If you buy in bulk, add a restock conversion rule such as <strong>2 kg becomes 20 slices</strong>.</li>
+                                <li>Recipes deduct from usable stock automatically when orders are fulfilled.</li>
+                                <li>AI-assisted stock adjustments are logged for accountability.</li>
+                            </ul>
+                        </div>
+
+                        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '2rem' }}>
+                            <h3 style={{ fontSize: '1.5rem', color: '#3b82f6', marginBottom: '1rem' }}> Live Chat & Support</h3>
+                            <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
+                                <strong>Live Chat</strong> is still your direct support line to customers. Use it when someone is confused, delayed, or needs help with an order.
+                            </p>
+                            <p style={{ color: '#cbd5e1', lineHeight: '1.6', marginTop: '0.85rem' }}>
+                                The storefront assistant and WhatsApp flow can also hand sensitive cases back to human support when needed.
                             </p>
                         </div>
 
-                        {/* Section 3 */}
                         <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '2rem' }}>
-                            <h3 style={{ fontSize: '1.5rem', color: '#f59e0b', marginBottom: '1rem' }}> Finances &  Inventory</h3>
+                            <h3 style={{ fontSize: '1.5rem', color: '#22c55e', marginBottom: '1rem' }}> Payments & Security</h3>
                             <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
-                                <strong>Finances:</strong> This is your piggy bank. Every time a customer pays, money goes up! If you buy tomatoes, log it as an "Expense" so the piggy bank knows exactly how much you really made (Net Profit).
-                                <br/><br/>
-                                <strong>Inventory:</strong> If you start the day with 50 polony slices, tell the Inventory. Every time you make a Kota, the system automatically subtracts it for you!
+                                Your payment setup is more protected now. Public storefront pages no longer read secret vendor configuration directly, and payment verification happens on the server side.
                             </p>
-                        </div>
-
-                        {/* Section 4 */}
-                        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '2rem' }}>
-                            <h3 style={{ fontSize: '1.5rem', color: '#8b5cf6', marginBottom: '1rem' }}> CMS Settings</h3>
-                            <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
-                                The <strong>CMS</strong> (Content Management System) is your magic paintbrush. It lets you change your shop name, colors, add new items to the menu (like a new special chips), and set up new Stalls. Anything you change here instantly updates on the customer's phone!
-                            </p>
-                        </div>
-
-                        {/* Section 5 */}
-                        <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '12px', padding: '2rem' }}>
-                            <h3 style={{ fontSize: '1.5rem', color: '#f87171', marginBottom: '1rem' }}> Profile Dropdown (Top Right)</h3>
-                            <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
-                                See that little person icon in the top right corner? That's your private key. 
-                                <br/><br/>
-                                Click it to open the <strong>Security Vault</strong>. The Security Vault is heavily guarded (you need a password!) and holds the "API Keys" that connect your shop directly to Paystack banks so you get paid. Keep it locked!
-                            </p>
+                            <ul style={{ color: '#cbd5e1', marginTop: '1rem', paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <li>Your own platform billing keys stay separate from vendor buyer-payment keys.</li>
+                                <li>The <strong>Security Vault</strong> stores sensitive API keys and should remain owner/admin only.</li>
+                                <li>Inventory staff should use their restricted workspace instead of the owner dashboard.</li>
+                            </ul>
                         </div>
                     </div>
                 </div>

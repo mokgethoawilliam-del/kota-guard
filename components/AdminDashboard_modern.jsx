@@ -54,7 +54,7 @@ export default function AdminDashboard({ session }) {
     const [isDeletingAccount, setIsDeletingAccount] = useState(false);
     
     // Phase 11: CMS Sub-navigation
-    const [cmsActiveSubTab, setCmsActiveSubTab] = useState('menu'); // 'menu' | 'branches' | 'events' | 'branding'
+    const [cmsActiveSubTab, setCmsActiveSubTab] = useState('menu'); // 'menu' | 'gallery' | 'branches' | 'events' | 'branding'
     const [isSavingBranch, setIsSavingBranch] = useState(false);
     const [newBranch, setNewBranch] = useState({ name: '', address: '', google_maps_url: '', office_hours: '', is_active: true });
     const [editingBranch, setEditingBranch] = useState(null);
@@ -69,6 +69,10 @@ export default function AdminDashboard({ session }) {
     // Menu Image Upload State
     const [menuImageFile, setMenuImageFile] = useState(null);
     const [uploadingMenuImage, setUploadingMenuImage] = useState(false);
+    const [siteGallery, setSiteGallery] = useState([]);
+    const [galleryImageFile, setGalleryImageFile] = useState(null);
+    const [newGalleryCaption, setNewGalleryCaption] = useState('');
+    const [uploadingGalleryImage, setUploadingGalleryImage] = useState(false);
 
     // Custom Live Chat & KDS Clock State
     const [liveTime, setLiveTime] = useState(new Date().toLocaleTimeString());
@@ -475,6 +479,7 @@ export default function AdminDashboard({ session }) {
                 setHistoryOrders([]);
                 setExpenses([]);
                 setMenuItems([]);
+                setSiteGallery([]);
                 setChats([]);
                 setTestimonials([]);
                 setReservations([]);
@@ -538,6 +543,16 @@ export default function AdminDashboard({ session }) {
 
             if (!menuErr && menuData) {
                 setMenuItems(menuData);
+            }
+
+            const { data: galleryData, error: galleryErr } = await supabase
+                .from('site_gallery')
+                .select('*')
+                .eq('vendor_id', currentVendorId)
+                .order('created_at', { ascending: false });
+
+            if (!galleryErr && galleryData) {
+                setSiteGallery(galleryData);
             }
 
             const { data: chatData } = await supabase
@@ -1498,6 +1513,72 @@ export default function AdminDashboard({ session }) {
             alert("Paystack keys saved. Customer checkout now pays directly into this vendor's Paystack account.");
         } else {
             alert("Paystack keys cleared. Customer checkout is disabled until both keys are added again.");
+        }
+    };
+
+    const handleAddGalleryImage = async (e) => {
+        e.preventDefault();
+        if (!galleryImageFile || !currentVendorId) {
+            alert('Please choose an image first.');
+            return;
+        }
+
+        try {
+            setUploadingGalleryImage(true);
+            const fileExt = galleryImageFile.name.split('.').pop();
+            const fileName = `gallery_${Date.now()}.${fileExt}`;
+            const filePath = `site-gallery/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('business-documents')
+                .upload(filePath, galleryImageFile);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('business-documents')
+                .getPublicUrl(filePath);
+
+            const { data, error } = await supabase
+                .from('site_gallery')
+                .insert([{
+                    vendor_id: currentVendorId,
+                    image_url: publicUrl,
+                    caption: newGalleryCaption.trim() || null
+                }])
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            setSiteGallery([data, ...siteGallery]);
+            setGalleryImageFile(null);
+            setNewGalleryCaption('');
+            alert('Gallery image added.');
+        } catch (err) {
+            console.error(err);
+            alert(`Could not save gallery image: ${err.message || 'Unknown error'}`);
+        } finally {
+            setUploadingGalleryImage(false);
+        }
+    };
+
+    const handleDeleteGalleryImage = async (galleryItem) => {
+        if (!await confirmAction(`Remove this gallery image${galleryItem.caption ? `: ${galleryItem.caption}` : ''}?`)) return;
+
+        try {
+            const { error } = await supabase
+                .from('site_gallery')
+                .delete()
+                .eq('id', galleryItem.id);
+
+            if (error) throw error;
+
+            setSiteGallery(siteGallery.filter((item) => item.id !== galleryItem.id));
+            alert('Gallery image removed.');
+        } catch (err) {
+            console.error(err);
+            alert(`Could not remove gallery image: ${err.message || 'Unknown error'}`);
         }
     };
 
@@ -3910,6 +3991,7 @@ export default function AdminDashboard({ session }) {
                     }}>
                         {[
                             { id: 'menu', label: ' Live Menu Manager', icon: '' },
+                            { id: 'gallery', label: ' Gallery Manager', icon: '' },
                             { id: 'branches', label: ' Branch Manager', icon: '' },
                             { id: 'events', label: ' Mobile Stalls & Events', icon: '' },
                             { id: 'branding', label: ' Brand & Website Identity', icon: '' }
@@ -4089,6 +4171,79 @@ export default function AdminDashboard({ session }) {
                                             ))}
                                             {menuItems.length === 0 && (
                                                 <tr><td colSpan="4" style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No menu items found.</td></tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {cmsActiveSubTab === 'gallery' && (
+                            <div className="finances-card">
+                                <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>Gallery Manager</h2>
+                                <p style={{ color: '#94a3b8', marginBottom: '2rem' }}>
+                                    Use this for atmosphere, venue, staff, interior, event, and other brand photos. Menu items stay in <strong>Live Menu Manager</strong>.
+                                </p>
+
+                                <div style={{ background: '#0f172a', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem', border: '1px solid #334155' }}>
+                                    <form onSubmit={handleAddGalleryImage} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr auto', gap: '1rem', alignItems: 'end' }}>
+                                        <div>
+                                            <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Gallery Image Upload</label>
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                className="kds-input"
+                                                onChange={(e) => setGalleryImageFile(e.target.files[0])}
+                                                style={{ width: '100%', padding: '0.25rem' }}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Caption (Optional)</label>
+                                            <input
+                                                type="text"
+                                                className="kds-input"
+                                                placeholder="e.g. Friday night ambience"
+                                                value={newGalleryCaption}
+                                                onChange={(e) => setNewGalleryCaption(e.target.value)}
+                                                style={{ width: '100%' }}
+                                            />
+                                        </div>
+                                        <button type="submit" disabled={uploadingGalleryImage} className="btn-primary" style={{ padding: '0.5rem 1rem' }}>
+                                            {uploadingGalleryImage ? 'Saving...' : 'Add Photo'}
+                                        </button>
+                                    </form>
+                                </div>
+
+                                <div className="table-wrapper">
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', color: '#f8fafc', background: '#1e293b', borderRadius: '8px', overflow: 'hidden' }}>
+                                        <thead style={{ background: '#0f172a', textAlign: 'left' }}>
+                                            <tr>
+                                                <th style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>Preview</th>
+                                                <th style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>Caption</th>
+                                                <th style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>Added</th>
+                                                <th style={{ padding: '1rem', borderBottom: '1px solid #334155', textAlign: 'right' }}>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {siteGallery.map((item) => (
+                                                <tr key={item.id} style={{ borderBottom: '1px solid #334155' }}>
+                                                    <td style={{ padding: '1rem' }}>
+                                                        <img src={item.image_url} alt={item.caption || 'Gallery'} style={{ width: '86px', height: '62px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #334155' }} />
+                                                    </td>
+                                                    <td style={{ padding: '1rem', color: '#cbd5e1' }}>{item.caption || <span style={{ color: '#64748b' }}>No caption</span>}</td>
+                                                    <td style={{ padding: '1rem', color: '#94a3b8' }}>{item.created_at ? new Date(item.created_at).toLocaleDateString() : '-'}</td>
+                                                    <td style={{ padding: '1rem', textAlign: 'right' }}>
+                                                        <button
+                                                            onClick={() => handleDeleteGalleryImage(item)}
+                                                            style={{ background: '#ef4444', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {siteGallery.length === 0 && (
+                                                <tr><td colSpan="4" style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No gallery photos yet. Upload photos of the business, space, events, or atmosphere here.</td></tr>
                                             )}
                                         </tbody>
                                     </table>

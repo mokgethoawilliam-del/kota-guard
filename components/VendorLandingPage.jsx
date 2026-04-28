@@ -11,6 +11,7 @@ function VendorLandingPage() {
     const [vendor, setVendor] = useState(null);
     const [loading, setLoading] = useState(true);
     const [allLocations, setAllLocations] = useState([]);
+    const [siteGallery, setSiteGallery] = useState([]);
     const [featuredMenu, setFeaturedMenu] = useState([]);
     const [testimonials, setTestimonials] = useState([]);
 
@@ -84,13 +85,20 @@ function VendorLandingPage() {
                     .eq('is_active', true);
                 setAllLocations(locs || []);
 
-                // 4. Fetch Vendor's Menu (for Gallery)
+                // 4. Fetch Vendor's menu highlights
                 const { data: menu } = await supabase
                     .from('menu_items')
                     .select('*')
                     .eq('vendor_id', vendorData.id)
                     .order('price');
                 setFeaturedMenu(menu || []);
+
+                const { data: gallery } = await supabase
+                    .from('site_gallery')
+                    .select('*')
+                    .eq('vendor_id', vendorData.id)
+                    .order('created_at', { ascending: false });
+                setSiteGallery(gallery || []);
 
                 // 5. Fetch Testimonials
                 const { data: tests } = await supabase
@@ -444,28 +452,57 @@ function VendorLandingPage() {
                         </div>
                     </main>
 
-                    {/* Gallery Section */}
+                    {/* Business Gallery Section */}
                     <section style={{ padding: '6rem 2rem', background: '#020617' }}>
                         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
                             <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
                                 <h2 style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '1rem' }}>Our Gallery</h2>
-                                <p style={{ color: '#94a3b8' }}>A taste of what we have in store for you.</p>
+                                <p style={{ color: '#94a3b8' }}>A look at the space, the people, the vibe, and the moments behind the business.</p>
                                 <div style={{ width: '80px', height: '4px', background: 'var(--primary-color)', margin: '1rem auto' }}></div>
                             </div>
                             
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '2rem' }}>
+                                {siteGallery.map((item) => (
+                                    <div key={item.id} className="gallery-item" style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)', background: '#1e293b' }}>
+                                        <img src={item.image_url} alt={item.caption || vendor.name} style={{ width: '100%', height: '250px', objectFit: 'cover' }} />
+                                        <div style={{ padding: '1.25rem', textAlign: 'center' }}>
+                                            <h4 style={{ margin: 0, fontSize: '1.1rem' }}>{item.caption || vendor.name}</h4>
+                                        </div>
+                                    </div>
+                                ))}
+                                {siteGallery.length === 0 && (
+                                    <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '4rem', background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '2px dashed rgba(255,255,255,0.05)' }}>
+                                        <span style={{ fontSize: '3rem', display: 'block', marginBottom: '1rem' }}></span>
+                                        <p style={{ color: '#64748b' }}>Upload business photos in CMS to build out this gallery.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Menu Highlights Section */}
+                    <section style={{ padding: '6rem 2rem', background: '#0f172a' }}>
+                        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+                            <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
+                                <h2 style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '1rem' }}>Menu Highlights</h2>
+                                <p style={{ color: '#94a3b8' }}>A few favourites from the kitchen right now.</p>
+                                <div style={{ width: '80px', height: '4px', background: 'var(--primary-color)', margin: '1rem auto' }}></div>
+                            </div>
+
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '2rem' }}>
                                 {featuredMenu.filter(m => m.image_url).map((item) => (
                                     <div key={item.id} className="gallery-item" style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)', background: '#1e293b' }}>
                                         <img src={item.image_url} alt={item.name} style={{ width: '100%', height: '250px', objectFit: 'cover' }} />
                                         <div style={{ padding: '1.25rem', textAlign: 'center' }}>
-                                            <h4 style={{ margin: 0, fontSize: '1.1rem' }}>{item.name}</h4>
+                                            <h4 style={{ margin: '0 0 0.35rem 0', fontSize: '1.1rem' }}>{item.name}</h4>
+                                            <div style={{ color: 'var(--primary-color)', fontWeight: '700' }}>R {Number(item.price).toFixed(2)}</div>
                                         </div>
                                     </div>
                                 ))}
                                 {featuredMenu.filter(m => m.image_url).length === 0 && (
                                     <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '4rem', background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '2px dashed rgba(255,255,255,0.05)' }}>
                                         <span style={{ fontSize: '3rem', display: 'block', marginBottom: '1rem' }}></span>
-                                        <p style={{ color: '#64748b' }}>Upload menu photos in CMS to see them here!</p>
+                                        <p style={{ color: '#64748b' }}>Upload menu images in CMS to show menu highlights here.</p>
                                     </div>
                                 )}
                             </div>

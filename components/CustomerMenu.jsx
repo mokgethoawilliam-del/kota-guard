@@ -90,10 +90,10 @@ export default function CustomerMenu({ vendorId, vendorName, branding, onBack, c
                 .from('menu_items')
                 .select('*')
                 .eq('vendor_id', vendorId)
-                .eq('is_available', true)
                 .order('price');
             if (menuErr) throw menuErr;
-            setMenuItems(menuData || []);
+            const visibleMenuItems = (menuData || []).filter((item) => item?.is_available !== false);
+            setMenuItems(visibleMenuItems.length > 0 ? visibleMenuItems : (menuData || []));
 
             const { data: locData, error: locErr } = await supabase
                 .from('locations')

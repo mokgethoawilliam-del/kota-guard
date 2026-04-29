@@ -386,6 +386,7 @@ function VendorLandingPage() {
         : whatsappDigits;
     const hasContactSection = Boolean(contactEmail || contactWhatsapp);
     const showCompactHeader = view !== 'landing';
+    const showOrderCartButton = view === 'menu';
     const navLinks = [
         { label: 'Home', action: () => { setView('landing'); setMobileMenuOpen(false); } },
         { label: 'Menu', action: () => { setView('menu'); setMobileMenuOpen(false); } },
@@ -424,7 +425,7 @@ function VendorLandingPage() {
                            </div>
                        )}
                        <div style={{ minWidth: 0 }}>
-                           <div className="brand-logo" style={{ fontSize: showCompactHeader ? '1.15rem' : '1.5rem', fontWeight: 'bold', color: 'var(--primary-color)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: isMobile ? '180px' : 'unset' }}>{vendor.name}</div>
+                            <div className="brand-logo" style={{ fontSize: showCompactHeader ? '1.15rem' : '1.5rem', fontWeight: 'bold', color: 'var(--primary-color)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: isMobile ? '220px' : 'unset' }}>{vendor.name}</div>
                            {!showCompactHeader && (
                                <div className="brand-tagline" style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{branding.tagline || 'Signature Food Experience'}</div>
                            )}
@@ -432,14 +433,17 @@ function VendorLandingPage() {
                    </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
-                    <button type="button" onClick={openCartFromHeader} style={{ position: 'relative', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff', borderRadius: '12px', padding: '0.7rem 0.9rem', cursor: 'pointer', minWidth: '54px', fontWeight: '700' }}>
-                        Cart
-                        {cartCount > 0 && (
-                            <span style={{ position: 'absolute', top: '-8px', right: '-8px', minWidth: '22px', height: '22px', borderRadius: '999px', background: 'var(--color-primary, #00e676)', color: '#000', fontWeight: '800', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 0.35rem' }}>
-                                {cartCount}
-                            </span>
-                        )}
-                    </button>
+                    {showOrderCartButton && (
+                        <button type="button" onClick={openCartFromHeader} aria-label="Open cart" style={{ position: 'relative', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff', borderRadius: '12px', padding: '0.7rem 0.9rem', cursor: 'pointer', minWidth: isMobile ? '48px' : '54px', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.45rem' }}>
+                            <span style={{ fontSize: '1rem', lineHeight: 1 }}>🛒</span>
+                            {!isMobile && <span>Cart</span>}
+                            {cartCount > 0 && (
+                                <span style={{ position: 'absolute', top: '-8px', right: '-8px', minWidth: '22px', height: '22px', borderRadius: '999px', background: 'var(--color-primary, #00e676)', color: '#000', fontWeight: '800', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 0.35rem' }}>
+                                    {cartCount}
+                                </span>
+                            )}
+                        </button>
+                    )}
                     {!isMobile && (
                         <>
                             <button className="btn-secondary" onClick={() => setView('dashboard')} style={{ width: 'auto', padding: '0.7rem 1rem', fontSize: '0.9rem' }}>Track Order</button>
@@ -447,8 +451,26 @@ function VendorLandingPage() {
                         </>
                     )}
                     {isMobile && (
-                        <button type="button" onClick={() => setMobileMenuOpen((open) => !open)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff', borderRadius: '12px', padding: '0.7rem 0.9rem', cursor: 'pointer', fontWeight: '700' }}>
-                            {mobileMenuOpen ? 'Close' : 'Menu'}
+                        <button
+                            type="button"
+                            aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+                            onClick={() => setMobileMenuOpen((open) => !open)}
+                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff', borderRadius: '12px', padding: '0.7rem 0.8rem', cursor: 'pointer', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                            <span style={{ display: 'inline-flex', flexDirection: 'column', justifyContent: 'center', gap: '4px' }}>
+                                {mobileMenuOpen ? (
+                                    <>
+                                        <span style={{ width: '18px', height: '2px', background: '#fff', transform: 'translateY(6px) rotate(45deg)', transformOrigin: 'center', borderRadius: '999px' }} />
+                                        <span style={{ width: '18px', height: '2px', background: '#fff', transform: 'rotate(-45deg)', transformOrigin: 'center', borderRadius: '999px' }} />
+                                    </>
+                                ) : (
+                                    <>
+                                        <span style={{ width: '18px', height: '2px', background: '#fff', borderRadius: '999px' }} />
+                                        <span style={{ width: '18px', height: '2px', background: '#fff', borderRadius: '999px' }} />
+                                        <span style={{ width: '18px', height: '2px', background: '#fff', borderRadius: '999px' }} />
+                                    </>
+                                )}
+                            </span>
                         </button>
                     )}
                 </div>

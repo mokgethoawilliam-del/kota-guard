@@ -420,28 +420,11 @@ export default function CustomerMenu({ vendorId, vendorName, branding, onBack, c
 
                 {cart.length > 0 && (
                     <div style={{
-                        background: 'rgba(0, 230, 118, 0.08)',
-                        border: '1px solid rgba(0, 230, 118, 0.22)',
-                        borderRadius: '14px',
-                        padding: '1rem 1.1rem',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: '1rem',
-                        flexWrap: 'wrap',
+                        color: '#94a3b8',
+                        fontSize: '0.92rem',
+                        textAlign: 'center',
                     }}>
-                        <div>
-                            <div style={{ fontWeight: '700', color: '#e2e8f0' }}>You still have {itemCount} item{itemCount === 1 ? '' : 's'} in your cart.</div>
-                            <div style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Your cart stays saved on this device until you check out or clear it.</div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                            <button type="button" className="btn-secondary" style={{ width: 'auto', padding: '0.85rem 1.1rem' }} onClick={() => updateCart([])}>
-                                Clear Cart
-                            </button>
-                            <button type="button" className="btn-primary" style={{ width: 'auto', padding: '0.85rem 1.25rem' }} onClick={openCheckout}>
-                                Open Cart (R {grandTotal.toFixed(2)})
-                            </button>
-                        </div>
+                        Your cart is saved on this device. Use the cart button in the top-right corner when you are ready to check out.
                     </div>
                 )}
 

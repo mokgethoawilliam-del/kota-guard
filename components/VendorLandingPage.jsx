@@ -387,6 +387,8 @@ function VendorLandingPage() {
     const hasContactSection = Boolean(contactEmail || contactWhatsapp);
     const showCompactHeader = view !== 'landing';
     const showOrderCartButton = view === 'menu';
+    const showLandingMobileActions = isMobile && !showCompactHeader;
+    const mobileLandingHeaderHeight = showLandingMobileActions ? 158 : 96;
     const navLinks = [
         { label: 'Home', action: () => { setView('landing'); setMobileMenuOpen(false); } },
         { label: 'Menu', action: () => { setView('menu'); setMobileMenuOpen(false); } },
@@ -405,8 +407,8 @@ function VendorLandingPage() {
 
     return (
         <div className="landing-wrapper" style={{ background: '#0f172a', color: '#f8fafc', position: 'relative', minHeight: '100vh' }}>
-            <header className="brand-header" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, background: 'rgba(15, 23, 42, 0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: showCompactHeader ? '0.85rem 1rem' : '1rem 1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', minHeight: showCompactHeader ? '76px' : '96px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', minWidth: 0 }}>
+            <header className="brand-header" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, background: 'rgba(15, 23, 42, 0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: showCompactHeader ? '0.85rem 1rem' : '1rem 1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: showLandingMobileActions ? 'stretch' : 'center', gap: '1rem', minHeight: showCompactHeader ? '76px' : `${mobileLandingHeaderHeight}px`, flexDirection: showLandingMobileActions ? 'column' : 'row' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', minWidth: 0, justifyContent: showLandingMobileActions ? 'space-between' : 'flex-start', width: showLandingMobileActions ? '100%' : 'auto' }}>
                    {showCompactHeader && !isMobile && (
                        <button onClick={() => setView('landing')} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '10px', padding: '0.55rem 0.9rem', cursor: 'pointer', fontSize: '0.9rem' }}>
                            Back
@@ -427,16 +429,15 @@ function VendorLandingPage() {
                        <div style={{ minWidth: 0 }}>
                             <div className="brand-logo" style={{ fontSize: showCompactHeader ? '1.15rem' : '1.5rem', fontWeight: 'bold', color: 'var(--primary-color)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: isMobile ? '220px' : 'unset' }}>{vendor.name}</div>
                            {!showCompactHeader && (
-                               <div className="brand-tagline" style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{branding.tagline || 'Signature Food Experience'}</div>
-                           )}
-                       </div>
-                   </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+                                <div className="brand-tagline" style={{ fontSize: '0.8rem', color: '#94a3b8', display: showLandingMobileActions ? 'block' : undefined, marginTop: showLandingMobileActions ? '0.15rem' : 0 }}>{branding.tagline || 'Signature Food Experience'}</div>
+                            )}
+                        </div>
+                    </div>
+                 </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0, width: showLandingMobileActions ? '100%' : 'auto', justifyContent: showLandingMobileActions ? 'space-between' : 'flex-start' }}>
                     {showOrderCartButton && (
                         <button type="button" onClick={openCartFromHeader} aria-label="Open cart" style={{ position: 'relative', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff', borderRadius: '12px', padding: '0.7rem 0.9rem', cursor: 'pointer', minWidth: isMobile ? '48px' : '54px', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.45rem' }}>
-                            <span style={{ fontSize: '1rem', lineHeight: 1 }}>🛒</span>
-                            {!isMobile && <span>Cart</span>}
+                            <span style={{ fontSize: '0.88rem', lineHeight: 1, fontWeight: '800' }}>Cart</span>
                             {cartCount > 0 && (
                                 <span style={{ position: 'absolute', top: '-8px', right: '-8px', minWidth: '22px', height: '22px', borderRadius: '999px', background: 'var(--color-primary, #00e676)', color: '#000', fontWeight: '800', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 0.35rem' }}>
                                     {cartCount}
@@ -450,12 +451,18 @@ function VendorLandingPage() {
                             <button className="btn-primary" onClick={() => setView('menu')} style={{ width: 'auto', padding: '0.7rem 1.25rem', fontSize: '0.95rem' }}>Order Online</button>
                         </>
                     )}
+                    {showLandingMobileActions && (
+                        <>
+                            <button className="btn-secondary" onClick={() => setView('dashboard')} style={{ flex: 1, padding: '0.85rem 0.9rem', fontSize: '0.95rem' }}>Track Order</button>
+                            <button className="btn-primary" onClick={() => setView('menu')} style={{ flex: 1.15, padding: '0.85rem 0.9rem', fontSize: '0.95rem' }}>Order Online</button>
+                        </>
+                    )}
                     {isMobile && (
                         <button
                             type="button"
                             aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
                             onClick={() => setMobileMenuOpen((open) => !open)}
-                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff', borderRadius: '12px', padding: '0.7rem 0.8rem', cursor: 'pointer', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff', borderRadius: '12px', padding: '0.7rem 0.8rem', cursor: 'pointer', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
                         >
                             <span style={{ display: 'inline-flex', flexDirection: 'column', justifyContent: 'center', gap: '4px' }}>
                                 {mobileMenuOpen ? (
@@ -477,7 +484,7 @@ function VendorLandingPage() {
             </header>
 
             {isMobile && mobileMenuOpen && (
-                <div style={{ position: 'fixed', top: showCompactHeader ? '76px' : '96px', left: '1rem', right: '1rem', zIndex: 99, background: 'rgba(15, 23, 42, 0.98)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '1rem', boxShadow: '0 20px 60px rgba(0,0,0,0.45)' }}>
+                <div style={{ position: 'fixed', top: showCompactHeader ? '76px' : `${mobileLandingHeaderHeight}px`, left: '1rem', right: '1rem', zIndex: 99, background: 'rgba(15, 23, 42, 0.98)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '1rem', boxShadow: '0 20px 60px rgba(0,0,0,0.45)' }}>
                     <div style={{ display: 'grid', gap: '0.75rem' }}>
                         {showCompactHeader && (
                             <button type="button" className="btn-secondary" style={{ width: '100%' }} onClick={() => { setView('landing'); setMobileMenuOpen(false); }}>
@@ -502,7 +509,7 @@ function VendorLandingPage() {
                         minHeight: '90vh', 
                         display: 'flex', 
                         alignItems: 'center', 
-                        padding: isMobile ? '8.5rem 1rem 4rem 1rem' : '10rem 2rem 4rem 2rem',
+                        padding: isMobile ? `${mobileLandingHeaderHeight + 20}px 1rem 4rem 1rem` : '10rem 2rem 4rem 2rem',
                         position: 'relative',
                         background: branding.hero_image ? `linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.7)), url(${branding.hero_image}) center / 100% auto no-repeat` : '#0f172a'
                     }}>
@@ -548,43 +555,15 @@ function VendorLandingPage() {
                         </div>
                     </main>
 
-                    {/* Business Gallery Section */}
-                    <section style={{ padding: '6rem 2rem', background: '#020617' }}>
-                        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-                            <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
-                                <h2 style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '1rem' }}>Our Gallery</h2>
-                                <p style={{ color: '#94a3b8' }}>A look at the space, the people, the vibe, and the moments behind the business.</p>
-                                <div style={{ width: '80px', height: '4px', background: 'var(--primary-color)', margin: '1rem auto' }}></div>
-                            </div>
-                            
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '2rem' }}>
-                                {siteGallery.map((item) => (
-                                    <div key={item.id} className="gallery-item" style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)', background: '#1e293b' }}>
-                                        <img src={item.image_url} alt={item.caption || vendor.name} style={{ width: '100%', height: '250px', objectFit: 'cover' }} />
-                                        <div style={{ padding: '1.25rem', textAlign: 'center' }}>
-                                            <h4 style={{ margin: 0, fontSize: '1.1rem' }}>{item.caption || vendor.name}</h4>
-                                        </div>
-                                    </div>
-                                ))}
-                                {siteGallery.length === 0 && (
-                                    <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '4rem', background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '2px dashed rgba(255,255,255,0.05)' }}>
-                                        <span style={{ fontSize: '3rem', display: 'block', marginBottom: '1rem' }}></span>
-                                        <p style={{ color: '#64748b' }}>Upload business photos in CMS to build out this gallery.</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </section>
-
                     {/* Menu Highlights Section */}
-                    <section style={{ padding: '6rem 2rem', background: '#0f172a' }}>
+                    <section style={{ padding: '6rem 2rem', background: '#020617' }}>
                         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
                             <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
                                 <h2 style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '1rem' }}>Menu Highlights</h2>
                                 <p style={{ color: '#94a3b8' }}>A few favourites from the kitchen right now.</p>
                                 <div style={{ width: '80px', height: '4px', background: 'var(--primary-color)', margin: '1rem auto' }}></div>
                             </div>
-
+                            
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '2rem' }}>
                                 {featuredMenu.filter(m => m.image_url).map((item) => (
                                     <div key={item.id} className="gallery-item" style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)', background: '#1e293b' }}>
@@ -599,6 +578,34 @@ function VendorLandingPage() {
                                     <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '4rem', background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '2px dashed rgba(255,255,255,0.05)' }}>
                                         <span style={{ fontSize: '3rem', display: 'block', marginBottom: '1rem' }}></span>
                                         <p style={{ color: '#64748b' }}>Upload menu images in CMS to show menu highlights here.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Business Gallery Section */}
+                    <section style={{ padding: '6rem 2rem', background: '#0f172a' }}>
+                        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+                            <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
+                                <h2 style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '1rem' }}>Our Gallery</h2>
+                                <p style={{ color: '#94a3b8' }}>A look at the space, the people, the vibe, and the moments behind the business.</p>
+                                <div style={{ width: '80px', height: '4px', background: 'var(--primary-color)', margin: '1rem auto' }}></div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '2rem' }}>
+                                {siteGallery.map((item) => (
+                                    <div key={item.id} className="gallery-item" style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)', background: '#1e293b' }}>
+                                        <img src={item.image_url} alt={item.caption || vendor.name} style={{ width: '100%', height: '250px', objectFit: 'cover' }} />
+                                        <div style={{ padding: '1.25rem', textAlign: 'center' }}>
+                                            <h4 style={{ margin: 0, fontSize: '1.1rem' }}>{item.caption || vendor.name}</h4>
+                                        </div>
+                                    </div>
+                                ))}
+                                {siteGallery.length === 0 && (
+                                    <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '4rem', background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '2px dashed rgba(255,255,255,0.05)' }}>
+                                        <span style={{ fontSize: '3rem', display: 'block', marginBottom: '1rem' }}></span>
+                                        <p style={{ color: '#64748b' }}>Upload business photos in CMS to build out this gallery.</p>
                                     </div>
                                 )}
                             </div>

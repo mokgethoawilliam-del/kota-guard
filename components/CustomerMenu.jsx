@@ -1,7 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../src/supabaseClient';
+import {
+    clearCart,
+    consumeCheckoutOpen,
+    getSavedCart,
+    mergeDraftCart,
+    saveCart,
+} from '../src/customerCart';
 
-export default function CustomerMenu({ vendorId, branding }) {
+export default function CustomerMenu({ vendorId, vendorName, branding, onBack, cartOpenSignal = 0 }) {
     const [menuItems, setMenuItems] = useState([]);
     const [locations, setLocations] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -9,38 +16,19 @@ export default function CustomerMenu({ vendorId, branding }) {
     const [paymentSuccess, setPaymentSuccess] = useState(false);
     const [vendorDoc, setVendorDoc] = useState(null);
 
-    // Shopping Cart State
     const [cart, setCart] = useState([]);
     const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
-    // Form State
     const [customerName, setCustomerName] = useState('');
     const [customerPhone, setCustomerPhone] = useState('');
     const [selectedLocation, setSelectedLocation] = useState('');
     const [modifiers, setModifiers] = useState('');
     const [collectionTime, setCollectionTime] = useState('');
+    const [fulfillmentMethod, setFulfillmentMethod] = useState('collection');
+    const [deliveryAddress, setDeliveryAddress] = useState('');
 
-    // Arrival State
     const [hasArrived, setHasArrived] = useState(false);
     const [collectionPin, setCollectionPin] = useState(null);
-
-    useEffect(() => {
-        if (!vendorId) return;
-        const draftKey = `vulahub_draft_cart_${vendorId}`;
-        try {
-            const rawDraft = localStorage.getItem(draftKey);
-            if (!rawDraft) return;
-            const parsedDraft = JSON.parse(rawDraft);
-            if (Array.isArray(parsedDraft) && parsedDraft.length > 0) {
-                setCart(parsedDraft.filter(item => item?.id && item?.name && typeof item?.price !== 'undefined' && item?.qty));
-                setIsCheckoutOpen(true);
-            }
-        } catch (err) {
-            console.error('Could not hydrate draft cart:', err);
-        } finally {
-            localStorage.removeItem(draftKey);
-        }
-    }, [vendorId]);
 
     useEffect(() => {
         const script = document.createElement('script');
@@ -48,15 +36,49 @@ export default function CustomerMenu({ vendorId, branding }) {
         script.async = true;
         document.body.appendChild(script);
 
-        fetchData();
+        return () => {
+            document.body.removeChild(script);
+        };
     }, []);
+
+    useEffect(() => {
+        if (!vendorId) return;
+
+        const initialCart = mergeDraftCart(vendorId);
+        setCart(initialCart);
+        if (consumeCheckoutOpen(vendorId) && initialCart.length > 0) {
+            setIsCheckoutOpen(true);
+        }
+
+        const syncCart = (event) => {
+            if (event?.detail?.vendorId && event.detail.vendorId !== vendorId) return;
+            setCart(getSavedCart(vendorId));
+        };
+
+        window.addEventListener('storage', syncCart);
+        window.addEventListener('vulahub-cart-updated', syncCart);
+
+        return () => {
+            window.removeEventListener('storage', syncCart);
+            window.removeEventListener('vulahub-cart-updated', syncCart);
+        };
+    }, [vendorId]);
+
+    useEffect(() => {
+        fetchData();
+    }, [vendorId]);
+
+    useEffect(() => {
+        if (cartOpenSignal > 0 && cart.length > 0) {
+            setIsCheckoutOpen(true);
+        }
+    }, [cartOpenSignal, cart.length]);
 
     async function fetchData() {
         if (!vendorId) return;
         try {
             setLoading(true);
 
-            // Fetch only public vendor fields. Private keys stay behind authenticated RLS.
             const { data: vData } = await supabase
                 .from('public_vendors')
                 .select('*')
@@ -64,25 +86,22 @@ export default function CustomerMenu({ vendorId, branding }) {
                 .single();
             if (vData) setVendorDoc(vData);
 
-            // Fetch Menu Items filtered by vendor
             const { data: menuData, error: menuErr } = await supabase
                 .from('menu_items')
                 .select('*')
                 .eq('vendor_id', vendorId)
+                .eq('is_available', true)
                 .order('price');
             if (menuErr) throw menuErr;
-            setMenuItems(menuData);
+            setMenuItems(menuData || []);
 
-            // Fetch Locations filtered by vendor
             const { data: locData, error: locErr } = await supabase
                 .from('locations')
                 .select('*')
-                .eq('vendor_id', vendorId);
+                .eq('vendor_id', vendorId)
+                .eq('is_active', true);
             if (locErr) throw locErr;
-            setLocations(locData);
-
-            if (locData.length > 0) setSelectedLocation(locData[0].id);
-
+            setLocations(locData || []);
         } catch (err) {
             console.error('Error fetching data:', err.message);
         } finally {
@@ -90,53 +109,118 @@ export default function CustomerMenu({ vendorId, branding }) {
         }
     }
 
+    const deliveryLocations = useMemo(
+        () => locations.filter((loc) => Boolean(loc.delivery_enabled)),
+        [locations],
+    );
+
+    const selectableLocations = useMemo(() => {
+        if (fulfillmentMethod === 'delivery') {
+            return deliveryLocations;
+        }
+        return locations;
+    }, [deliveryLocations, fulfillmentMethod, locations]);
+
+    useEffect(() => {
+        if (!selectableLocations.length) {
+            setSelectedLocation('');
+            return;
+        }
+        if (!selectableLocations.some((loc) => loc.id === selectedLocation)) {
+            setSelectedLocation(selectableLocations[0].id);
+        }
+    }, [selectableLocations, selectedLocation]);
+
+    useEffect(() => {
+        if (fulfillmentMethod === 'delivery' && deliveryLocations.length === 0) {
+            setFulfillmentMethod('collection');
+        }
+    }, [deliveryLocations.length, fulfillmentMethod]);
+
+    const selectedLocationRecord = selectableLocations.find((loc) => loc.id === selectedLocation) || null;
+    const buyerPaymentsAvailable = Boolean(vendorDoc?.payment_config?.paystack_public_key);
+    const itemCount = cart.reduce((total, item) => total + item.qty, 0);
+    const cartSubtotal = cart.reduce((total, item) => total + (Number(item.price) * item.qty), 0);
+    const deliveryFee = fulfillmentMethod === 'delivery' ? Number(selectedLocationRecord?.delivery_fee || 0) : 0;
+    const grandTotal = cartSubtotal + deliveryFee;
+
+    const updateCart = (nextCart) => {
+        setCart(nextCart);
+        saveCart(vendorId, nextCart);
+    };
+
     const addToCart = (item) => {
-        setCart(current => {
-            const existing = current.find(i => i.id === item.id);
-            if (existing) {
-                return current.map(i => i.id === item.id ? { ...i, qty: i.qty + 1 } : i);
-            }
-            return [...current, { ...item, qty: 1 }];
-        });
+        const existing = cart.find((entry) => entry.id === item.id);
+        if (existing) {
+            updateCart(cart.map((entry) => (
+                entry.id === item.id ? { ...entry, qty: entry.qty + 1 } : entry
+            )));
+            return;
+        }
+
+        updateCart([
+            ...cart,
+            {
+                id: item.id,
+                name: item.name,
+                price: Number(item.price),
+                qty: 1,
+            },
+        ]);
+    };
+
+    const changeQty = (itemId, nextQty) => {
+        if (nextQty <= 0) {
+            updateCart(cart.filter((entry) => entry.id !== itemId));
+            return;
+        }
+        updateCart(cart.map((entry) => (
+            entry.id === itemId ? { ...entry, qty: nextQty } : entry
+        )));
     };
 
     const removeFromCart = (itemId) => {
-        setCart(current => current.filter(i => i.id !== itemId));
+        updateCart(cart.filter((entry) => entry.id !== itemId));
     };
 
-    const cartTotal = cart.reduce((total, item) => total + (item.price * item.qty), 0);
-    const buyerPaymentsAvailable = Boolean(vendorDoc?.payment_config?.paystack_public_key);
-
     const openCheckout = () => {
-        if (cart.length === 0) return alert("Your cart is empty");
-        if (!buyerPaymentsAvailable) return alert("Payment service is currently unavailable.");
+        if (cart.length === 0) {
+            alert('Your cart is empty');
+            return;
+        }
+        if (!buyerPaymentsAvailable) {
+            alert('Payment service is currently unavailable.');
+            return;
+        }
         setIsCheckoutOpen(true);
     };
 
     const cancelCheckout = () => {
         setIsCheckoutOpen(false);
-        // We keep the details filled in case they just wanted to close the modal temporarily
     };
 
     const handleBuyNow = async (e) => {
         e.preventDefault();
         if (!customerName || !customerPhone || !selectedLocation) {
-            alert('Please fill in your Name, WhatsApp Number, and Location.');
+            alert('Please fill in your Name, WhatsApp Number, and location.');
             return;
         }
 
-        // Validate South African Mobile Number (e.g. 081... or +27...)
+        if (fulfillmentMethod === 'delivery' && !deliveryAddress.trim()) {
+            alert('Please add a delivery address.');
+            return;
+        }
+
         const phoneRegex = /^(0|\+27)[6-8][0-9]{8}$/;
         const cleanPhone = customerPhone.replace(/\s+/g, '');
         if (!phoneRegex.test(cleanPhone)) {
-            alert('Please enter a valid South African WhatsApp number (e.g. 0812345678). This is strictly required to earn Loyalty Points!');
+            alert('Please enter a valid South African WhatsApp number (e.g. 0812345678).');
             return;
         }
 
         try {
             setProcessingId('processing');
 
-            // 1. Create a "pending" order in Supabase
             const tempOrderNumber = `PND-${Date.now().toString().slice(-4)}`;
 
             const { data: order, error: orderError } = await supabase
@@ -148,21 +232,23 @@ export default function CustomerMenu({ vendorId, branding }) {
                     location_id: selectedLocation,
                     customer_name: customerName,
                     customer_phone: cleanPhone,
-                    total_price: cartTotal,
-                    estimated_collection_time: collectionTime || null
+                    total_price: grandTotal,
+                    estimated_collection_time: fulfillmentMethod === 'collection' ? (collectionTime || null) : null,
+                    fulfillment_method: fulfillmentMethod,
+                    delivery_address: fulfillmentMethod === 'delivery' ? deliveryAddress.trim() : null,
                 })
                 .select()
                 .single();
 
             if (orderError) throw orderError;
 
-            // 2. Insert into order_items (Array insertion for the whole cart)
-            const orderItemsData = cart.map(item => ({
+            const orderItemsData = cart.map((item) => ({
                 order_id: order.id,
                 menu_item_id: item.id,
                 quantity: item.qty,
                 price_at_time: item.price,
-                modifiers_json: { custom_notes: modifiers }
+                unit_price: item.price,
+                modifiers_json: { custom_notes: modifiers },
             }));
 
             const { error: itemError } = await supabase
@@ -171,37 +257,33 @@ export default function CustomerMenu({ vendorId, branding }) {
 
             if (itemError) throw itemError;
 
-            // 3. Initialize Paystack
-            // Use Vendor's custom key if provided, otherwise use platform default
             const vendorKey = vendorDoc?.payment_config?.paystack_public_key;
-            const paystackKey = vendorKey || null;
-
-            if (!paystackKey) {
+            if (!vendorKey) {
                 throw new Error('Payment service is currently unavailable.');
             }
 
-            // Split Logic: 5% fee for platform if on free tier and using platform keys
             const subaccount = vendorDoc?.paystack_subaccount_code;
             const splitConfig = (vendorDoc?.plan === 'free' && subaccount) ? {
-                subaccount: subaccount,
-                bearer: "account", // Vendor pays the transaction fee from their 95%
-                transaction_charge: 0, 
-                percentage_charge: 5
+                subaccount,
+                bearer: 'account',
+                transaction_charge: 0,
+                percentage_charge: 5,
             } : null;
 
             const handler = window.PaystackPop.setup({
-                key: paystackKey,
+                key: vendorKey,
                 email: `${customerPhone}@whatsapp.kotaguard.com`,
-                amount: Math.round(cartTotal * 100),
+                amount: Math.round(grandTotal * 100),
                 currency: 'ZAR',
-                subaccount: splitConfig?.subaccount, // Paystack Split
+                subaccount: splitConfig?.subaccount,
                 bearer: splitConfig?.bearer,
                 metadata: {
                     order_id: order.id,
                     custom_fields: [
                         { display_name: 'Name', variable_name: 'name', value: customerName },
                         { display_name: 'WhatsApp', variable_name: 'whatsapp', value: customerPhone },
-                    ]
+                        { display_name: 'Fulfilment', variable_name: 'fulfilment', value: fulfillmentMethod },
+                    ],
                 },
                 callback: function (response) {
                     (async () => {
@@ -209,8 +291,8 @@ export default function CustomerMenu({ vendorId, branding }) {
                             const { data, error } = await supabase.functions.invoke('finalize-order-payment', {
                                 body: {
                                     order_id: order.id,
-                                    reference: response.reference
-                                }
+                                    reference: response.reference,
+                                },
                             });
 
                             if (error) throw error;
@@ -218,10 +300,12 @@ export default function CustomerMenu({ vendorId, branding }) {
 
                             setCollectionPin(data.collection_pin);
                             setPaymentSuccess(data.order_number);
+                            clearCart(vendorId);
                             setCart([]);
                         } catch (err) {
-                            console.error("Error finalizing order", err);
-                            setPaymentSuccess("APPROVED-WAITING-SYNC");
+                            console.error('Error finalizing order', err);
+                            setPaymentSuccess('APPROVED-WAITING-SYNC');
+                            clearCart(vendorId);
                             setCart([]);
                         } finally {
                             setProcessingId(null);
@@ -230,9 +314,8 @@ export default function CustomerMenu({ vendorId, branding }) {
                     })();
                 },
                 onClose: function () {
-                    console.log('Payment window closed by user.');
                     setProcessingId(null);
-                }
+                },
             });
 
             handler.openIframe();
@@ -246,15 +329,15 @@ export default function CustomerMenu({ vendorId, branding }) {
     const handleArrival = async () => {
         try {
             const { error } = await supabase.rpc('mark_customer_arrived', {
-                p_order_number: paymentSuccess
+                p_order_number: paymentSuccess,
             });
 
             if (error) throw error;
             setHasArrived(true);
-            alert("Kitchen Notified! We know you're here. We'll hand over your order shortly.");
+            alert("Kitchen notified. We'll hand over your order shortly.");
         } catch (err) {
-            console.error("Could not notify kitchen", err);
-            alert("There was an issue notifying the kitchen, please show them your order number.");
+            console.error('Could not notify kitchen', err);
+            alert('There was an issue notifying the kitchen. Please show them your order number.');
         }
     };
 
@@ -266,14 +349,14 @@ export default function CustomerMenu({ vendorId, branding }) {
                         <span className="success-icon" role="img" aria-label="success"></span>
                     </div>
                     <h1 className="success-headline">Payment Approved</h1>
-                    <p className="success-message">Thank you, {customerName}! Your transaction was successful. Kel rata zwap.</p>
+                    <p className="success-message">Thank you, {customerName}. Your transaction was successful.</p>
 
-                    <div className="order-number-display" style={{ margin: '1.5rem 0', padding: '1.5rem', background: 'rgba(0, 200, 83, 0.1)', border: '1px solid #00C853', borderRadius: '12px', textAlign: 'center' }}>
-                        <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#888', textTransform: 'uppercase', letterSpacing: '1px' }}>🔒 Your Secret Collection PIN</p>
+                    <div style={{ margin: '1.5rem 0', padding: '1.5rem', background: 'rgba(0, 200, 83, 0.1)', border: '1px solid #00C853', borderRadius: '12px', textAlign: 'center' }}>
+                        <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#888', textTransform: 'uppercase', letterSpacing: '1px' }}>Your Secret Collection PIN</p>
                         <h2 style={{ margin: 0, fontSize: '4rem', color: '#00C853', fontWeight: '900', letterSpacing: '8px' }}>
                             {collectionPin || '...'}
                         </h2>
-                        <p style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: '#ef4444', fontWeight: '600' }}>⚠️ Show this PIN to the vendor when collecting. It expires once used.</p>
+                        <p style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: '#ef4444', fontWeight: '600' }}>Show this PIN to the vendor when collecting. It expires once used.</p>
                     </div>
 
                     <div style={{ padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', marginBottom: '1.5rem', textAlign: 'left' }}>
@@ -286,15 +369,24 @@ export default function CustomerMenu({ vendorId, branding }) {
                             style={{ width: '100%', marginBottom: '1rem', background: '#3b82f6' }}
                             onClick={handleArrival}
                         >
-                             I HAVE ARRIVED AT THE SHOP
+                            I Have Arrived At The Shop
                         </button>
                     ) : (
                         <div style={{ padding: '1rem', background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', borderRadius: '8px', marginBottom: '1rem', fontWeight: 'bold' }}>
-                             Kitchen has been notified of your arrival.
+                            Kitchen has been notified of your arrival.
                         </div>
                     )}
 
-                    <button className="btn-secondary" onClick={() => { setPaymentSuccess(false); setCollectionPin(null); setCustomerName(''); setCustomerPhone(''); setModifiers(''); setCollectionTime(''); setHasArrived(false); }}>
+                    <button className="btn-secondary" onClick={() => {
+                        setPaymentSuccess(false);
+                        setCollectionPin(null);
+                        setCustomerName('');
+                        setCustomerPhone('');
+                        setModifiers('');
+                        setCollectionTime('');
+                        setDeliveryAddress('');
+                        setHasArrived(false);
+                    }}>
                         Back to Menu
                     </button>
                 </div>
@@ -313,109 +405,198 @@ export default function CustomerMenu({ vendorId, branding }) {
 
     return (
         <div className="app-container">
-            <h2 className="page-title">{branding?.name || 'Menu'}</h2>
-            {!buyerPaymentsAvailable && (
-                <div style={{
-                    marginBottom: '1.5rem',
-                    padding: '0.9rem 1rem',
-                    borderRadius: '10px',
-                    background: 'rgba(239,68,68,0.12)',
-                    border: '1px solid rgba(239,68,68,0.28)',
-                    color: '#fecaca',
-                    fontWeight: '600',
-                    textAlign: 'center'
-                }}>
-                    Out of service
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div>
+                        <h2 className="page-title" style={{ marginBottom: '0.5rem' }}>{vendorName || branding?.name || 'Menu'}</h2>
+                        <p style={{ color: '#94a3b8', textAlign: 'center' }}>Choose multiple items, keep your cart, and checkout when you are ready.</p>
+                    </div>
+                    {onBack && (
+                        <button type="button" className="btn-secondary" style={{ width: 'auto', padding: '0.85rem 1.1rem' }} onClick={onBack}>
+                            Back to Home
+                        </button>
+                    )}
                 </div>
-            )}
+
+                {cart.length > 0 && (
+                    <div style={{
+                        background: 'rgba(0, 230, 118, 0.08)',
+                        border: '1px solid rgba(0, 230, 118, 0.22)',
+                        borderRadius: '14px',
+                        padding: '1rem 1.1rem',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '1rem',
+                        flexWrap: 'wrap',
+                    }}>
+                        <div>
+                            <div style={{ fontWeight: '700', color: '#e2e8f0' }}>You still have {itemCount} item{itemCount === 1 ? '' : 's'} in your cart.</div>
+                            <div style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Your cart stays saved on this device until you check out or clear it.</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                            <button type="button" className="btn-secondary" style={{ width: 'auto', padding: '0.85rem 1.1rem' }} onClick={() => updateCart([])}>
+                                Clear Cart
+                            </button>
+                            <button type="button" className="btn-primary" style={{ width: 'auto', padding: '0.85rem 1.25rem' }} onClick={openCheckout}>
+                                Open Cart (R {grandTotal.toFixed(2)})
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {!buyerPaymentsAvailable && (
+                    <div style={{
+                        padding: '0.9rem 1rem',
+                        borderRadius: '10px',
+                        background: 'rgba(239,68,68,0.12)',
+                        border: '1px solid rgba(239,68,68,0.28)',
+                        color: '#fecaca',
+                        fontWeight: '600',
+                        textAlign: 'center',
+                    }}>
+                        Checkout is temporarily unavailable right now.
+                    </div>
+                )}
+            </div>
+
             <div className="menu-grid">
-                {menuItems.map(item => {
-                    const incart = cart.find(i => i.id === item.id);
+                {menuItems.map((item) => {
+                    const inCart = cart.find((entry) => entry.id === item.id);
                     return (
                         <div key={item.id} className="menu-card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                            {/* Dynamic CMS Image */}
-                            <div style={{
-                                height: '180px',
-                                background: item.image_url ? `url(${item.image_url}) center/cover` : '#334155',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8'
-                            }}>
+                            <div
+                                style={{
+                                    height: '180px',
+                                    background: item.image_url ? `url(${item.image_url}) center/cover` : '#334155',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#94a3b8',
+                                }}
+                            >
                                 {!item.image_url && <span style={{ fontSize: '2rem' }}></span>}
                             </div>
 
-                            <div className="menu-card-content" style={{ padding: '1rem', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                            <div className="menu-card-content" style={{ padding: '1rem', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '1rem' }}>
                                 <div>
-                                    <h3 className="item-name" style={{ margin: '0 0 0.5rem 0' }}>{item.name}</h3>
-                                    <p className="item-price" style={{ margin: 0 }}>R {item.price}</p>
+                                    <h3 className="item-name" style={{ margin: '0 0 0.35rem 0' }}>{item.name}</h3>
+                                    {item.description && (
+                                        <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '0.75rem' }}>{item.description}</p>
+                                    )}
+                                    <p className="item-price" style={{ margin: 0 }}>R {Number(item.price).toFixed(2)}</p>
                                 </div>
-                                <button
-                                    className="btn-primary"
-                                    onClick={() => addToCart(item)}
-                                    style={{ marginTop: '1rem', width: '100%' }}
-                                >
-                                    {incart ? `Add More (${incart.qty} in cart)` : 'Add to Cart'}
-                                </button>
+                                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                                    {inCart ? (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                                            <button type="button" className="btn-secondary" style={{ width: '48px', padding: '0.75rem' }} onClick={() => changeQty(item.id, inCart.qty - 1)}>
+                                                -
+                                            </button>
+                                            <div style={{ minWidth: '44px', textAlign: 'center', fontWeight: '700', color: '#fff' }}>{inCart.qty}</div>
+                                            <button type="button" className="btn-secondary" style={{ width: '48px', padding: '0.75rem' }} onClick={() => changeQty(item.id, inCart.qty + 1)}>
+                                                +
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button className="btn-primary" onClick={() => addToCart(item)} style={{ width: '100%' }}>
+                                            Add to Cart
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     );
                 })}
             </div>
 
-            {/* Floating Cart Button */}
-            {cart.length > 0 && !isCheckoutOpen && (
-                <div style={{ position: 'fixed', bottom: '2rem', left: '0', right: '0', display: 'flex', justifyContent: 'center', zIndex: 10 }}>
-                    <button
-                        className="btn-primary"
-                        style={{
-                            maxWidth: '400px',
-                            boxShadow: buyerPaymentsAvailable ? '0 10px 30px rgba(0, 230, 118, 0.5)' : 'none',
-                            background: buyerPaymentsAvailable ? undefined : '#334155',
-                            color: buyerPaymentsAvailable ? undefined : '#cbd5e1',
-                            cursor: buyerPaymentsAvailable ? 'pointer' : 'not-allowed'
-                        }}
-                        onClick={openCheckout}
-                        disabled={!buyerPaymentsAvailable}
-                    >
-                         {buyerPaymentsAvailable
-                            ? `Checkout ${cart.reduce((sum, i) => sum + i.qty, 0)} Items (R ${cartTotal})`
-                            : 'Out of service'}
-                    </button>
-                </div>
-            )}
-
-            {/* Checkout Modal Overlay */}
             {isCheckoutOpen && (
                 <div className="modal-overlay">
                     <div className="modal-content">
                         <h3>Complete Your Order</h3>
 
                         <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem' }}>
-                            {cart.map(item => (
-                                <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                                    <span>{item.qty}x {item.name}</span>
-                                    <span>R {item.price * item.qty}</span>
+                            {cart.map((item) => (
+                                <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: '0.75rem', alignItems: 'center', marginBottom: '0.8rem' }}>
+                                    <div>
+                                        <div style={{ fontWeight: '700' }}>{item.name}</div>
+                                        <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>R {Number(item.price).toFixed(2)} each</div>
+                                    </div>
+                                    <button type="button" className="btn-secondary" style={{ width: '40px', padding: '0.55rem' }} onClick={() => changeQty(item.id, item.qty - 1)}>-</button>
+                                    <div style={{ minWidth: '20px', textAlign: 'center', fontWeight: '700' }}>{item.qty}</div>
+                                    <button type="button" className="btn-secondary" style={{ width: '40px', padding: '0.55rem' }} onClick={() => changeQty(item.id, item.qty + 1)}>+</button>
                                 </div>
                             ))}
-                            <div style={{ borderTop: '1px solid #334155', marginTop: '0.5rem', paddingTop: '0.5rem', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
-                                <span>Total:</span>
-                                <span>R {cartTotal}</span>
+                            <div style={{ borderTop: '1px solid #334155', marginTop: '0.75rem', paddingTop: '0.75rem', display: 'grid', gap: '0.35rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span>Subtotal</span>
+                                    <span>R {cartSubtotal.toFixed(2)}</span>
+                                </div>
+                                {fulfillmentMethod === 'delivery' && (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <span>Delivery Fee</span>
+                                        <span>R {deliveryFee.toFixed(2)}</span>
+                                    </div>
+                                )}
+                                <div style={{ fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem' }}>
+                                    <span>Total</span>
+                                    <span>R {grandTotal.toFixed(2)}</span>
+                                </div>
                             </div>
                         </div>
 
                         <form onSubmit={handleBuyNow} className="checkout-form">
+                            {deliveryLocations.length > 0 && (
+                                <div className="form-group">
+                                    <label>How would you like to receive your order?</label>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                        <button
+                                            type="button"
+                                            className={fulfillmentMethod === 'collection' ? 'btn-primary' : 'btn-secondary'}
+                                            onClick={() => setFulfillmentMethod('collection')}
+                                        >
+                                            Collect
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={fulfillmentMethod === 'delivery' ? 'btn-primary' : 'btn-secondary'}
+                                            onClick={() => setFulfillmentMethod('delivery')}
+                                        >
+                                            Delivery
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="form-group">
-                                <label>Collection Location</label>
+                                <label>{fulfillmentMethod === 'delivery' ? 'Delivery Branch' : 'Collection Location'}</label>
                                 <select
                                     value={selectedLocation}
                                     onChange={(e) => setSelectedLocation(e.target.value)}
                                     required
                                     className="form-input"
                                 >
-                                    <option value="" disabled>Select Location...</option>
-                                    {locations.map(loc => (
-                                        <option key={loc.id} value={loc.id}>{loc.name}</option>
+                                    <option value="" disabled>Select location...</option>
+                                    {selectableLocations.map((loc) => (
+                                        <option key={loc.id} value={loc.id}>
+                                            {loc.name}{fulfillmentMethod === 'delivery' && Number(loc.delivery_fee || 0) > 0 ? ` (Delivery R ${Number(loc.delivery_fee).toFixed(2)})` : ''}
+                                        </option>
                                     ))}
                                 </select>
                             </div>
+
+                            {fulfillmentMethod === 'delivery' && (
+                                <div className="form-group">
+                                    <label>Delivery Address</label>
+                                    <textarea
+                                        value={deliveryAddress}
+                                        onChange={(e) => setDeliveryAddress(e.target.value)}
+                                        required
+                                        placeholder="House number, street, area, and any landmark."
+                                        className="form-input"
+                                        style={{ minHeight: '110px', resize: 'vertical' }}
+                                    />
+                                </div>
+                            )}
 
                             <div className="form-group">
                                 <label>Your Name</label>
@@ -430,7 +611,7 @@ export default function CustomerMenu({ vendorId, branding }) {
                             </div>
 
                             <div className="form-group">
-                                <label>WhatsApp Number <b>(Required for Loyalty Points)</b></label>
+                                <label>WhatsApp Number</label>
                                 <input
                                     type="tel"
                                     placeholder="e.g. 0812345678"
@@ -440,28 +621,27 @@ export default function CustomerMenu({ vendorId, branding }) {
                                     className="form-input"
                                 />
                                 <small style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
-                                     Enter a valid 10-digit South African number to unlock secret rewards.
+                                    Enter a valid 10-digit South African number so the business can confirm your order.
                                 </small>
                             </div>
 
-                            <div className="form-group">
-                                <label>Estimated Collection Time (Optional)</label>
-                                <input
-                                    type="time"
-                                    value={collectionTime}
-                                    onChange={(e) => setCollectionTime(e.target.value)}
-                                    className="form-input"
-                                />
-                                <small style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
-                                     Let Chef Dips know when you'll arrive so it's fresh off the grill!
-                                </small>
-                            </div>
+                            {fulfillmentMethod === 'collection' && (
+                                <div className="form-group">
+                                    <label>Estimated Collection Time (Optional)</label>
+                                    <input
+                                        type="time"
+                                        value={collectionTime}
+                                        onChange={(e) => setCollectionTime(e.target.value)}
+                                        className="form-input"
+                                    />
+                                </div>
+                            )}
 
                             <div className="form-group">
-                                <label>Special Instructions for Entire Order (Optional)</label>
+                                <label>Special Instructions For This Order (Optional)</label>
                                 <input
                                     type="text"
-                                    placeholder="e.g. Please put Atchaar on the side"
+                                    placeholder="e.g. Please put atchaar on the side"
                                     value={modifiers}
                                     onChange={(e) => setModifiers(e.target.value)}
                                     className="form-input"
@@ -473,7 +653,7 @@ export default function CustomerMenu({ vendorId, branding }) {
                                     Back to Menu
                                 </button>
                                 <button type="submit" className="btn-primary" disabled={processingId !== null || !buyerPaymentsAvailable}>
-                                    {processingId !== null ? 'Processing...' : buyerPaymentsAvailable ? `Pay R ${cartTotal}` : 'Out of service'}
+                                    {processingId !== null ? 'Processing...' : buyerPaymentsAvailable ? `Pay R ${grandTotal.toFixed(2)}` : 'Out of service'}
                                 </button>
                             </div>
                         </form>

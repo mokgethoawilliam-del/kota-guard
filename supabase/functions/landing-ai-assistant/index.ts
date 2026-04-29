@@ -275,7 +275,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const [{ data: vendor }, { data: menuItems }, { data: locations }] = await Promise.all([
+    const [{ data: vendor }, { data: allMenuItems }, { data: locations }] = await Promise.all([
       supabase
         .from("vendors")
         .select("id, name, branding, payment_config")
@@ -285,7 +285,6 @@ serve(async (req) => {
         .from("menu_items")
         .select("id, name, price, is_available")
         .eq("vendor_id", vendorId)
-        .eq("is_available", true)
         .order("price"),
       supabase
         .from("locations")
@@ -298,6 +297,9 @@ serve(async (req) => {
       return jsonResponse({ error: "Vendor not found" }, 404);
     }
 
+    const menuItems = (allMenuItems || []).filter((item) => item.is_available !== false);
+    const effectiveMenuItems = menuItems.length > 0 ? menuItems : (allMenuItems || []);
+
     const recentMessages = messages.slice(-8);
     const prompt = JSON.stringify({
       task:
@@ -306,7 +308,7 @@ serve(async (req) => {
         name: vendor.name,
         branding: vendor.branding || {},
       },
-      menu_items: (menuItems || []).map((item) => ({
+      menu_items: effectiveMenuItems.map((item) => ({
         menu_item_id: item.id,
         name: item.name,
         price: item.price,
@@ -359,7 +361,7 @@ serve(async (req) => {
       assistantResult = fallbackReply({
         vendorName: vendor.name,
         message,
-        menuItems: (menuItems || []).map((item) => ({
+        menuItems: effectiveMenuItems.map((item) => ({
           id: item.id,
           name: item.name,
           price: Number(item.price),
@@ -368,7 +370,7 @@ serve(async (req) => {
       });
     }
 
-    const validMenuIds = new Set((menuItems || []).map((item) => item.id));
+    const validMenuIds = new Set(effectiveMenuItems.map((item) => item.id));
     const sanitizedDraftCart = Array.isArray(assistantResult.draft_cart)
       ? assistantResult.draft_cart
           .filter((item) => validMenuIds.has(item.menu_item_id))

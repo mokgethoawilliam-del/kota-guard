@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../src/supabaseClient';
 import CustomerMenu from './CustomerMenu';
 import CustomerDashboard from './CustomerDashboard';
+import { getCartCount, requestCheckoutOpen, saveDraftCart } from '../src/customerCart';
 
 function VendorLandingPage() {
     const { vendorSlug } = useParams();
@@ -42,6 +43,10 @@ function VendorLandingPage() {
     const [reservationLoading, setReservationLoading] = useState(false);
     const [reservationSuccess, setReservationSuccess] = useState(false);
     const [isHeroCopyVisible, setIsHeroCopyVisible] = useState(true);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [cartCount, setCartCount] = useState(0);
+    const [cartOpenSignal, setCartOpenSignal] = useState(0);
+    const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 900 : false);
 
     useEffect(() => {
         const fetchVendorData = async () => {
@@ -136,6 +141,24 @@ function VendorLandingPage() {
         };
     }, [view]);
 
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth <= 900);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    useEffect(() => {
+        if (!vendor?.id) return;
+        const syncCartCount = () => setCartCount(getCartCount(vendor.id));
+        syncCartCount();
+        window.addEventListener('storage', syncCartCount);
+        window.addEventListener('vulahub-cart-updated', syncCartCount);
+        return () => {
+            window.removeEventListener('storage', syncCartCount);
+            window.removeEventListener('vulahub-cart-updated', syncCartCount);
+        };
+    }, [vendor?.id]);
+
     
     useEffect(() => {
         if (!vendor?.id) return;
@@ -179,16 +202,12 @@ function VendorLandingPage() {
         };
     }, [vendor?.id]);
 
-    const persistDraftCart = (draftCart) => {
-        if (!vendor?.id || !Array.isArray(draftCart) || draftCart.length === 0) return;
-        const draftKey = `vulahub_draft_cart_${vendor.id}`;
-        localStorage.setItem(draftKey, JSON.stringify(draftCart));
-    };
-
     const openDraftOrder = () => {
         if (!assistantDraftCart.length) return;
-        persistDraftCart(assistantDraftCart);
+        saveDraftCart(vendor.id, assistantDraftCart);
+        requestCheckoutOpen(vendor.id);
         setView('menu');
+        setCartOpenSignal((value) => value + 1);
         setIsChatOpen(false);
     };
 
@@ -366,39 +385,94 @@ function VendorLandingPage() {
         ? `27${whatsappDigits.slice(1)}`
         : whatsappDigits;
     const hasContactSection = Boolean(contactEmail || contactWhatsapp);
+    const showCompactHeader = view !== 'landing';
+    const navLinks = [
+        { label: 'Home', action: () => { setView('landing'); setMobileMenuOpen(false); } },
+        { label: 'Menu', action: () => { setView('menu'); setMobileMenuOpen(false); } },
+        { label: 'Reviews', action: () => { setView('landing'); setMobileMenuOpen(false); setTimeout(() => document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth' }), 60); } },
+        { label: 'Locations', action: () => { setView('landing'); setMobileMenuOpen(false); setTimeout(() => document.getElementById('find-us')?.scrollIntoView({ behavior: 'smooth' }), 60); } },
+        ...(hasContactSection ? [{ label: 'Contact', action: () => { setView('landing'); setMobileMenuOpen(false); setTimeout(() => document.getElementById('contact-us')?.scrollIntoView({ behavior: 'smooth' }), 60); } }] : []),
+    ];
+
+    const openCartFromHeader = () => {
+        if (!vendor?.id) return;
+        requestCheckoutOpen(vendor.id);
+        setView('menu');
+        setMobileMenuOpen(false);
+        setCartOpenSignal((value) => value + 1);
+    };
 
     return (
         <div className="landing-wrapper" style={{ background: '#0f172a', color: '#f8fafc', position: 'relative', minHeight: '100vh' }}>
-            <header className="brand-header" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, background: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(10px)', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                   {view !== 'landing' && (
-                       <button onClick={() => setView('landing')} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '8px', padding: '0.4rem 0.8rem', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                           ← Home
+            <header className="brand-header" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, background: 'rgba(15, 23, 42, 0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: showCompactHeader ? '0.85rem 1rem' : '1rem 1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', minHeight: showCompactHeader ? '76px' : '96px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', minWidth: 0 }}>
+                   {showCompactHeader && !isMobile && (
+                       <button onClick={() => setView('landing')} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '10px', padding: '0.55rem 0.9rem', cursor: 'pointer', fontSize: '0.9rem' }}>
+                           Back
                        </button>
                    )}
-                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', minWidth: 0 }}>
                        {landingLogoUrl ? (
                            <img
                                src={landingLogoUrl}
                                alt={`${vendor.name} logo`}
-                               style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', flexShrink: 0 }}
+                               style={{ width: showCompactHeader ? '44px' : '48px', height: showCompactHeader ? '44px' : '48px', objectFit: 'cover', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', flexShrink: 0 }}
                            />
                        ) : (
-                           <div style={{ width: '48px', height: '48px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary-color)', fontWeight: '800', background: 'rgba(255,255,255,0.04)', flexShrink: 0 }}>
+                           <div style={{ width: showCompactHeader ? '44px' : '48px', height: showCompactHeader ? '44px' : '48px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary-color)', fontWeight: '800', background: 'rgba(255,255,255,0.04)', flexShrink: 0 }}>
                                {(vendor.name || 'V').slice(0, 1).toUpperCase()}
                            </div>
                        )}
-                       <div>
-                           <div className="brand-logo" style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--primary-color)' }}>{vendor.name}</div>
-                           <div className="brand-tagline" style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{branding.tagline || 'Signature Food Experience'}</div>
+                       <div style={{ minWidth: 0 }}>
+                           <div className="brand-logo" style={{ fontSize: showCompactHeader ? '1.15rem' : '1.5rem', fontWeight: 'bold', color: 'var(--primary-color)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: isMobile ? '180px' : 'unset' }}>{vendor.name}</div>
+                           {!showCompactHeader && (
+                               <div className="brand-tagline" style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{branding.tagline || 'Signature Food Experience'}</div>
+                           )}
                        </div>
                    </div>
                 </div>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                    <button className="btn-secondary" onClick={() => setView('dashboard')} style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>Track Order</button>
-                    <button className="btn-primary" onClick={() => setView('menu')} style={{ padding: '0.5rem 1.5rem', fontSize: '0.9rem' }}>Order Online</button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+                    <button type="button" onClick={openCartFromHeader} style={{ position: 'relative', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff', borderRadius: '12px', padding: '0.7rem 0.9rem', cursor: 'pointer', minWidth: '54px', fontWeight: '700' }}>
+                        Cart
+                        {cartCount > 0 && (
+                            <span style={{ position: 'absolute', top: '-8px', right: '-8px', minWidth: '22px', height: '22px', borderRadius: '999px', background: 'var(--color-primary, #00e676)', color: '#000', fontWeight: '800', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 0.35rem' }}>
+                                {cartCount}
+                            </span>
+                        )}
+                    </button>
+                    {!isMobile && (
+                        <>
+                            <button className="btn-secondary" onClick={() => setView('dashboard')} style={{ width: 'auto', padding: '0.7rem 1rem', fontSize: '0.9rem' }}>Track Order</button>
+                            <button className="btn-primary" onClick={() => setView('menu')} style={{ width: 'auto', padding: '0.7rem 1.25rem', fontSize: '0.95rem' }}>Order Online</button>
+                        </>
+                    )}
+                    {isMobile && (
+                        <button type="button" onClick={() => setMobileMenuOpen((open) => !open)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff', borderRadius: '12px', padding: '0.7rem 0.9rem', cursor: 'pointer', fontWeight: '700' }}>
+                            {mobileMenuOpen ? 'Close' : 'Menu'}
+                        </button>
+                    )}
                 </div>
             </header>
+
+            {isMobile && mobileMenuOpen && (
+                <div style={{ position: 'fixed', top: showCompactHeader ? '76px' : '96px', left: '1rem', right: '1rem', zIndex: 99, background: 'rgba(15, 23, 42, 0.98)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '1rem', boxShadow: '0 20px 60px rgba(0,0,0,0.45)' }}>
+                    <div style={{ display: 'grid', gap: '0.75rem' }}>
+                        {showCompactHeader && (
+                            <button type="button" className="btn-secondary" style={{ width: '100%' }} onClick={() => { setView('landing'); setMobileMenuOpen(false); }}>
+                                Home
+                            </button>
+                        )}
+                        {navLinks.map((link) => (
+                            <button key={link.label} type="button" className="btn-secondary" style={{ width: '100%' }} onClick={link.action}>
+                                {link.label}
+                            </button>
+                        ))}
+                        <button type="button" className="btn-secondary" style={{ width: '100%' }} onClick={() => { setView('dashboard'); setMobileMenuOpen(false); }}>
+                            Track Order
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {view === 'landing' && (
                 <div className="landing-page-scroll">
@@ -406,7 +480,7 @@ function VendorLandingPage() {
                         minHeight: '90vh', 
                         display: 'flex', 
                         alignItems: 'center', 
-                        padding: '12rem 2rem 4rem 2rem',
+                        padding: isMobile ? '8.5rem 1rem 4rem 1rem' : '10rem 2rem 4rem 2rem',
                         position: 'relative',
                         background: branding.hero_image ? `linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.7)), url(${branding.hero_image}) center / 100% auto no-repeat` : '#0f172a'
                     }}>
@@ -865,7 +939,13 @@ function VendorLandingPage() {
 
             {view === 'menu' && (
                 <div className="order-flow-wrapper">
-                    <CustomerMenu vendorId={vendor.id} branding={branding} />
+                    <CustomerMenu
+                        vendorId={vendor.id}
+                        vendorName={vendor.name}
+                        branding={branding}
+                        onBack={() => setView('landing')}
+                        cartOpenSignal={cartOpenSignal}
+                    />
                 </div>
             )}
 

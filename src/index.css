@@ -704,9 +704,9 @@ h6 {
   -webkit-backdrop-filter: blur(12px);
   display: flex;
   justify-content: center;
-  align-items: flex-start;
+  align-items: center;
   z-index: 9999;
-  padding: 5rem 1rem 3rem; /* Increased top padding to stay clear of header */
+  padding: 1.5rem;
   overflow-y: auto;
 }
 
@@ -835,7 +835,7 @@ select.form-input option {
 @media (max-width: 768px) {
   .app-container {
     padding: 1.5rem;
-    padding-top: 8rem;
+    padding-top: 6.25rem;
   }
 
   .menu-grid {
@@ -843,21 +843,43 @@ select.form-input option {
   }
 
   .brand-header {
-    padding: 1rem 1.5rem !important;
-    flex-direction: column !important;
+    padding: 0.85rem 1rem !important;
+    flex-direction: row !important;
     gap: 0.75rem !important;
   }
 
   .brand-header > div {
-    display: flex;
-    justify-content: center;
-    width: 100%;
+    width: auto;
   }
 
   .brand-header > div:first-child {
+    flex-direction: row !important;
+    align-items: center !important;
+    text-align: left !important;
+    min-width: 0;
+  }
+
+  .brand-tagline {
+    display: none;
+  }
+
+  .hero-btn {
+    width: 100%;
+    max-width: none !important;
+  }
+
+  .modal-overlay {
+    padding: 1rem;
+  }
+
+  .modal-content {
+    padding: 1.25rem;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+  }
+
+  .modal-actions {
     flex-direction: column;
-    align-items: center;
-    text-align: center;
   }
 }
 
